@@ -82,3 +82,47 @@ func repoLanguage(qc QueryContext, repoID string) (maxLanguage string, err error
 
 	return maxLanguage, nil
 }
+
+func Repo(qc QueryContext, repoFullPath string) (*sdk.SourceCodeRepo, error) {
+
+	sdk.LogDebug(qc.Logger, "repo request", "repo", repoFullPath)
+
+	objectPath := pstrings.JoinURL("projects", url.QueryEscape(repoFullPath))
+
+	var repo struct {
+		CreatedAt     time.Time `json:"created_at"`
+		UpdatedAt     time.Time `json:"last_activity_at"`
+		ID            int64     `json:"id"`
+		FullName      string    `json:"path_with_namespace"`
+		Description   string    `json:"description"`
+		WebURL        string    `json:"web_url"`
+		Archived      bool      `json:"archived"`
+		DefaultBranch string    `json:"default_branch"`
+	}
+
+	_, err := qc.Request(objectPath, nil, &repo)
+	if err != nil {
+		return nil, err
+	}
+
+	refID := strconv.FormatInt(repo.ID, 10)
+	r := &sdk.SourceCodeRepo{
+		ID:            sdk.NewSourceCodeRepoID(qc.CustomerID, refID, qc.RefType),
+		RefID:         refID,
+		RefType:       qc.RefType,
+		CustomerID:    qc.CustomerID,
+		Name:          repo.FullName,
+		URL:           repo.WebURL,
+		DefaultBranch: repo.DefaultBranch,
+		Description:   repo.Description,
+		UpdatedAt:     datetime.TimeToEpoch(repo.UpdatedAt),
+		Active:        !repo.Archived,
+	}
+
+	r.Language, err = repoLanguage(qc, refID)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}

@@ -194,7 +194,7 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 			return false, pi, fmt.Errorf("%s, %s, scopes required: api, read_user, read_repository", errorR.Error, errorR.ErrorDescription)
 		}
 
-		sdk.LogWarn(e.opts.Logger, "gitlab returned invalid status code, retrying", "code", resp.StatusCode, "retry", retryThrottled)
+		sdk.LogWarn(e.opts.Logger, "gitlab returned invalid status code, retrying", "code", resp.StatusCode, "retry", retryThrottled, "url", req.URL.String())
 
 		return true, pi, fmt.Errorf("request with status %d", resp.StatusCode)
 	}

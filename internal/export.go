@@ -24,10 +24,13 @@ func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 
 	sdk.LogDebug(g.logger, "export starting")
 
-	ok, integrationType := export.Config().GetString("ref_type")
+	ok, integrationType := export.Config().GetString("int_type")
 	if !ok {
 		return fmt.Errorf("integration type missing")
 	}
+
+	// TODO: Add suport for multiple test repos
+	_, repo := export.Config().GetString("repo")
 
 	g.pipe = export.Pipe()
 
@@ -38,6 +41,20 @@ func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 	g.setContextConfig(export)
 
 	sdk.LogInfo(g.logger, "export started", "int_type", integrationType)
+
+	if repo != "" {
+		repo, err := api.Repo(g.qc, repo)
+		if err != nil {
+			return err
+		}
+		if err := g.exportRepoAndWrite(repo); err != nil {
+			return err
+		}
+		if err := g.exportPullRequestsFutures(); err != nil {
+			return err
+		}
+		return
+	}
 
 	groups, err := api.GroupsAll(g.qc)
 	if err != nil {
@@ -68,21 +85,37 @@ func (g *GitlabIntegration) exportSourceCode(group string) (rerr error) {
 		return
 	}
 	for _, repo := range repos {
-		if rerr = g.pipe.Write(repo); rerr != nil {
-			return
-		}
-		if rerr = g.exportRepoPullRequests(repo); rerr != nil {
-			return
-		}
-		if rerr = g.exportRepoUsers(repo); rerr != nil {
-			return
-		}
+		g.exportRepoAndWrite(repo)
 	}
 	rerr = g.pipe.Flush()
 	if rerr != nil {
 		return
 	}
-	sdk.LogDebug(g.logger, "remaining pull request commits", "futures count", len(g.pullrequestsFutures))
+	rerr = g.exportPullRequestsFutures()
+	if rerr != nil {
+		return
+	}
+
+	return
+}
+
+func (g *GitlabIntegration) exportRepoAndWrite(repo *sdk.SourceCodeRepo) (rerr error) {
+	if rerr = g.pipe.Write(repo); rerr != nil {
+		return
+	}
+	if rerr = g.exportRepoPullRequests(repo); rerr != nil {
+		return
+	}
+	if rerr = g.exportRepoUsers(repo); rerr != nil {
+		return
+	}
+	return
+}
+
+func (g *GitlabIntegration) exportPullRequestsFutures() (rerr error) {
+
+	sdk.LogDebug(g.logger, "remaining pull requests", "futures count", len(g.pullrequestsFutures))
+
 	for _, f := range g.pullrequestsFutures {
 		rerr = g.exportRemainingRepoPullRequests(f.Repo)
 		if rerr != nil {

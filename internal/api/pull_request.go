@@ -22,7 +22,7 @@ func PullRequestPage(
 	repoRefID string,
 	params url.Values) (pi PageInfo, res []*PullRequest, err error) {
 
-	sdk.LogDebug(qc.Logger, "repo pull requests", "repo", repoRefID)
+	sdk.LogDebug(qc.Logger, "repo pull requests", "repo", repoRefID, "params", params)
 
 	objectPath := pstrings.JoinURL("projects", url.QueryEscape(repoRefID), "merge_requests")
 	params.Set("scope", "all")
