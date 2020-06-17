@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
@@ -10,15 +11,19 @@ import (
 
 // GitlabIntegration is an integration for GitHub
 type GitlabIntegration struct {
-	logger              sdk.Logger
-	config              sdk.Config
-	manager             sdk.Manager
-	client              sdk.GraphQLClient
-	lock                sync.Mutex
-	qc                  api.QueryContext
-	pipe                sdk.Pipe
-	pullrequestsFutures []PullRequestFuture
-	isssueFutures       []IssueFuture
+	logger                     sdk.Logger
+	config                     sdk.Config
+	manager                    sdk.Manager
+	client                     sdk.GraphQLClient
+	lock                       sync.Mutex
+	qc                         api.QueryContext
+	pipe                       sdk.Pipe
+	pullrequestsFutures        []PullRequestFuture
+	isssueFutures              []IssueFuture
+	historical                 bool
+	state                      sdk.State
+	lastExportDate             time.Time
+	lastExportDateGitlabFormat string
 }
 
 var _ sdk.Integration = (*GitlabIntegration)(nil)
@@ -99,8 +104,44 @@ func (g *GitlabIntegration) initRequester(export sdk.Export) (err error) {
 	return
 }
 
-func (g *GitlabIntegration) setContextConfig(export sdk.Export) {
+func (g *GitlabIntegration) setExportConfig(export sdk.Export) {
+
+	g.pipe = export.Pipe()
+
+	_, g.historical = export.Config().GetBool("historical")
+	sdk.LogDebug(g.logger, "historical", "value", g.historical)
+
+	g.state = export.State()
+	g.pipe = export.Pipe()
+
 	g.qc.Logger = g.logger
 	g.qc.RefType = GitlabRefType
 	g.qc.CustomerID = export.CustomerID()
+}
+
+func (g *GitlabIntegration) exportDate(export sdk.Export) (rerr error) {
+
+	if !g.historical {
+		var exportDate string
+		ok, err := g.state.Get("last_export_date", &exportDate)
+		if err != nil {
+			rerr = err
+			return
+		}
+		if !ok {
+			return
+		}
+		lastExportDate, err := time.Parse(time.RFC3339, exportDate)
+		if err != nil {
+			rerr = fmt.Errorf("error formating last export date. date %s err %s", exportDate, err)
+			return
+		}
+
+		g.lastExportDate = lastExportDate
+		g.lastExportDateGitlabFormat = lastExportDate.Format(GitLabDateFormat)
+	}
+
+	sdk.LogDebug(g.logger, "last export date", "date", g.lastExportDate)
+
+	return
 }

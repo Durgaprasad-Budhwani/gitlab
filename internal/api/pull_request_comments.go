@@ -27,6 +27,7 @@ func PullRequestCommentsPage(
 		Body      string    `json:"body"`
 		UpdatedAt time.Time `json:"updated_at"`
 		CreatedAt time.Time `json:"created_at"`
+		System    bool      `json:"system"`
 	}
 
 	pi, err = qc.Request(objectPath, params, &rcomments)
@@ -43,6 +44,9 @@ func PullRequestCommentsPage(
 	pullRequestID := sdk.NewSourceCodePullRequestID(qc.CustomerID, pr.RefID, qc.RefType, repoID)
 
 	for _, rcomment := range rcomments {
+		if rcomment.System {
+			continue
+		}
 		item := &sdk.SourceCodePullRequestComment{}
 		item.CustomerID = qc.CustomerID
 		item.RefType = qc.RefType

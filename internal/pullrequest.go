@@ -2,6 +2,7 @@ package internal
 
 import (
 	"net/url"
+	"time"
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
@@ -74,7 +75,10 @@ func (g *GitlabIntegration) fetchInitialRepoPullRequests(repo *sdk.SourceCodeRep
 }
 
 func (g *GitlabIntegration) fetchRemainingRepoPullRequests(repo *sdk.SourceCodeRepo) (prs []*api.PullRequest, rerr error) {
-	rerr = api.PaginateStartAt(g.logger, "2", func(log sdk.Logger, params url.Values) (pi api.PageInfo, rerr error) {
+	rerr = api.PaginateNewerThan(g.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.PageInfo, rerr error) {
+		if g.lastExportDateGitlabFormat != "" {
+			params.Set("updated_at", g.lastExportDateGitlabFormat)
+		}
 		params.Set("per_page", MaxFetchedEntitiesCount)
 		pi, prs, rerr := api.PullRequestPage(g.qc, repo.RefID, params)
 		if rerr != nil {

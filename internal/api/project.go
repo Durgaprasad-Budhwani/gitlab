@@ -10,7 +10,7 @@ import (
 	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
-func ReposPage(qc QueryContext, groupName string, params url.Values) (page PageInfo, repos []*sdk.SourceCodeRepo, err error) {
+func ReposPage(qc QueryContext, groupName string, params url.Values, stopOnUpdatedAt time.Time) (page PageInfo, repos []*sdk.SourceCodeRepo, err error) {
 
 	sdk.LogDebug(qc.Logger, "repos request", "group", groupName)
 
@@ -35,6 +35,9 @@ func ReposPage(qc QueryContext, groupName string, params url.Values) (page PageI
 	}
 
 	for _, repo := range rr {
+		if repo.UpdatedAt.Before(stopOnUpdatedAt) {
+			return
+		}
 		refID := strconv.FormatInt(repo.ID, 10)
 		repo := &sdk.SourceCodeRepo{
 			ID:            sdk.NewSourceCodeRepoID(qc.CustomerID, refID, qc.RefType),

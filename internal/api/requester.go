@@ -167,15 +167,15 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 
 		sdk.LogWarn(e.opts.Logger, "api request failed due to throttling, the quota of 600 calls has been reached, will sleep for 3m and retry", "retryThrottled", retryThrottled)
 
-		// paused := time.Now()
-		// resumeDate := paused.Add(waitTime)
-		// e.opts.Agent.SendPauseEvent(fmt.Sprintf("gitlab paused, it will resume in %v", waitTime), resumeDate)
+		paused := time.Now()
+		resumeDate := paused.Add(waitTime)
+		sdk.LogWarn(e.opts.Logger, "gitlab paused, it will resume in %v, resume data %v", waitTime, resumeDate)
 
 		time.Sleep(waitTime)
 
-		// e.opts.Agent.SendResumeEvent(fmt.Sprintf("gitlab resumed, time elapsed %v", time.Since(paused)))
+		sdk.LogWarn(e.opts.Logger, fmt.Sprintf("gitlab resumed, time elapsed %v", time.Since(paused)))
 
-		return true, PageInfo{}, fmt.Errorf("Too many requests")
+		return true, PageInfo{}, fmt.Errorf("too many requests")
 
 	}
 

@@ -2,6 +2,7 @@ package internal
 
 import (
 	"net/url"
+	"time"
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
@@ -12,8 +13,9 @@ import (
 type callback func(item *sdk.SourceCodeRepo)
 
 func (g *GitlabIntegration) exportProjectsRepos(group string, appendItem callback) (rerr error) {
-	return api.PaginateStartAt(g.logger, "", func(log sdk.Logger, params url.Values) (pi api.PageInfo, err error) {
-		pi, arr, err := api.ReposPage(g.qc, group, params)
+
+	return api.PaginateNewerThan(g.logger, "", g.lastExportDate, func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (pi api.PageInfo, err error) {
+		pi, arr, err := api.ReposPage(g.qc, group, params, stopOnUpdatedAt)
 		if err != nil {
 			return
 		}

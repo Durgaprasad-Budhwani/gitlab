@@ -34,8 +34,10 @@ func PaginateStartAt(log sdk.Logger, nextPage string, fn PaginateStartAtFn) erro
 
 type PaginateNewerThanFn func(log sdk.Logger, parameters url.Values, stopOnUpdatedAt time.Time) (PageInfo, error)
 
-func PaginateNewerThan(log sdk.Logger, lastProcessed time.Time, fn PaginateNewerThanFn) error {
-	nextPage := "1"
+func PaginateNewerThan(log sdk.Logger, nextPage string, lastProcessed time.Time, fn PaginateNewerThanFn) error {
+	if nextPage == "" {
+		nextPage = "1"
+	}
 	p := url.Values{}
 	p.Set("per_page", "100")
 

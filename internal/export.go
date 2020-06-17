@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
@@ -19,6 +20,9 @@ const GitlabRefType = "gitlab"
 // MaxFetchedEntitiesCount max amount items the gitlab api can retrieve
 const MaxFetchedEntitiesCount = "100"
 
+// GitLabDateFormat gitlab layout to format dates
+const GitLabDateFormat = "2006-01-02T15:04:05.000Z"
+
 // Export is called to tell the integration to run an export
 func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 
@@ -32,13 +36,17 @@ func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 	// TODO: Add suport for multiple test repos
 	_, repo := export.Config().GetString("repo")
 
-	g.pipe = export.Pipe()
-
 	if rerr = g.initRequester(export); rerr != nil {
 		return
 	}
 
-	g.setContextConfig(export)
+	g.setExportConfig(export)
+
+	if rerr = g.exportDate(export); rerr != nil {
+		return
+	}
+
+	exportStartDate := time.Now()
 
 	sdk.LogInfo(g.logger, "export started", "int_type", integrationType)
 
@@ -73,6 +81,8 @@ func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 			return fmt.Errorf("integration type not defined %s", integrationType)
 		}
 	}
+
+	rerr = g.state.Set("last_export_date", exportStartDate.Format(time.RFC3339))
 
 	return
 }
