@@ -59,6 +59,7 @@ func (g *GitlabIntegration) Stop() error {
 func initRequesterConfig(export sdk.Export) (err error, opts api.RequesterOpts) {
 
 	config := export.Config()
+
 	ok, url := config.GetString("url")
 	if !ok {
 		url = "https://gitlab.com/api/v4/"
@@ -70,10 +71,13 @@ func initRequesterConfig(export sdk.Export) (err error, opts api.RequesterOpts) 
 		return
 	}
 
+	_, useRecorder := config.GetBool("recorder")
+
 	opts = api.RequesterOpts{
 		APIURL:             url,
 		APIKey:             apikey,
 		InsecureSkipVerify: true,
+		UseRecorder:        useRecorder,
 	}
 
 	return

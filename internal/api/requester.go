@@ -26,7 +26,8 @@ type RequesterOpts struct {
 	InsecureSkipVerify bool
 	// ServerType         ServerType
 	// Concurrency        chan bool
-	client *http.Client
+	client      *http.Client
+	UseRecorder bool // used for development only
 }
 
 // NewRequester new requester
@@ -130,14 +131,16 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 		u += "?" + r.Params.Encode()
 	}
 
-	rr, err := recorder.New("fixtures/" + u)
-	if err != nil {
-		rerr = err
-		return
-	}
-	defer rr.Stop()
+	if e.opts.UseRecorder {
+		rr, err := recorder.New("fixtures/" + u)
+		if err != nil {
+			rerr = err
+			return
+		}
+		defer rr.Stop()
 
-	e.opts.client.Transport = rr
+		e.opts.client.Transport = rr
+	}
 
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {

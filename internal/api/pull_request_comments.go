@@ -15,7 +15,7 @@ func PullRequestCommentsPage(
 	pr *PullRequest,
 	params url.Values) (pi PageInfo, res []*sdk.SourceCodePullRequestComment, err error) {
 
-	sdk.LogDebug(qc.Logger, "pull request commits", "repo", repo.Name, "ref_id", repo.RefID)
+	sdk.LogDebug(qc.Logger, "pull request comments", "repo", repo.Name, "ref_id", repo.RefID)
 
 	objectPath := pstrings.JoinURL("projects", url.QueryEscape(repo.RefID), "merge_requests", pr.IID, "notes")
 
