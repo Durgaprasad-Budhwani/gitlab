@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/go-common/v10/datetime"
 	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
@@ -57,7 +58,7 @@ func PullRequestReviewsPage(
 		item.PullRequestID = pullRequestID
 		item.State = sdk.SourceCodePullRequestReviewStateApproved
 
-		ConvertToModel(rreview.CreatedAt, &item.CreatedDate)
+		datetime.ConvertToModel(rreview.CreatedAt, &item.CreatedDate)
 
 		item.UserRefID = a.User.Username
 
@@ -73,7 +74,7 @@ func PullRequestReviewsPage(
 		item.PullRequestID = pullRequestID
 		item.State = sdk.SourceCodePullRequestReviewStatePending
 
-		ConvertToModel(rreview.CreatedAt, &item.CreatedDate)
+		datetime.ConvertToModel(rreview.CreatedAt, &item.CreatedDate)
 
 		item.UserRefID = a.User.Username
 

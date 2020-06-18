@@ -2,6 +2,7 @@ package internal
 
 import (
 	"net/url"
+	"time"
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
@@ -29,7 +30,11 @@ func (g *GitlabIntegration) exportProjectIssues(project *sdk.WorkProject, users 
 
 func (g *GitlabIntegration) fetchInitialProjectIssues(project *sdk.WorkProject) (pi api.PageInfo, res []*sdk.WorkIssue, rerr error) {
 	params := url.Values{}
-	params.Set("per_page", "10")
+	params.Set("per_page", MaxFetchedEntitiesCount)
+
+	if g.lastExportDateGitlabFormat != "" {
+		params.Set("updated_after", g.lastExportDateGitlabFormat)
+	}
 
 	return api.WorkIssuesPage(g.qc, project, params)
 }
@@ -46,17 +51,11 @@ func (g *GitlabIntegration) exportIssueEntitiesAndWrite(project *sdk.WorkProject
 		if err != nil {
 			return err
 		}
-	}
-
-	return g.writeIssues(issues)
-}
-
-func (g *GitlabIntegration) writeIssues(issues []*sdk.WorkIssue) (rerr error) {
-	for _, issue := range issues {
-		if err := g.pipe.Write(issue); err != nil {
+		if err = g.pipe.Write(issue); err != nil {
 			return err
 		}
 	}
+
 	return
 }
 
@@ -73,7 +72,10 @@ func (g *GitlabIntegration) exportRemainingProjectIssues(project *sdk.WorkProjec
 }
 
 func (g *GitlabIntegration) fetchRemainingProjectIssues(project *sdk.WorkProject) (issues []*sdk.WorkIssue, rerr error) {
-	rerr = api.PaginateStartAt(g.logger, "2", func(log sdk.Logger, params url.Values) (pi api.PageInfo, rerr error) {
+	rerr = api.PaginateNewerThan(g.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.PageInfo, rerr error) {
+		if g.lastExportDateGitlabFormat != "" {
+			params.Set("updated_after", g.lastExportDateGitlabFormat)
+		}
 		params.Set("per_page", MaxFetchedEntitiesCount)
 		pi, issues, rerr := api.WorkIssuesPage(g.qc, project, params)
 		if rerr != nil {

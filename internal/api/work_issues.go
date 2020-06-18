@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/go-common/v10/datetime"
 	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 func WorkIssuesPage(qc QueryContext, project *sdk.WorkProject, params url.Values) (pi PageInfo, res []*sdk.WorkIssue, err error) {
 
-	sdk.LogDebug(qc.Logger, "work issues", "project", project.RefID)
+	sdk.LogDebug(qc.Logger, "work issues", "project", project.Name, "project_ref_id", project.RefID, "params", params)
 
 	objectPath := pstrings.JoinURL("projects", url.QueryEscape(project.RefID), "issues")
 
@@ -53,30 +54,21 @@ func WorkIssuesPage(qc QueryContext, project *sdk.WorkProject, params url.Values
 		item.Type = "Issue"
 		item.URL = rawissue.WebURL
 
-		ConvertToModel(rawissue.CreatedAt, &item.CreatedDate)
-		ConvertToModel(rawissue.UpdatedAt, &item.UpdatedDate)
+		datetime.ConvertToModel(rawissue.CreatedAt, &item.CreatedDate)
+		datetime.ConvertToModel(rawissue.UpdatedAt, &item.UpdatedDate)
 
 		item.SprintIds = []string{sdk.NewWorkSprintID(qc.CustomerID, strconv.FormatInt(int64(rawissue.Milestone.Iid), 10), qc.RefType)}
 		duedate, err := time.Parse("2006-01-02", rawissue.Milestone.DueDate)
 		if err != nil {
 			duedate = time.Time{}
 		}
-		ConvertToModel(duedate, &item.PlannedEndDate)
+		datetime.ConvertToModel(duedate, &item.PlannedEndDate)
 
 		startdate, err := time.Parse("2006-01-02", rawissue.Milestone.StartDate)
 		if err != nil {
 			startdate = time.Time{}
 		}
-		ConvertToModel(startdate, &item.PlannedStartDate)
-		// err = PaginateStartAt(qc.Logger, func(log hclog.Logger, paginationParams url.Values) (page PageInfo, _ error) {
-		// 	pi, changelogs, comments, err := WorkIssuesDiscussionsPage(qc, projectID, fmt.Sprint(rawissue.Iid), usermap, paginationParams)
-		// 	if err != nil {
-		// 		return page, err
-		// 	}
-		// 	item.ChangeLog = append(item.ChangeLog, changelogs...)
-		// 	commentChan <- comments
-		// 	return pi, nil
-		// })
+		datetime.ConvertToModel(startdate, &item.PlannedStartDate)
 
 		res = append(res, item)
 	}

@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/url"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -78,10 +77,10 @@ func PullRequestPage(
 		pr.Description = rpr.Description
 		pr.URL = rpr.WebURL
 		pr.Identifier = rpr.References.Short
-		ConvertToModel(rpr.CreatedAt, &pr.CreatedDate)
-		ConvertToModel(rpr.MergedAt, &pr.MergedDate)
-		ConvertToModel(rpr.ClosedAt, &pr.ClosedDate)
-		ConvertToModel(rpr.UpdatedAt, &pr.UpdatedDate)
+		datetime.ConvertToModel(rpr.CreatedAt, &pr.CreatedDate)
+		datetime.ConvertToModel(rpr.MergedAt, &pr.MergedDate)
+		datetime.ConvertToModel(rpr.ClosedAt, &pr.ClosedDate)
+		datetime.ConvertToModel(rpr.UpdatedAt, &pr.UpdatedDate)
 		switch rpr.State {
 		case "opened":
 			pr.Status = sdk.SourceCodePullRequestStatusOpen
@@ -108,22 +107,4 @@ func PullRequestPage(
 	}
 
 	return
-}
-
-// ConvertToModel will fill dateModel based on passed time
-func ConvertToModel(ts time.Time, dateModel interface{}) {
-	if ts.IsZero() {
-		return
-	}
-
-	date, err := datetime.NewDateWithTime(ts)
-	if err != nil {
-		// this will never happen NewDateWithTime, always returns nil
-		panic(err)
-	}
-
-	t := reflect.ValueOf(dateModel).Elem()
-	t.FieldByName("Rfc3339").Set(reflect.ValueOf(date.Rfc3339))
-	t.FieldByName("Epoch").Set(reflect.ValueOf(date.Epoch))
-	t.FieldByName("Offset").Set(reflect.ValueOf(date.Offset))
 }

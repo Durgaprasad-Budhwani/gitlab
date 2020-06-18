@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/go-common/v10/datetime"
 	"github.com/pinpt/go-common/v10/hash"
 	pstrings "github.com/pinpt/go-common/v10/strings"
 )
@@ -50,7 +51,7 @@ func PullRequestCommitsPage(
 			return pi, res, err
 		}
 		item.URL = url.Scheme + "://" + url.Hostname() + "/" + repo.Name + "/commit/" + rcommit.ID
-		ConvertToModel(rcommit.CreatedAt, &item.CreatedDate)
+		datetime.ConvertToModel(rcommit.CreatedAt, &item.CreatedDate)
 
 		item.AuthorRefID = CodeCommitEmail(qc.CustomerID, rcommit.AuthorEmail)
 		item.CommitterRefID = CodeCommitEmail(qc.CustomerID, rcommit.CommitterEmail)

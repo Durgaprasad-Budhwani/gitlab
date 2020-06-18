@@ -53,16 +53,15 @@ func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 	sdk.LogInfo(g.logger, "export started", "int_type", integrationType)
 
 	if repo != "" {
-		repo, err := api.Repo(g.qc, repo)
-		if err != nil {
-			return err
+		switch integrationType {
+		case IntegrationSourceCodeType:
+			g.exportIndividualRepo(repo)
+		case IntegrationWorkType:
+			g.exportIndividualProject(repo)
+		default:
+			return fmt.Errorf("integration type not defined %s", integrationType)
 		}
-		if err := g.exportRepoAndWrite(repo); err != nil {
-			return err
-		}
-		if err := g.exportPullRequestsFutures(); err != nil {
-			return err
-		}
+
 		rerr = g.state.Set(lastExportKey, exportStartDate.Format(time.RFC3339))
 		return
 	}
@@ -98,7 +97,10 @@ func (g *GitlabIntegration) exportSourceCode(group string) (rerr error) {
 		return
 	}
 	for _, repo := range repos {
-		g.exportRepoAndWrite(repo)
+		err := g.exportRepoAndWrite(repo)
+		if err != nil {
+			sdk.LogError(g.logger, "error exporting repo", "repo", repo.Name, "repo_refid", repo.RefID, "err", err)
+		}
 	}
 	rerr = g.pipe.Flush()
 	if rerr != nil {
@@ -125,12 +127,45 @@ func (g *GitlabIntegration) exportRepoAndWrite(repo *sdk.SourceCodeRepo) (rerr e
 	return
 }
 
+func (g *GitlabIntegration) exportProjectAndWrite(project *sdk.WorkProject, projectUsersMap map[string]api.UsernameMap) (rerr error) {
+	if rerr = g.pipe.Write(project); rerr != nil {
+		return
+	}
+	users, err := g.exportProjectUsers(project)
+	if err != nil {
+		rerr = err
+		return
+	}
+	projectUsersMap[project.RefID] = users
+	if rerr = g.exportProjectIssues(project, users); rerr != nil {
+		return
+	}
+	if rerr = g.exportProjectSprints(project); rerr != nil {
+		return
+	}
+	return
+}
+
 func (g *GitlabIntegration) exportPullRequestsFutures() (rerr error) {
 
 	sdk.LogDebug(g.logger, "remaining pull requests", "futures count", len(g.pullrequestsFutures))
 
 	for _, f := range g.pullrequestsFutures {
 		rerr = g.exportRemainingRepoPullRequests(f.Repo)
+		if rerr != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func (g *GitlabIntegration) exportIssuesFutures(projectUsersMap map[string]api.UsernameMap) (rerr error) {
+
+	sdk.LogDebug(g.logger, "remaining issues", "futures count", len(g.isssueFutures))
+
+	for _, f := range g.isssueFutures {
+		rerr = g.exportRemainingProjectIssues(f.Project, projectUsersMap[f.Project.RefID])
 		if rerr != nil {
 			return
 		}
@@ -146,22 +181,11 @@ func (g *GitlabIntegration) exportWork(group string) (rerr error) {
 		rerr = err
 		return
 	}
-	ProjectUsersMap := make(map[string]api.UsernameMap)
+	projectUsersMap := make(map[string]api.UsernameMap)
 	for _, project := range projects {
-		if rerr = g.pipe.Write(project); rerr != nil {
-			return
-		}
-		users, err := g.exportProjectUsers(project)
+		err := g.exportProjectAndWrite(project, projectUsersMap)
 		if err != nil {
-			rerr = err
-			return
-		}
-		ProjectUsersMap[project.RefID] = users
-		if rerr = g.exportProjectIssues(project, users); rerr != nil {
-			return
-		}
-		if rerr = g.exportProjectSprints(project); rerr != nil {
-			return
+			sdk.LogError(g.logger, "error exporting project", "project", project.Name, "project_refid", project.RefID, "err", err)
 		}
 	}
 	rerr = g.pipe.Flush()
@@ -169,11 +193,42 @@ func (g *GitlabIntegration) exportWork(group string) (rerr error) {
 		return
 	}
 	sdk.LogDebug(g.logger, "remaining project issues", "futures count", len(g.isssueFutures))
-	for _, f := range g.isssueFutures {
-		rerr = g.exportRemainingProjectIssues(f.Project, ProjectUsersMap[f.Project.RefID])
-		if rerr != nil {
-			return
-		}
+	rerr = g.exportIssuesFutures(projectUsersMap)
+	if rerr != nil {
+		return
+	}
+
+	return
+}
+
+func (g *GitlabIntegration) exportIndividualRepo(r string) (rerr error) {
+
+	repo, err := api.Repo(g.qc, r)
+	if err != nil {
+		return err
+	}
+	if err := g.exportRepoAndWrite(repo); err != nil {
+		return err
+	}
+	if err := g.exportPullRequestsFutures(); err != nil {
+		return err
+	}
+
+	return
+}
+
+func (g *GitlabIntegration) exportIndividualProject(p string) (rerr error) {
+
+	project, err := api.Repo(g.qc, p)
+	if err != nil {
+		return err
+	}
+	projectUsersMap := make(map[string]api.UsernameMap)
+	if err := g.exportProjectAndWrite(ToProject(project), projectUsersMap); err != nil {
+		return err
+	}
+	if err := g.exportIssuesFutures(projectUsersMap); err != nil {
+		return err
 	}
 
 	return

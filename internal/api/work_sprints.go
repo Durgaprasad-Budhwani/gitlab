@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/go-common/v10/datetime"
 	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 func WorkSprintPage(qc QueryContext, project *sdk.WorkProject, params url.Values) (pi PageInfo, res []*sdk.WorkSprint, err error) {
 
-	sdk.LogDebug(qc.Logger, "work sprints", "project", project.RefID)
+	sdk.LogDebug(qc.Logger, "work sprints", "project", project.Name, "project_ref_id", project.RefID, "params", params)
 
 	objectPath := pstrings.JoinURL("projects", url.QueryEscape(project.RefID), "milestones")
 	var rawsprints []struct {
@@ -40,7 +41,7 @@ func WorkSprintPage(qc QueryContext, project *sdk.WorkProject, params url.Values
 
 		start, err := time.Parse("2006-01-02", rawsprint.StartDate)
 		if err == nil {
-			ConvertToModel(start, &item.StartedDate)
+			datetime.ConvertToModel(start, &item.StartedDate)
 		} else {
 			if rawsprint.StartDate != "" {
 				sdk.LogError(qc.Logger, "could not figure out start date, skipping sprint object", "err", err, "start_date", rawsprint.StartDate)
@@ -49,7 +50,7 @@ func WorkSprintPage(qc QueryContext, project *sdk.WorkProject, params url.Values
 		}
 		end, err := time.Parse("2006-01-02", rawsprint.DueDate)
 		if err == nil {
-			ConvertToModel(end, &item.EndedDate)
+			datetime.ConvertToModel(end, &item.EndedDate)
 		} else {
 			if rawsprint.DueDate != "" {
 				sdk.LogError(qc.Logger, "could not figure out due date, skipping sprint object", "err", err, "due_date", rawsprint.DueDate)
@@ -58,7 +59,7 @@ func WorkSprintPage(qc QueryContext, project *sdk.WorkProject, params url.Values
 		}
 
 		if rawsprint.State == "closed" {
-			ConvertToModel(rawsprint.UpdatedAt, &item.CompletedDate)
+			datetime.ConvertToModel(rawsprint.UpdatedAt, &item.CompletedDate)
 			item.Status = sdk.WorkSprintStatusClosed
 		} else {
 			if !start.IsZero() && start.After(time.Now()) {

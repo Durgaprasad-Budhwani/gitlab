@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/go-common/v10/datetime"
 	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
@@ -52,12 +53,12 @@ func PullRequestCommentsPage(
 		item.RefType = qc.RefType
 		item.RefID = fmt.Sprint(rcomment.ID)
 		item.URL = pstrings.JoinURL(u.Scheme, "://", u.Hostname(), repo.Name, "merge_requests", pr.IID)
-		ConvertToModel(rcomment.UpdatedAt, &item.UpdatedDate)
+		datetime.ConvertToModel(rcomment.UpdatedAt, &item.UpdatedDate)
 
 		item.RepoID = repoID
 		item.PullRequestID = pullRequestID
 		item.Body = rcomment.Body
-		ConvertToModel(rcomment.CreatedAt, &item.CreatedDate)
+		datetime.ConvertToModel(rcomment.CreatedAt, &item.CreatedDate)
 
 		item.UserRefID = rcomment.Author.Username
 		res = append(res, item)
