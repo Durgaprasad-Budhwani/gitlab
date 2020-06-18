@@ -15,7 +15,7 @@ func PullRequestReviewsPage(
 	pr PullRequest,
 	params url.Values) (pi PageInfo, res []*sdk.SourceCodePullRequestReview, err error) {
 
-	sdk.LogDebug(qc.Logger, "pull request reviews", "repo", repo.Name, "prID", pr.ID, "prIID", pr.IID, "params", params)
+	sdk.LogDebug(qc.Logger, "pull request reviews", "repo", repo.Name, "ref_id", repo.RefID, "prIID", pr.IID, "params", params)
 
 	objectPath := pstrings.JoinURL("projects", repo.RefID, "merge_requests", pr.IID, "approvals")
 

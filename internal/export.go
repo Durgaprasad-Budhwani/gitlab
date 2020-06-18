@@ -33,6 +33,8 @@ func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 		return fmt.Errorf("integration type missing")
 	}
 
+	lastExportKey := integrationType + "@last_export_date"
+
 	// TODO: Add suport for multiple test repos
 	_, repo := export.Config().GetString("repo")
 
@@ -42,7 +44,7 @@ func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 
 	g.setExportConfig(export)
 
-	if rerr = g.exportDate(export); rerr != nil {
+	if rerr = g.exportDate(export, lastExportKey); rerr != nil {
 		return
 	}
 
@@ -61,7 +63,7 @@ func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 		if err := g.exportPullRequestsFutures(); err != nil {
 			return err
 		}
-		rerr = g.state.Set("last_export_date", exportStartDate.Format(time.RFC3339))
+		rerr = g.state.Set(lastExportKey, exportStartDate.Format(time.RFC3339))
 		return
 	}
 
@@ -83,7 +85,7 @@ func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 		}
 	}
 
-	rerr = g.state.Set("last_export_date", exportStartDate.Format(time.RFC3339))
+	rerr = g.state.Set(lastExportKey, exportStartDate.Format(time.RFC3339))
 
 	return
 }

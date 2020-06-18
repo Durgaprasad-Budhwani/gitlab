@@ -120,11 +120,11 @@ func (g *GitlabIntegration) setExportConfig(export sdk.Export) {
 	g.qc.CustomerID = export.CustomerID()
 }
 
-func (g *GitlabIntegration) exportDate(export sdk.Export) (rerr error) {
+func (g *GitlabIntegration) exportDate(export sdk.Export, lastExportKey string) (rerr error) {
 
 	if !g.historical {
 		var exportDate string
-		ok, err := g.state.Get("last_export_date", &exportDate)
+		ok, err := g.state.Get(lastExportKey, &exportDate)
 		if err != nil {
 			rerr = err
 			return
