@@ -7,7 +7,7 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-func (g *GitlabIntegration) exportIssueDiscussions(project *sdk.WorkProject, issue *sdk.WorkIssue, projectUsers api.UsernameMap) (rerr error) {
+func (g *GitlabIntegration) exportIssueDiscussions(project *sdk.WorkProject, issue sdk.WorkIssue, projectUsers api.UsernameMap) (rerr error) {
 	sdk.LogDebug(g.logger, "exporting issue changelog", "issue", issue.Identifier)
 
 	changelogs, err := g.fetchIssueDiscussions(project, issue, projectUsers)
@@ -20,7 +20,7 @@ func (g *GitlabIntegration) exportIssueDiscussions(project *sdk.WorkProject, iss
 	return
 }
 
-func (g *GitlabIntegration) fetchIssueDiscussions(project *sdk.WorkProject, issue *sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, rerr error) {
+func (g *GitlabIntegration) fetchIssueDiscussions(project *sdk.WorkProject, issue sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, rerr error) {
 
 	rerr = api.PaginateStartAt(g.logger, "", func(log sdk.Logger, params url.Values) (pi api.PageInfo, rerr error) {
 		params.Set("per_page", MaxFetchedEntitiesCount)

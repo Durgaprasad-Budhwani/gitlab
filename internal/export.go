@@ -118,9 +118,7 @@ func (g *GitlabIntegration) exportRepoAndWrite(repo *sdk.SourceCodeRepo) (rerr e
 	if rerr = g.pipe.Write(repo); rerr != nil {
 		return
 	}
-	if rerr = g.exportRepoPullRequests(repo); rerr != nil {
-		return
-	}
+	g.exportRepoPullRequests(repo)
 	if rerr = g.exportRepoUsers(repo); rerr != nil {
 		return
 	}
@@ -137,9 +135,7 @@ func (g *GitlabIntegration) exportProjectAndWrite(project *sdk.WorkProject, proj
 		return
 	}
 	projectUsersMap[project.RefID] = users
-	if rerr = g.exportProjectIssues(project, users); rerr != nil {
-		return
-	}
+	g.exportProjectIssues(project, users)
 	if rerr = g.exportProjectSprints(project); rerr != nil {
 		return
 	}
@@ -151,10 +147,7 @@ func (g *GitlabIntegration) exportPullRequestsFutures() (rerr error) {
 	sdk.LogDebug(g.logger, "remaining pull requests", "futures count", len(g.pullrequestsFutures))
 
 	for _, f := range g.pullrequestsFutures {
-		rerr = g.exportRemainingRepoPullRequests(f.Repo)
-		if rerr != nil {
-			return
-		}
+		g.exportRemainingRepoPullRequests(f.Repo)
 	}
 
 	return
@@ -165,10 +158,7 @@ func (g *GitlabIntegration) exportIssuesFutures(projectUsersMap map[string]api.U
 	sdk.LogDebug(g.logger, "remaining issues", "futures count", len(g.isssueFutures))
 
 	for _, f := range g.isssueFutures {
-		rerr = g.exportRemainingProjectIssues(f.Project, projectUsersMap[f.Project.RefID])
-		if rerr != nil {
-			return
-		}
+		g.exportRemainingProjectIssues(f.Project, projectUsersMap[f.Project.RefID])
 	}
 
 	return

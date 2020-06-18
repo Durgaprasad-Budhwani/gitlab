@@ -2,6 +2,7 @@ package internal
 
 import (
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
@@ -11,24 +12,36 @@ import (
 // IssueFuture issues will process later
 type IssueFuture struct {
 	Project *sdk.WorkProject
-	Page    api.PageInfo
 }
 
-func (g *GitlabIntegration) exportProjectIssues(project *sdk.WorkProject, users api.UsernameMap) error {
+func (g *GitlabIntegration) exportProjectIssues(project *sdk.WorkProject, users api.UsernameMap) {
 
 	sdk.LogDebug(g.logger, "issues", "project", project.Name)
 
-	page, issues, err := g.fetchInitialProjectIssues(project)
-	if err != nil {
-		return err
-	}
+	issuesC := make(chan sdk.WorkIssue, 10)
 
+	done := make(chan bool, 1)
+	go func() {
+		g.exportIssueEntitiesAndWrite(project, issuesC, users)
+		done <- true
+	}()
+
+	page := &api.PageInfo{}
+	go func() {
+		defer close(issuesC)
+		var err error
+		*page, err = g.fetchInitialProjectIssues(project, issuesC)
+		if err != nil {
+			sdk.LogError(g.logger, "error initial issues", "project", project.Name, "err", err)
+			done <- true
+		}
+	}()
+
+	<-done
 	g.addIssueFuture(project, page)
-
-	return g.exportIssueEntitiesAndWrite(project, issues, users)
 }
 
-func (g *GitlabIntegration) fetchInitialProjectIssues(project *sdk.WorkProject) (pi api.PageInfo, res []*sdk.WorkIssue, rerr error) {
+func (g *GitlabIntegration) fetchInitialProjectIssues(project *sdk.WorkProject, issues chan sdk.WorkIssue) (pi api.PageInfo, rerr error) {
 	params := url.Values{}
 	params.Set("per_page", MaxFetchedEntitiesCount)
 
@@ -36,55 +49,70 @@ func (g *GitlabIntegration) fetchInitialProjectIssues(project *sdk.WorkProject) 
 		params.Set("updated_after", g.lastExportDateGitlabFormat)
 	}
 
-	return api.WorkIssuesPage(g.qc, project, params)
+	return api.WorkIssuesPage(g.qc, project, params, issues)
 }
 
-func (g *GitlabIntegration) addIssueFuture(project *sdk.WorkProject, page api.PageInfo) {
-	if page.NextPage != "" {
-		g.isssueFutures = append(g.isssueFutures, IssueFuture{project, page})
+func (g *GitlabIntegration) addIssueFuture(project *sdk.WorkProject, page *api.PageInfo) {
+	if page != nil && page.NextPage != "" {
+		g.isssueFutures = append(g.isssueFutures, IssueFuture{project})
 	}
 }
 
-func (g *GitlabIntegration) exportIssueEntitiesAndWrite(project *sdk.WorkProject, issues []*sdk.WorkIssue, users api.UsernameMap) (err error) {
-	for _, issue := range issues {
-		err = g.exportIssueDiscussions(project, issue, users)
-		if err != nil {
-			return err
-		}
-		if err = g.pipe.Write(issue); err != nil {
-			return err
-		}
+func (g *GitlabIntegration) exportIssueEntitiesAndWrite(project *sdk.WorkProject, issues chan sdk.WorkIssue, users api.UsernameMap) {
+
+	var wg sync.WaitGroup
+
+	for issue := range issues {
+		wg.Add(1)
+		go func(issue sdk.WorkIssue) {
+			defer wg.Done()
+			err := g.exportIssueDiscussions(project, issue, users)
+			if err != nil {
+				sdk.LogError(g.logger, "error on issue changelog", "err", err)
+			}
+			if err = g.pipe.Write(&issue); err != nil {
+				sdk.LogError(g.logger, "error writting pr", "err", err)
+			}
+		}(issue)
 	}
+
+	wg.Wait()
 
 	return
 }
 
-func (g *GitlabIntegration) exportRemainingProjectIssues(project *sdk.WorkProject, users api.UsernameMap) error {
+func (g *GitlabIntegration) exportRemainingProjectIssues(project *sdk.WorkProject, users api.UsernameMap) {
 
 	sdk.LogDebug(g.logger, "remaining issues", "project", project.Name)
 
-	issues, err := g.fetchRemainingProjectIssues(project)
-	if err != nil {
-		return err
-	}
+	issuesC := make(chan sdk.WorkIssue, 10)
 
-	return g.exportIssueEntitiesAndWrite(project, issues, users)
+	done := make(chan bool, 1)
+	go func() {
+		g.exportIssueEntitiesAndWrite(project, issuesC, users)
+		done <- true
+	}()
+
+	go func() {
+		defer close(issuesC)
+		var err error
+		err = g.fetchRemainingProjectIssues(project, issuesC)
+		if err != nil {
+			sdk.LogError(g.logger, "error remaining  issues", "project", project.Name, "err", err)
+			done <- true
+		}
+	}()
+
+	<-done
 }
 
-func (g *GitlabIntegration) fetchRemainingProjectIssues(project *sdk.WorkProject) (issues []*sdk.WorkIssue, rerr error) {
-	rerr = api.PaginateNewerThan(g.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.PageInfo, rerr error) {
+func (g *GitlabIntegration) fetchRemainingProjectIssues(project *sdk.WorkProject, pissues chan sdk.WorkIssue) (rerr error) {
+	return api.PaginateNewerThan(g.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.PageInfo, rerr error) {
 		if g.lastExportDateGitlabFormat != "" {
 			params.Set("updated_after", g.lastExportDateGitlabFormat)
 		}
 		params.Set("per_page", MaxFetchedEntitiesCount)
-		pi, issues, rerr := api.WorkIssuesPage(g.qc, project, params)
-		if rerr != nil {
-			return
-		}
-		for _, issue := range issues {
-			issues = append(issues, issue)
-		}
+		pi, rerr = api.WorkIssuesPage(g.qc, project, params, pissues)
 		return
 	})
-	return
 }

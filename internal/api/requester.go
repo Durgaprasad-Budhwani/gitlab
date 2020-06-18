@@ -121,6 +121,7 @@ const maxThrottledRetries = 3
 type errorResponse struct {
 	Error            string `json:"error"`
 	ErrorDescription string `json:"error_description"`
+	Message          string `json:"message"`
 }
 
 func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetryable bool, pi PageInfo, rerr error) {
@@ -187,10 +188,13 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 		if resp.StatusCode == http.StatusForbidden {
 
 			var errorR *errorResponse
-
 			er := json.Unmarshal([]byte(b), &errorR)
 			if er != nil {
 				return false, pi, fmt.Errorf("unmarshal error %s", er)
+			}
+
+			if errorR.Message != "" {
+				return false, pi, fmt.Errorf("%s %s", errorR.Message, req.URL.String())
 			}
 
 			return false, pi, fmt.Errorf("%s, %s, scopes required: api, read_user, read_repository", errorR.Error, errorR.ErrorDescription)

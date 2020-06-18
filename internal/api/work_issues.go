@@ -12,7 +12,11 @@ import (
 	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
-func WorkIssuesPage(qc QueryContext, project *sdk.WorkProject, params url.Values) (pi PageInfo, res []*sdk.WorkIssue, err error) {
+func WorkIssuesPage(
+	qc QueryContext,
+	project *sdk.WorkProject,
+	params url.Values,
+	issues chan sdk.WorkIssue) (pi PageInfo, err error) {
 
 	sdk.LogDebug(qc.Logger, "work issues", "project", project.Name, "project_ref_id", project.RefID, "params", params)
 
@@ -34,7 +38,7 @@ func WorkIssuesPage(qc QueryContext, project *sdk.WorkProject, params url.Values
 		} else {
 			identifier = idparts[1] + "-" + fmt.Sprint(rawissue.Iid)
 		}
-		item := &sdk.WorkIssue{}
+		item := sdk.WorkIssue{}
 		item.CustomerID = qc.CustomerID
 		item.RefType = qc.RefType
 		item.RefID = fmt.Sprint(rawissue.Iid)
@@ -70,7 +74,7 @@ func WorkIssuesPage(qc QueryContext, project *sdk.WorkProject, params url.Values
 		}
 		datetime.ConvertToModel(startdate, &item.PlannedStartDate)
 
-		res = append(res, item)
+		issues <- item
 	}
 
 	return

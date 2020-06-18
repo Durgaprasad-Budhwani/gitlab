@@ -14,7 +14,7 @@ import (
 
 func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.WorkProject, issueID string, usermap UsernameMap, params url.Values) (pi PageInfo, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
 
-	sdk.LogDebug(qc.Logger, "work issues changelog", "project", project.Name, "project_ref_id", project.RefID, "params", params)
+	sdk.LogDebug(qc.Logger, "work issues changelog", "project", project.Name, "project_ref_id", project.RefID, "issue", issueID, "params", params)
 	params.Set("notes_filter", "0")
 	params.Set("persist_filter", "true")
 	objectPath := pstrings.JoinURL("projects", url.QueryEscape(project.RefID), "issues", issueID, "discussions.json")

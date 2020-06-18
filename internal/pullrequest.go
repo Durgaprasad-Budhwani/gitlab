@@ -14,7 +14,7 @@ type PullRequestFuture struct {
 	Repo *sdk.SourceCodeRepo
 }
 
-func (g *GitlabIntegration) exportRepoPullRequests(repo *sdk.SourceCodeRepo) error {
+func (g *GitlabIntegration) exportRepoPullRequests(repo *sdk.SourceCodeRepo) {
 
 	sdk.LogDebug(g.logger, "pull requests", "repo", repo.Name)
 
@@ -39,11 +39,9 @@ func (g *GitlabIntegration) exportRepoPullRequests(repo *sdk.SourceCodeRepo) err
 
 	<-done
 	g.addPullRequestFuture(repo, page)
-
-	return nil
 }
 
-func (g *GitlabIntegration) exportRemainingRepoPullRequests(repo *sdk.SourceCodeRepo) (rerr error) {
+func (g *GitlabIntegration) exportRemainingRepoPullRequests(repo *sdk.SourceCodeRepo) {
 
 	sdk.LogDebug(g.logger, "remaining pull requests", "repo", repo.Name)
 
@@ -66,8 +64,6 @@ func (g *GitlabIntegration) exportRemainingRepoPullRequests(repo *sdk.SourceCode
 	}()
 
 	<-done
-
-	return
 }
 
 func (g *GitlabIntegration) exportPullRequestEntitiesAndWrite(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) {
