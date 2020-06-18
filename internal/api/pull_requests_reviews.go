@@ -12,10 +12,10 @@ import (
 func PullRequestReviewsPage(
 	qc QueryContext,
 	repo *sdk.SourceCodeRepo,
-	pr *PullRequest,
+	pr PullRequest,
 	params url.Values) (pi PageInfo, res []*sdk.SourceCodePullRequestReview, err error) {
 
-	sdk.LogDebug(qc.Logger, "pull request reviews", "repo", repo.Name, "prID", pr.ID, "prIID", pr.IID)
+	sdk.LogDebug(qc.Logger, "pull request reviews", "repo", repo.Name, "prID", pr.ID, "prIID", pr.IID, "params", params)
 
 	objectPath := pstrings.JoinURL("projects", repo.RefID, "merge_requests", pr.IID, "approvals")
 

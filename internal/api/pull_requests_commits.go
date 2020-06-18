@@ -12,10 +12,10 @@ import (
 func PullRequestCommitsPage(
 	qc QueryContext,
 	repo *sdk.SourceCodeRepo,
-	pr *PullRequest,
+	pr PullRequest,
 	params url.Values) (pi PageInfo, res []*sdk.SourceCodePullRequestCommit, err error) {
 
-	sdk.LogDebug(qc.Logger, "pull request commits", "repo", repo.Name)
+	sdk.LogDebug(qc.Logger, "pull request commits", "repo", repo.Name, "pr", pr.IID, "params", params)
 
 	objectPath := pstrings.JoinURL("projects", repo.RefID, "merge_requests", pr.IID, "commits")
 

@@ -61,6 +61,7 @@ func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 		if err := g.exportPullRequestsFutures(); err != nil {
 			return err
 		}
+		rerr = g.state.Set("last_export_date", exportStartDate.Format(time.RFC3339))
 		return
 	}
 

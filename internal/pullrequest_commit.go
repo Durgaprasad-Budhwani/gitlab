@@ -7,7 +7,7 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-func (g *GitlabIntegration) fetchPullRequestsCommits(repo *sdk.SourceCodeRepo, pr *api.PullRequest) (commits []*sdk.SourceCodePullRequestCommit, rerr error) {
+func (g *GitlabIntegration) fetchPullRequestsCommits(repo *sdk.SourceCodeRepo, pr api.PullRequest) (commits []*sdk.SourceCodePullRequestCommit, rerr error) {
 	rerr = api.PaginateStartAt(g.logger, "", func(log sdk.Logger, params url.Values) (api.PageInfo, error) {
 		params.Set("per_page", MaxFetchedEntitiesCount)
 		pi, commitsArr, err := api.PullRequestCommitsPage(g.qc, repo, pr, params)
@@ -25,7 +25,7 @@ func (g *GitlabIntegration) fetchPullRequestsCommits(repo *sdk.SourceCodeRepo, p
 
 }
 
-func (g *GitlabIntegration) exportPullRequestCommits(repo *sdk.SourceCodeRepo, pr *api.PullRequest) (rerr error) {
+func (g *GitlabIntegration) exportPullRequestCommits(repo *sdk.SourceCodeRepo, pr api.PullRequest) (rerr error) {
 
 	sdk.LogDebug(g.logger, "exporting pull requests commits", "pr", pr.Identifier)
 

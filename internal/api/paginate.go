@@ -16,7 +16,7 @@ func PaginateStartAt(log sdk.Logger, nextPage string, fn PaginateStartAtFn) erro
 	}
 	for {
 		q := url.Values{}
-		q.Add("page", nextPage)
+		q.Set("page", nextPage)
 		pageInfo, err := fn(log, q)
 		if err != nil {
 			return err
@@ -42,9 +42,9 @@ func PaginateNewerThan(log sdk.Logger, nextPage string, lastProcessed time.Time,
 	p.Set("per_page", "100")
 
 	for {
-		p.Add("page", nextPage)
+		p.Set("page", nextPage)
 		if !lastProcessed.IsZero() {
-			p.Add("order_by", "updated_at")
+			p.Set("order_by", "updated_at")
 		}
 		pageInfo, err := fn(log, p, lastProcessed)
 		if err != nil {

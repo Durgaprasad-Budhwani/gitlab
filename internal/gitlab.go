@@ -83,6 +83,7 @@ func initRequesterConfig(export sdk.Export) (err error, opts api.RequesterOpts) 
 		APIKey:             apikey,
 		InsecureSkipVerify: true,
 		UseRecorder:        useRecorder,
+		Concurrency:        make(chan bool, 10),
 	}
 
 	return
@@ -108,7 +109,7 @@ func (g *GitlabIntegration) setExportConfig(export sdk.Export) {
 
 	g.pipe = export.Pipe()
 
-	_, g.historical = export.Config().GetBool("historical")
+	g.historical = export.Historical()
 	sdk.LogDebug(g.logger, "historical", "value", g.historical)
 
 	g.state = export.State()
@@ -137,8 +138,8 @@ func (g *GitlabIntegration) exportDate(export sdk.Export) (rerr error) {
 			return
 		}
 
-		g.lastExportDate = lastExportDate
-		g.lastExportDateGitlabFormat = lastExportDate.Format(GitLabDateFormat)
+		g.lastExportDate = lastExportDate.UTC()
+		g.lastExportDateGitlabFormat = lastExportDate.UTC().Format(GitLabDateFormat)
 	}
 
 	sdk.LogDebug(g.logger, "last export date", "date", g.lastExportDate)

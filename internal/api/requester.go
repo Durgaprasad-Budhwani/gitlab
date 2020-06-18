@@ -25,7 +25,7 @@ type RequesterOpts struct {
 	// AccessToken        string
 	InsecureSkipVerify bool
 	// ServerType         ServerType
-	// Concurrency        chan bool
+	Concurrency chan bool
 	client      *http.Client
 	UseRecorder bool // used for development only
 }
@@ -79,11 +79,10 @@ type Requester struct {
 
 // MakeRequest make request
 func (e *Requester) MakeRequest(url string, params url.Values, response interface{}) (pi PageInfo, err error) {
-	// TODO: Uncomment once we add concurrency
-	// e.opts.Concurrency <- true
-	// defer func() {
-	// 	<-e.opts.Concurrency
-	// }()
+	e.opts.Concurrency <- true
+	defer func() {
+		<-e.opts.Concurrency
+	}()
 
 	ir := internalRequest{
 		URL:      url,

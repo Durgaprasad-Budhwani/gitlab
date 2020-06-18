@@ -20,7 +20,8 @@ type PullRequest struct {
 func PullRequestPage(
 	qc QueryContext,
 	repoRefID string,
-	params url.Values) (pi PageInfo, res []*PullRequest, err error) {
+	params url.Values,
+	prs chan PullRequest) (pi PageInfo, err error) {
 
 	sdk.LogDebug(qc.Logger, "repo pull requests", "repo", repoRefID, "params", params)
 
@@ -100,10 +101,10 @@ func PullRequestPage(
 		pr.CreatedByRefID = rpr.Author.Username
 		pr.Draft = rpr.Draft
 
-		spr := &PullRequest{}
+		spr := PullRequest{}
 		spr.IID = strconv.FormatInt(rpr.IID, 10)
 		spr.SourceCodePullRequest = pr
-		res = append(res, spr)
+		prs <- spr
 	}
 
 	return
