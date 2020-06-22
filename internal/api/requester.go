@@ -112,8 +112,8 @@ func (e *Requester) makeRequestRetry(req *internalRequest, generalRetry int) (pa
 }
 
 func (e *Requester) setAuthHeader(req *http.Request) {
+	// This works for both auth tokens and apikeys
 	req.Header.Set("Authorization", "bearer "+e.opts.APIKey)
-	// No need to set "Private-Token" header with apikey.
 }
 
 const maxThrottledRetries = 3
