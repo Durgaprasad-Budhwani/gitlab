@@ -65,3 +65,26 @@ func (g *GitlabIntegration) exportUsers(repo *sdk.SourceCodeRepo, callback callB
 		return
 	})
 }
+
+func (g *GitlabIntegration) exportEnterpriseUsers() error {
+	return g.fetchEnterpriseUsers(func(user *sdk.SourceCodeUser) error {
+		return g.pipe.Write(user)
+	})
+}
+
+func (g *GitlabIntegration) fetchEnterpriseUsers(callback callBackSourceUser) (rerr error) {
+	return api.PaginateStartAt(g.logger, "", func(log sdk.Logger, params url.Values) (pi api.PageInfo, err error) {
+		params.Set("per_page", MaxFetchedEntitiesCount)
+		params.Set("membership", "true")
+		pi, arr, err := api.UsersPage(g.qc, params)
+		if err != nil {
+			return
+		}
+		for _, item := range arr {
+			if err = callback(item); err != nil {
+				return
+			}
+		}
+		return
+	})
+}

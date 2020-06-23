@@ -28,21 +28,19 @@ func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 
 	sdk.LogDebug(g.logger, "export starting")
 
+	if rerr = g.setExportConfig(export); rerr != nil {
+		return
+	}
+
+	// TODO: Add suport for multiple test repos
+	_, repo := export.Config().GetString("repo")
+
 	ok, integrationType := export.Config().GetString("int_type")
 	if !ok {
 		return fmt.Errorf("integration type missing")
 	}
 
 	lastExportKey := integrationType + "@last_export_date"
-
-	// TODO: Add suport for multiple test repos
-	_, repo := export.Config().GetString("repo")
-
-	if rerr = g.initRequester(export); rerr != nil {
-		return
-	}
-
-	g.setExportConfig(export)
 
 	if rerr = g.exportDate(export, lastExportKey); rerr != nil {
 		return
@@ -91,6 +89,13 @@ func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 
 func (g *GitlabIntegration) exportSourceCode(group string) (rerr error) {
 
+	if !g.isGitlabCom {
+		if err := g.exportEnterpriseUsers(); err != nil {
+			rerr = err
+			return
+		}
+	}
+
 	repos, err := g.exportRepos(group)
 	if err != nil {
 		rerr = err
@@ -119,8 +124,10 @@ func (g *GitlabIntegration) exportRepoAndWrite(repo *sdk.SourceCodeRepo) (rerr e
 		return
 	}
 	g.exportRepoPullRequests(repo)
-	if rerr = g.exportRepoUsers(repo); rerr != nil {
-		return
+	if g.isGitlabCom {
+		if rerr = g.exportRepoUsers(repo); rerr != nil {
+			return
+		}
 	}
 	return
 }

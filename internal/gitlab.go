@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"net/url"
 	"sync"
 	"time"
 
@@ -24,6 +25,7 @@ type GitlabIntegration struct {
 	state                      sdk.State
 	lastExportDate             time.Time
 	lastExportDateGitlabFormat string
+	isGitlabCom                bool
 }
 
 var _ sdk.Integration = (*GitlabIntegration)(nil)
@@ -90,11 +92,11 @@ func initRequesterConfig(export sdk.Export) (err error, opts api.RequesterOpts) 
 
 }
 
-func (g *GitlabIntegration) initRequester(export sdk.Export) (err error) {
+func (g *GitlabIntegration) setExportConfig(export sdk.Export) (err error) {
 
 	err, config := initRequesterConfig(export)
 	if err != nil {
-		return err
+		return fmt.Errorf("error init requester, err: %s", err)
 	}
 
 	config.Logger = g.logger
@@ -102,12 +104,13 @@ func (g *GitlabIntegration) initRequester(export sdk.Export) (err error) {
 	requester := api.NewRequester(config)
 	g.qc.Request = requester.MakeRequest
 
-	return
-}
-
-func (g *GitlabIntegration) setExportConfig(export sdk.Export) {
-
 	g.pipe = export.Pipe()
+
+	u, err := url.Parse(config.APIURL)
+	if err != nil {
+		return fmt.Errorf("url is not valid: %v", err)
+	}
+	g.isGitlabCom = u.Hostname() == "gitlab.com"
 
 	g.historical = export.Historical()
 	sdk.LogDebug(g.logger, "historical", "value", g.historical)
@@ -118,6 +121,8 @@ func (g *GitlabIntegration) setExportConfig(export sdk.Export) {
 	g.qc.Logger = g.logger
 	g.qc.RefType = GitlabRefType
 	g.qc.CustomerID = export.CustomerID()
+
+	return
 }
 
 func (g *GitlabIntegration) exportDate(export sdk.Export, lastExportKey string) (rerr error) {

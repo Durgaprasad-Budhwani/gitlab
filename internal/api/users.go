@@ -42,7 +42,49 @@ func RepoUsersPage(qc QueryContext, repo *sdk.SourceCodeRepo, params url.Values)
 		sourceUser.URL = pstrings.Pointer(user.WebURL)
 
 		repos = append(repos, &sourceUser)
-		// usermap[user.Username] = sourceUser.RefID
+	}
+
+	return
+}
+
+type User struct {
+	ID        int64
+	Email     string
+	Username  string
+	Name      string
+	AvatarURL string
+	URL       string
+}
+
+func UsersPage(qc QueryContext, params url.Values) (page PageInfo, users []*sdk.SourceCodeUser, err error) {
+
+	sdk.LogDebug(qc.Logger, "users request")
+
+	objectPath := pstrings.JoinURL("/users")
+
+	var rawUsers []UserModel
+
+	page, err = qc.Request(objectPath, params, &rawUsers)
+	if err != nil {
+		return
+	}
+
+	for _, user := range rawUsers {
+		refID := strconv.FormatInt(user.ID, 10)
+		users = append(users, &sdk.SourceCodeUser{
+			ID:         sdk.NewSourceCodeUserID(qc.CustomerID, qc.RefType, refID),
+			Email:      pstrings.Pointer(user.Email),
+			Username:   pstrings.Pointer(user.Username),
+			Name:       user.Name,
+			RefID:      refID,
+			AvatarURL:  pstrings.Pointer(user.AvatarURL),
+			URL:        pstrings.Pointer(user.WebURL),
+			Type:       sdk.SourceCodeUserTypeHuman,
+			Member:     true,
+			CustomerID: qc.CustomerID,
+			RefType:    qc.RefType,
+		})
+
 	}
 
 	return
