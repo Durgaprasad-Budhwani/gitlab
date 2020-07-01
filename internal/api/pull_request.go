@@ -19,15 +19,16 @@ type PullRequest struct {
 
 func PullRequestPage(
 	qc QueryContext,
-	repoRefID string,
+	repo *sdk.SourceCodeRepo,
 	params url.Values,
 	prs chan PullRequest) (pi PageInfo, err error) {
 
-	sdk.LogDebug(qc.Logger, "repo pull requests", "repo", repoRefID, "params", params)
-
-	objectPath := pstrings.JoinURL("projects", url.QueryEscape(repoRefID), "merge_requests")
 	params.Set("scope", "all")
 	params.Set("state", "all")
+
+	sdk.LogDebug(qc.Logger, "repo pull requests", "repo", repo.Name, "repo_id", repo.RefID, "params", params)
+
+	objectPath := pstrings.JoinURL("projects", repo.RefID, "merge_requests")
 
 	var rprs []struct {
 		ID           int64     `json:"id"`
@@ -62,7 +63,7 @@ func PullRequestPage(
 		return
 	}
 
-	repoID := sdk.NewSourceCodeRepoID(qc.CustomerID, repoRefID, qc.RefType)
+	repoID := sdk.NewSourceCodeRepoID(qc.CustomerID, repo.RefID, qc.RefType)
 
 	for _, rpr := range rprs {
 		prRefID := strconv.FormatInt(rpr.ID, 10)

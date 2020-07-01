@@ -115,7 +115,7 @@ func (g *GitlabIntegration) fetchInitialRepoPullRequests(repo *sdk.SourceCodeRep
 		params.Set("updated_after", g.lastExportDateGitlabFormat)
 	}
 
-	return api.PullRequestPage(g.qc, repo.RefID, params, prs)
+	return api.PullRequestPage(g.qc, repo, params, prs)
 }
 
 func (g *GitlabIntegration) fetchRemainingRepoPullRequests(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) (rerr error) {
@@ -124,7 +124,7 @@ func (g *GitlabIntegration) fetchRemainingRepoPullRequests(repo *sdk.SourceCodeR
 			params.Set("updated_after", g.lastExportDateGitlabFormat)
 		}
 		params.Set("per_page", MaxFetchedEntitiesCount)
-		pi, rerr = api.PullRequestPage(g.qc, repo.RefID, params, prs)
+		pi, rerr = api.PullRequestPage(g.qc, repo, params, prs)
 		return
 	})
 	return

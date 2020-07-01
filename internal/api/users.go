@@ -13,7 +13,7 @@ type UsernameMap map[string]string
 
 func RepoUsersPage(qc QueryContext, repo *sdk.SourceCodeRepo, params url.Values) (page PageInfo, repos []*sdk.SourceCodeUser, err error) {
 
-	sdk.LogDebug(qc.Logger, "users request", "repo", repo, "params", params)
+	sdk.LogDebug(qc.Logger, "users request", "repo", repo.Name, "repo_ref_id", repo.RefID, "params", params)
 
 	objectPath := pstrings.JoinURL("projects", url.QueryEscape(repo.RefID), "users")
 

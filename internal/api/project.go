@@ -10,11 +10,13 @@ import (
 	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
-func ReposPage(qc QueryContext, groupName string, params url.Values, stopOnUpdatedAt time.Time) (page PageInfo, repos []*sdk.SourceCodeRepo, err error) {
+func ReposPage(qc QueryContext, group *Group, params url.Values, stopOnUpdatedAt time.Time) (page PageInfo, repos []*sdk.SourceCodeRepo, err error) {
 
-	sdk.LogDebug(qc.Logger, "repos request", "group", groupName)
+	params.Set("with_shared", "no")
 
-	objectPath := pstrings.JoinURL("groups", url.QueryEscape(groupName), "projects")
+	sdk.LogDebug(qc.Logger, "repos request", "group", group.FullPath, "group_id", group.ID, "params", params)
+
+	objectPath := pstrings.JoinURL("groups", group.ID, "projects")
 
 	var rr []struct {
 		CreatedAt     time.Time `json:"created_at"`
@@ -26,8 +28,6 @@ func ReposPage(qc QueryContext, groupName string, params url.Values, stopOnUpdat
 		Archived      bool      `json:"archived"`
 		DefaultBranch string    `json:"default_branch"`
 	}
-
-	params.Set("with_shared", "no")
 
 	page, err = qc.Request(objectPath, params, &rr)
 	if err != nil {

@@ -16,7 +16,7 @@ func PullRequestCommitsPage(
 	pr PullRequest,
 	params url.Values) (pi PageInfo, res []*sdk.SourceCodePullRequestCommit, err error) {
 
-	sdk.LogDebug(qc.Logger, "pull request commits", "repo", repo.Name, "ref_id", repo.RefID, "pr", pr.IID, "params", params)
+	sdk.LogDebug(qc.Logger, "pull request commits", "repo", repo.Name, "repo_ref_id", repo.RefID, "pr_iid", pr.IID, "params", params)
 
 	objectPath := pstrings.JoinURL("projects", repo.RefID, "merge_requests", pr.IID, "commits")
 

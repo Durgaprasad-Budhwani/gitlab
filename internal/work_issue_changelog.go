@@ -8,6 +8,7 @@ import (
 )
 
 func (g *GitlabIntegration) exportIssueDiscussions(project *sdk.WorkProject, issue sdk.WorkIssue, projectUsers api.UsernameMap) (rerr error) {
+
 	sdk.LogDebug(g.logger, "exporting issue changelog", "issue", issue.Identifier)
 
 	changelogs, err := g.fetchIssueDiscussions(project, issue, projectUsers)

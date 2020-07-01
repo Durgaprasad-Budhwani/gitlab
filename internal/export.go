@@ -87,7 +87,7 @@ func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 	return
 }
 
-func (g *GitlabIntegration) exportSourceCode(group string) (rerr error) {
+func (g *GitlabIntegration) exportSourceCode(group *api.Group) (rerr error) {
 
 	if !g.isGitlabCom {
 		if err := g.exportEnterpriseUsers(); err != nil {
@@ -171,7 +171,7 @@ func (g *GitlabIntegration) exportIssuesFutures(projectUsersMap map[string]api.U
 	return
 }
 
-func (g *GitlabIntegration) exportWork(group string) (rerr error) {
+func (g *GitlabIntegration) exportWork(group *api.Group) (rerr error) {
 
 	projects, err := g.exportProjects(group)
 	if err != nil {

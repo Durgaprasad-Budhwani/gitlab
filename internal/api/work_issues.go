@@ -18,13 +18,14 @@ func WorkIssuesPage(
 	params url.Values,
 	issues chan sdk.WorkIssue) (pi PageInfo, err error) {
 
+	params.Set("scope", "all")
+
 	sdk.LogDebug(qc.Logger, "work issues", "project", project.Name, "project_ref_id", project.RefID, "params", params)
 
 	objectPath := pstrings.JoinURL("projects", url.QueryEscape(project.RefID), "issues")
 
 	var rawissues []IssueModel
 
-	params.Set("scope", "all")
 	pi, err = qc.Request(objectPath, params, &rawissues)
 	if err != nil {
 		return
