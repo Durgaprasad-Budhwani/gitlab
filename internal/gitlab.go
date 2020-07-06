@@ -56,6 +56,11 @@ func (g *GitlabIntegration) WebHook(webhook sdk.WebHook) error {
 	return nil
 }
 
+// Mutation is called when a mutation is received on behalf of the integration
+func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) error {
+	return nil
+}
+
 // Stop is called when the integration is shutting down for cleanup
 func (g *GitlabIntegration) Stop() error {
 	sdk.LogInfo(g.logger, "stopping")
