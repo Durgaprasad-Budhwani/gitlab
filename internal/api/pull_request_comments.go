@@ -23,7 +23,7 @@ func PullRequestCommentsPage(
 	var rcomments []struct {
 		ID     int64 `json:"id"`
 		Author struct {
-			Username string `json:"username"`
+			ID string `json:"id"`
 		} `json:"author"`
 		Body      string    `json:"body"`
 		UpdatedAt time.Time `json:"updated_at"`
@@ -60,7 +60,7 @@ func PullRequestCommentsPage(
 		item.Body = rcomment.Body
 		datetime.ConvertToModel(rcomment.CreatedAt, &item.CreatedDate)
 
-		item.UserRefID = rcomment.Author.Username
+		item.UserRefID = rcomment.Author.ID
 		res = append(res, item)
 	}
 

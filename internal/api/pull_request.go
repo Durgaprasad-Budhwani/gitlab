@@ -44,13 +44,13 @@ func PullRequestPage(
 		State        string    `json:"state"`
 		Draft        bool      `json:"work_in_progress"`
 		Author       struct {
-			Username string `json:"username"`
+			ID string `json:"id"`
 		} `json:"author"`
 		ClosedBy struct {
-			Username string `json:"username"`
+			ID string `json:"id"`
 		} `json:"closed_by"`
 		MergedBy struct {
-			Username string `json:"username"`
+			ID string `json:"id"`
 		} `json:"merged_by"`
 		MergeCommitSHA string `json:"merge_commit_sha"`
 		References     struct {
@@ -88,18 +88,18 @@ func PullRequestPage(
 			pr.Status = sdk.SourceCodePullRequestStatusOpen
 		case "closed":
 			pr.Status = sdk.SourceCodePullRequestStatusClosed
-			pr.ClosedByRefID = rpr.ClosedBy.Username
+			pr.ClosedByRefID = rpr.ClosedBy.ID
 		case "locked":
 			pr.Status = sdk.SourceCodePullRequestStatusLocked
 		case "merged":
 			pr.MergeSha = rpr.MergeCommitSHA
 			pr.MergeCommitID = sdk.NewSourceCodePullRequestCommentID(qc.CustomerID, rpr.MergeCommitSHA, qc.RefType, repoID)
-			pr.MergedByRefID = rpr.MergedBy.Username
+			pr.MergedByRefID = rpr.MergedBy.ID
 			pr.Status = sdk.SourceCodePullRequestStatusMerged
 		default:
 			sdk.LogError(qc.Logger, "PR has an unknown state", "state", rpr.State, "ref_id", pr.RefID)
 		}
-		pr.CreatedByRefID = rpr.Author.Username
+		pr.CreatedByRefID = rpr.Author.ID
 		pr.Draft = rpr.Draft
 
 		spr := PullRequest{}

@@ -24,19 +24,14 @@ func PullRequestReviewsPage(
 		ID         int64 `json:"id"`
 		ApprovedBy []struct {
 			User struct {
-				Username string `json:"username"`
+				ID string `json:"id"`
 			} `json:"user"`
 		} `json:"approved_by"`
 		SuggestedApprovers []struct {
 			User struct {
-				Username string `json:"username"`
+				ID string `json:"id"`
 			} `json:"user"`
 		} `json:"suggested_approvers"`
-		Approvers []struct {
-			User struct {
-				Username string `json:"username"`
-			} `json:"user"`
-		} `json:"approvers"`
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
 	}
@@ -60,7 +55,7 @@ func PullRequestReviewsPage(
 
 		datetime.ConvertToModel(rreview.CreatedAt, &item.CreatedDate)
 
-		item.UserRefID = a.User.Username
+		item.UserRefID = a.User.ID
 
 		res = append(res, item)
 	}
@@ -76,7 +71,7 @@ func PullRequestReviewsPage(
 
 		datetime.ConvertToModel(rreview.CreatedAt, &item.CreatedDate)
 
-		item.UserRefID = a.User.Username
+		item.UserRefID = a.User.ID
 
 		res = append(res, item)
 	}
