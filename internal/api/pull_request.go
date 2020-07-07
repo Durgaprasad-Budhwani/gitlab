@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pinpt/agent.next/pkg/util"
 	"github.com/pinpt/agent.next/sdk"
 	"github.com/pinpt/go-common/v10/datetime"
 	pstrings "github.com/pinpt/go-common/v10/strings"
@@ -76,7 +75,7 @@ func PullRequestPage(
 		pr.BranchName = rpr.SourceBranch
 		// pr.BranchID This needs to be set after getting branch ID
 		pr.Title = rpr.Title
-		pr.Description = util.ConvertMarkdownToHTML(rpr.Description)
+		pr.Description = `<div class="source-gitlab">` + sdk.ConvertMarkdownToHTML(rpr.Description) + "</div>"
 		pr.URL = rpr.WebURL
 		pr.Identifier = rpr.References.Short
 		datetime.ConvertToModel(rpr.CreatedAt, &pr.CreatedDate)
