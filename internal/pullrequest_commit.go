@@ -2,14 +2,14 @@ package internal
 
 import (
 	"net/url"
+	"time"
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
 )
 
 func (g *GitlabIntegration) fetchPullRequestsCommits(repo *sdk.SourceCodeRepo, pr api.PullRequest) (commits []*sdk.SourceCodePullRequestCommit, rerr error) {
-	rerr = api.PaginateStartAt(g.logger, "", func(log sdk.Logger, params url.Values) (api.PageInfo, error) {
-		params.Set("per_page", MaxFetchedEntitiesCount)
+	rerr = api.Paginate(g.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (api.NextPage, error) {
 		pi, commitsArr, err := api.PullRequestCommitsPage(g.qc, repo, pr, params)
 		if err != nil {
 			return pi, err

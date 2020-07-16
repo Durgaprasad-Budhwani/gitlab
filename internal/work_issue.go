@@ -26,11 +26,11 @@ func (g *GitlabIntegration) exportProjectIssues(project *sdk.WorkProject, users 
 		done <- true
 	}()
 
-	page := &api.PageInfo{}
+	var np api.NextPage
 	go func() {
 		defer close(issuesC)
 		var err error
-		*page, err = g.fetchInitialProjectIssues(project, issuesC)
+		np, err = g.fetchInitialProjectIssues(project, issuesC)
 		if err != nil {
 			sdk.LogError(g.logger, "error initial issues", "project", project.Name, "err", err)
 			done <- true
@@ -38,12 +38,11 @@ func (g *GitlabIntegration) exportProjectIssues(project *sdk.WorkProject, users 
 	}()
 
 	<-done
-	g.addIssueFuture(project, page)
+	g.addIssueFuture(project, np)
 }
 
-func (g *GitlabIntegration) fetchInitialProjectIssues(project *sdk.WorkProject, issues chan sdk.WorkIssue) (pi api.PageInfo, rerr error) {
+func (g *GitlabIntegration) fetchInitialProjectIssues(project *sdk.WorkProject, issues chan sdk.WorkIssue) (pi api.NextPage, rerr error) {
 	params := url.Values{}
-	params.Set("per_page", MaxFetchedEntitiesCount)
 
 	if g.lastExportDateGitlabFormat != "" {
 		params.Set("updated_after", g.lastExportDateGitlabFormat)
@@ -52,8 +51,8 @@ func (g *GitlabIntegration) fetchInitialProjectIssues(project *sdk.WorkProject, 
 	return api.WorkIssuesPage(g.qc, project, params, issues)
 }
 
-func (g *GitlabIntegration) addIssueFuture(project *sdk.WorkProject, page *api.PageInfo) {
-	if page != nil && page.NextPage != "" {
+func (g *GitlabIntegration) addIssueFuture(project *sdk.WorkProject, np api.NextPage) {
+	if string(np) != "" {
 		g.isssueFutures = append(g.isssueFutures, IssueFuture{project})
 	}
 }
@@ -107,11 +106,10 @@ func (g *GitlabIntegration) exportRemainingProjectIssues(project *sdk.WorkProjec
 }
 
 func (g *GitlabIntegration) fetchRemainingProjectIssues(project *sdk.WorkProject, pissues chan sdk.WorkIssue) (rerr error) {
-	return api.PaginateNewerThan(g.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.PageInfo, rerr error) {
+	return api.Paginate(g.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.NextPage, rerr error) {
 		if g.lastExportDateGitlabFormat != "" {
 			params.Set("updated_after", g.lastExportDateGitlabFormat)
 		}
-		params.Set("per_page", MaxFetchedEntitiesCount)
 		pi, rerr = api.WorkIssuesPage(g.qc, project, params, pissues)
 		return
 	})

@@ -20,12 +20,12 @@ func PullRequestPage(
 	qc QueryContext,
 	repo *sdk.SourceCodeRepo,
 	params url.Values,
-	prs chan PullRequest) (pi PageInfo, err error) {
+	prs chan PullRequest) (pi NextPage, err error) {
 
 	params.Set("scope", "all")
 	params.Set("state", "all")
 
-	sdk.LogDebug(qc.Logger, "repo pull requests", "repo", repo.Name, "repo_id", repo.RefID, "params", params)
+	sdk.LogDebug(qc.Logger, "repo pull requests", "repo", repo.Name, "repo_ref_id", repo.RefID, "params", params)
 
 	objectPath := pstrings.JoinURL("projects", repo.RefID, "merge_requests")
 
@@ -43,13 +43,13 @@ func PullRequestPage(
 		State        string    `json:"state"`
 		Draft        bool      `json:"work_in_progress"`
 		Author       struct {
-			ID string `json:"id"`
+			ID int64 `json:"id"`
 		} `json:"author"`
 		ClosedBy struct {
-			ID string `json:"id"`
+			ID int64 `json:"id"`
 		} `json:"closed_by"`
 		MergedBy struct {
-			ID string `json:"id"`
+			ID int64 `json:"id"`
 		} `json:"merged_by"`
 		MergeCommitSHA string `json:"merge_commit_sha"`
 		References     struct {
@@ -87,18 +87,18 @@ func PullRequestPage(
 			pr.Status = sdk.SourceCodePullRequestStatusOpen
 		case "closed":
 			pr.Status = sdk.SourceCodePullRequestStatusClosed
-			pr.ClosedByRefID = rpr.ClosedBy.ID
+			pr.ClosedByRefID = strconv.FormatInt(rpr.ClosedBy.ID, 10)
 		case "locked":
 			pr.Status = sdk.SourceCodePullRequestStatusLocked
 		case "merged":
 			pr.MergeSha = rpr.MergeCommitSHA
 			pr.MergeCommitID = sdk.NewSourceCodePullRequestCommentID(qc.CustomerID, rpr.MergeCommitSHA, qc.RefType, repoID)
-			pr.MergedByRefID = rpr.MergedBy.ID
+			pr.MergedByRefID = strconv.FormatInt(rpr.MergedBy.ID, 10)
 			pr.Status = sdk.SourceCodePullRequestStatusMerged
 		default:
 			sdk.LogError(qc.Logger, "PR has an unknown state", "state", rpr.State, "ref_id", pr.RefID)
 		}
-		pr.CreatedByRefID = rpr.Author.ID
+		pr.CreatedByRefID = strconv.FormatInt(rpr.Author.ID, 10)
 		pr.Draft = rpr.Draft
 
 		spr := PullRequest{}

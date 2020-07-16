@@ -10,7 +10,7 @@ import (
 	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
-func WorkSprintPage(qc QueryContext, project *sdk.WorkProject, params url.Values) (pi PageInfo, res []*sdk.WorkSprint, err error) {
+func WorkSprintPage(qc QueryContext, project *sdk.WorkProject, params url.Values) (pi NextPage, res []*sdk.AgileSprint, err error) {
 
 	sdk.LogDebug(qc.Logger, "work sprints", "project", project.Name, "project_ref_id", project.RefID, "params", params)
 
@@ -34,7 +34,7 @@ func WorkSprintPage(qc QueryContext, project *sdk.WorkProject, params url.Values
 	}
 	for _, rawsprint := range rawsprints {
 
-		item := &sdk.WorkSprint{}
+		item := &sdk.AgileSprint{}
 		item.CustomerID = qc.CustomerID
 		item.RefType = qc.RefType
 		item.RefID = fmt.Sprint(rawsprint.Iid)
@@ -60,12 +60,12 @@ func WorkSprintPage(qc QueryContext, project *sdk.WorkProject, params url.Values
 
 		if rawsprint.State == "closed" {
 			datetime.ConvertToModel(rawsprint.UpdatedAt, &item.CompletedDate)
-			item.Status = sdk.WorkSprintStatusClosed
+			item.Status = sdk.AgileSprintStatusClosed
 		} else {
 			if !start.IsZero() && start.After(time.Now()) {
-				item.Status = sdk.WorkSprintStatusFuture
+				item.Status = sdk.AgileSprintStatusFuture
 			} else {
-				item.Status = sdk.WorkSprintStatusActive
+				item.Status = sdk.AgileSprintStatusActive
 			}
 		}
 		item.Goal = rawsprint.Description

@@ -1,40 +1,15 @@
 package api
 
 import (
-	"errors"
 	"net/url"
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
 )
 
-type PaginateStartAtFn func(log sdk.Logger, paginationParams url.Values) (page PageInfo, _ error)
+type Page func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (NextPage, error)
 
-func PaginateStartAt(log sdk.Logger, nextPage string, fn PaginateStartAtFn) error {
-	if nextPage == "" {
-		nextPage = "1"
-	}
-	for {
-		q := url.Values{}
-		q.Set("page", nextPage)
-		pageInfo, err := fn(log, q)
-		if err != nil {
-			return err
-		}
-		if pageInfo.NextPage == "" {
-			return nil
-		}
-		if pageInfo.PageSize == 0 {
-			return errors.New("pageSize is 0")
-		}
-
-		nextPage = pageInfo.NextPage
-	}
-}
-
-type PaginateNewerThanFn func(log sdk.Logger, parameters url.Values, stopOnUpdatedAt time.Time) (PageInfo, error)
-
-func PaginateNewerThan(log sdk.Logger, nextPage string, lastProcessed time.Time, fn PaginateNewerThanFn) error {
+func Paginate(log sdk.Logger, nextPage NextPage, lastProcessed time.Time, fn Page) (err error) {
 	if nextPage == "" {
 		nextPage = "1"
 	}
@@ -42,20 +17,16 @@ func PaginateNewerThan(log sdk.Logger, nextPage string, lastProcessed time.Time,
 	p.Set("per_page", "100")
 
 	for {
-		p.Set("page", nextPage)
+		p.Set("page", string(nextPage))
 		if !lastProcessed.IsZero() {
 			p.Set("order_by", "updated_at")
 		}
-		pageInfo, err := fn(log, p, lastProcessed)
+		nextPage, err = fn(log, p, lastProcessed)
 		if err != nil {
 			return err
 		}
-		if pageInfo.NextPage == "" {
+		if nextPage == "" {
 			return nil
 		}
-		if pageInfo.PageSize == 0 {
-			return errors.New("pageSize is 0")
-		}
-		nextPage = pageInfo.NextPage
 	}
 }

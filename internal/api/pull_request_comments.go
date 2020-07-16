@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
@@ -14,7 +15,7 @@ func PullRequestCommentsPage(
 	qc QueryContext,
 	repo *sdk.SourceCodeRepo,
 	pr PullRequest,
-	params url.Values) (pi PageInfo, res []*sdk.SourceCodePullRequestComment, err error) {
+	params url.Values) (pi NextPage, res []*sdk.SourceCodePullRequestComment, err error) {
 
 	sdk.LogDebug(qc.Logger, "pull request comments", "repo", repo.Name, "repo_ref_id", repo.RefID, "pr", pr.IID, "params", params)
 
@@ -23,7 +24,7 @@ func PullRequestCommentsPage(
 	var rcomments []struct {
 		ID     int64 `json:"id"`
 		Author struct {
-			ID string `json:"id"`
+			ID int64 `json:"id"`
 		} `json:"author"`
 		Body      string    `json:"body"`
 		UpdatedAt time.Time `json:"updated_at"`
@@ -60,7 +61,7 @@ func PullRequestCommentsPage(
 		item.Body = rcomment.Body
 		datetime.ConvertToModel(rcomment.CreatedAt, &item.CreatedDate)
 
-		item.UserRefID = rcomment.Author.ID
+		item.UserRefID = strconv.FormatInt(rcomment.Author.ID, 10)
 		res = append(res, item)
 	}
 

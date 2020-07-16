@@ -14,7 +14,7 @@ func PullRequestCommitsPage(
 	qc QueryContext,
 	repo *sdk.SourceCodeRepo,
 	pr PullRequest,
-	params url.Values) (pi PageInfo, res []*sdk.SourceCodePullRequestCommit, err error) {
+	params url.Values) (pi NextPage, res []*sdk.SourceCodePullRequestCommit, err error) {
 
 	sdk.LogDebug(qc.Logger, "pull request commits", "repo", repo.Name, "repo_ref_id", repo.RefID, "pr_iid", pr.IID, "params", params)
 

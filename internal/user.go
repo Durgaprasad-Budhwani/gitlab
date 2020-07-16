@@ -2,6 +2,7 @@ package internal
 
 import (
 	"net/url"
+	"time"
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
@@ -51,8 +52,7 @@ func toWorkUser(user *sdk.SourceCodeUser) *sdk.WorkUser {
 type callBackSourceUser func(item *sdk.SourceCodeUser) error
 
 func (g *GitlabIntegration) exportUsers(repo *sdk.SourceCodeRepo, callback callBackSourceUser) (rerr error) {
-	return api.PaginateStartAt(g.logger, "", func(log sdk.Logger, params url.Values) (pi api.PageInfo, err error) {
-		params.Set("per_page", MaxFetchedEntitiesCount)
+	return api.Paginate(g.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, err error) {
 		pi, arr, err := api.RepoUsersPage(g.qc, repo, params)
 		if err != nil {
 			return
@@ -73,8 +73,7 @@ func (g *GitlabIntegration) exportEnterpriseUsers() error {
 }
 
 func (g *GitlabIntegration) fetchEnterpriseUsers(callback callBackSourceUser) (rerr error) {
-	return api.PaginateStartAt(g.logger, "", func(log sdk.Logger, params url.Values) (pi api.PageInfo, err error) {
-		params.Set("per_page", MaxFetchedEntitiesCount)
+	return api.Paginate(g.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, err error) {
 		params.Set("membership", "true")
 		pi, arr, err := api.UsersPage(g.qc, params)
 		if err != nil {

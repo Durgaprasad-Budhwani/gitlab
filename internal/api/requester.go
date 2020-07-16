@@ -1,47 +1,24 @@
 package api
 
 import (
-	"crypto/tls"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strconv"
-	"sync"
 	"time"
 
-	"github.com/dnaeon/go-vcr/recorder"
 	"github.com/pinpt/agent.next/sdk"
-	"github.com/pinpt/go-common/v10/httpdefaults"
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 // RequesterOpts requester opts
 type RequesterOpts struct {
-	Logger sdk.Logger
-	APIURL string
-	APIKey string
-	// AccessToken        string
-	InsecureSkipVerify bool
-	// ServerType         ServerType
+	Logger      sdk.Logger
 	Concurrency chan bool
-	client      *http.Client
-	UseRecorder bool // used for development only
+	Client      sdk.HTTPClient
 }
 
 // NewRequester new requester
-func NewRequester(opts RequesterOpts) *Requester {
+func NewRequester(opts *RequesterOpts) *Requester {
 	re := &Requester{}
-	{
-
-		c := &http.Client{}
-		transport := httpdefaults.DefaultTransport()
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: opts.InsecureSkipVerify}
-		c.Transport = transport
-
-		opts.client = c
-	}
 
 	re.opts = opts
 
@@ -49,43 +26,26 @@ func NewRequester(opts RequesterOpts) *Requester {
 }
 
 type internalRequest struct {
-	URL      string
+	EndPoint string
 	Params   url.Values
 	Response interface{}
-	PageInfo PageInfo
-}
-
-type errorState struct {
-	sync.Mutex
-	err error
-}
-
-func (e *errorState) setError(err error) {
-	e.Lock()
-	defer e.Unlock()
-	e.err = err
-}
-
-func (e *errorState) getError() error {
-	e.Lock()
-	defer e.Unlock()
-	return e.err
+	NextPage NextPage
 }
 
 // Requester requester
 type Requester struct {
-	opts RequesterOpts
+	opts *RequesterOpts
 }
 
 // MakeRequest make request
-func (e *Requester) MakeRequest(url string, params url.Values, response interface{}) (pi PageInfo, err error) {
+func (e *Requester) MakeRequest(endpoint string, params url.Values, response interface{}) (np NextPage, err error) {
 	e.opts.Concurrency <- true
 	defer func() {
 		<-e.opts.Concurrency
 	}()
 
 	ir := internalRequest{
-		URL:      url,
+		EndPoint: endpoint,
 		Response: &response,
 		Params:   params,
 	}
@@ -96,24 +56,19 @@ func (e *Requester) MakeRequest(url string, params url.Values, response interfac
 
 const maxGeneralRetries = 2
 
-func (e *Requester) makeRequestRetry(req *internalRequest, generalRetry int) (pageInfo PageInfo, err error) {
+func (e *Requester) makeRequestRetry(req *internalRequest, generalRetry int) (np NextPage, err error) {
 	var isRetryable bool
-	isRetryable, pageInfo, err = e.request(req, generalRetry+1)
+	isRetryable, np, err = e.request(req, generalRetry+1)
 	if err != nil {
 		if !isRetryable {
-			return pageInfo, err
+			return np, err
 		}
 		if generalRetry >= maxGeneralRetries {
-			return pageInfo, fmt.Errorf(`can't retry request, too many retries, err: %v`, err)
+			return np, fmt.Errorf(`can't retry request, too many retries, err: %v`, err)
 		}
 		return e.makeRequestRetry(req, generalRetry+1)
 	}
 	return
-}
-
-func (e *Requester) setAuthHeader(req *http.Request) {
-	// This works for both auth tokens and apikeys
-	req.Header.Set("Authorization", "bearer "+e.opts.APIKey)
 }
 
 const maxThrottledRetries = 3
@@ -124,44 +79,18 @@ type errorResponse struct {
 	Message          string `json:"message"`
 }
 
-func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetryable bool, pi PageInfo, rerr error) {
-	u := pstrings.JoinURL(e.opts.APIURL, r.URL)
+func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetryable bool, np NextPage, rerr error) {
 
-	if len(r.Params) != 0 {
-		u += "?" + r.Params.Encode()
-	}
+	headers := sdk.WithHTTPHeader("Accept", "application/json")
+	endpoint := sdk.WithEndpoint(r.EndPoint)
+	parameters := sdk.WithGetQueryParameters(r.Params)
 
-	if e.opts.UseRecorder {
-		rr, err := recorder.New("fixtures/" + u)
-		if err != nil {
-			rerr = err
-			return
-		}
-		defer rr.Stop()
-
-		e.opts.client.Transport = rr
-	}
-
-	req, err := http.NewRequest(http.MethodGet, u, nil)
+	resp, err := e.opts.Client.Get(&r.Response, headers, endpoint, parameters)
 	if err != nil {
-		return false, pi, err
-	}
-	req.Header.Set("Accept", "application/json")
-	e.setAuthHeader(req)
-
-	resp, err := e.opts.client.Do(req)
-	if err != nil {
-		return true, pi, err
-	}
-	defer resp.Body.Close()
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		rerr = err
-		isErrorRetryable = true
-		return
+		return true, np, err
 	}
 
-	rateLimited := func() (isErrorRetryable bool, pageInfo PageInfo, rerr error) {
+	rateLimited := func() (isErrorRetryable bool, NextPage NextPage, rerr error) {
 
 		waitTime := time.Minute * 3
 
@@ -175,7 +104,7 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 
 		sdk.LogWarn(e.opts.Logger, fmt.Sprintf("gitlab resumed, time elapsed %v", time.Since(paused)))
 
-		return true, PageInfo{}, fmt.Errorf("too many requests")
+		return true, np, fmt.Errorf("too many requests")
 
 	}
 
@@ -187,54 +116,13 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 
 		if resp.StatusCode == http.StatusForbidden {
 
-			var errorR *errorResponse
-			er := json.Unmarshal([]byte(b), &errorR)
-			if er != nil {
-				return false, pi, fmt.Errorf("unmarshal error %s", er)
-			}
-
-			if errorR.Message != "" {
-				return false, pi, fmt.Errorf("%s %s", errorR.Message, req.URL.String())
-			}
-
-			return false, pi, fmt.Errorf("%s, %s, scopes required: api, read_user, read_repository", errorR.Error, errorR.ErrorDescription)
+			return false, np, fmt.Errorf("permissions error")
 		}
 
-		sdk.LogWarn(e.opts.Logger, "gitlab returned invalid status code, retrying", "code", resp.StatusCode, "retry", retryThrottled, "url", req.URL.String())
+		sdk.LogWarn(e.opts.Logger, "gitlab returned invalid status code, retrying", "code", resp.StatusCode, "retry", retryThrottled)
 
-		return true, pi, fmt.Errorf("request with status %d", resp.StatusCode)
-	}
-	err = json.Unmarshal(b, &r.Response)
-	if err != nil {
-		rerr = err
-		return
+		return true, np, fmt.Errorf("request with status %d", resp.StatusCode)
 	}
 
-	rawPageSize := resp.Header.Get("X-Per-Page")
-
-	var pageSize int
-	if rawPageSize != "" {
-		pageSize, err = strconv.Atoi(rawPageSize)
-		if err != nil {
-			return false, pi, err
-		}
-	}
-
-	rawTotalSize := resp.Header.Get("X-Total")
-
-	var total int
-	if rawTotalSize != "" {
-		total, err = strconv.Atoi(rawTotalSize)
-		if err != nil {
-			return false, pi, err
-		}
-	}
-
-	return false, PageInfo{
-		PageSize:   pageSize,
-		NextPage:   resp.Header.Get("X-Next-Page"),
-		Page:       resp.Header.Get("X-Page"),
-		TotalPages: resp.Header.Get("X-Total-Pages"),
-		Total:      total,
-	}, nil
+	return false, NextPage(resp.Headers.Get("X-Next-Page")), nil
 }

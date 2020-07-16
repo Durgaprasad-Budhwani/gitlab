@@ -16,7 +16,7 @@ func WorkIssuesPage(
 	qc QueryContext,
 	project *sdk.WorkProject,
 	params url.Values,
-	issues chan sdk.WorkIssue) (pi PageInfo, err error) {
+	issues chan sdk.WorkIssue) (pi NextPage, err error) {
 
 	params.Set("scope", "all")
 
@@ -62,7 +62,7 @@ func WorkIssuesPage(
 		datetime.ConvertToModel(rawissue.CreatedAt, &item.CreatedDate)
 		datetime.ConvertToModel(rawissue.UpdatedAt, &item.UpdatedDate)
 
-		item.SprintIds = []string{sdk.NewWorkSprintID(qc.CustomerID, strconv.FormatInt(int64(rawissue.Milestone.Iid), 10), qc.RefType)}
+		item.SprintIds = []string{sdk.NewAgileSprintID(qc.CustomerID, strconv.FormatInt(int64(rawissue.Milestone.Iid), 10), qc.RefType)}
 		duedate, err := time.Parse("2006-01-02", rawissue.Milestone.DueDate)
 		if err != nil {
 			duedate = time.Time{}

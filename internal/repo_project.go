@@ -12,10 +12,22 @@ import (
 
 type callback func(item *sdk.SourceCodeRepo)
 
-func (g *GitlabIntegration) exportProjectsRepos(group *api.Group, appendItem callback) (rerr error) {
+func (g *GitlabIntegration) exportGroupProjectsRepos(group *api.Group, appendItem callback) (rerr error) {
+	return api.Paginate(g.logger, "", g.lastExportDate, func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (pi api.NextPage, err error) {
+		pi, arr, err := api.GroupReposPage(g.qc, group, params, stopOnUpdatedAt)
+		if err != nil {
+			return
+		}
+		for _, item := range arr {
+			appendItem(item)
+		}
+		return
+	})
+}
 
-	return api.PaginateNewerThan(g.logger, "", g.lastExportDate, func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (pi api.PageInfo, err error) {
-		pi, arr, err := api.ReposPage(g.qc, group, params, stopOnUpdatedAt)
+func (g *GitlabIntegration) exportUserProjectsRepos(user *api.GitlabUser, appendItem callback) (rerr error) {
+	return api.Paginate(g.logger, "", g.lastExportDate, func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (pi api.NextPage, err error) {
+		pi, arr, err := api.UserReposPage(g.qc, user, params, stopOnUpdatedAt)
 		if err != nil {
 			return
 		}

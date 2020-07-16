@@ -8,6 +8,7 @@ import (
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
+	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 // GitlabIntegration is an integration for GitHub
@@ -26,6 +27,9 @@ type GitlabIntegration struct {
 	lastExportDate             time.Time
 	lastExportDateGitlabFormat string
 	isGitlabCom                bool
+	integrationInstanceID      *string
+	integrationType            string
+	lastExportKey              string
 }
 
 var _ sdk.Integration = (*GitlabIntegration)(nil)
@@ -67,61 +71,48 @@ func (g *GitlabIntegration) Stop() error {
 	return nil
 }
 
-// Start is called when the integration is starting up
-func initRequesterConfig(export sdk.Export) (err error, opts api.RequesterOpts) {
-
-	config := export.Config()
-
-	ok, url := config.GetString("url")
-	if !ok {
-		url = "https://gitlab.com/api/v4/"
-	}
-
-	ok, apikey := config.GetString("api_key")
-	if !ok {
-		err = fmt.Errorf("required api_key not found")
-		return
-	}
-
-	_, useRecorder := config.GetBool("recorder")
-
-	opts = api.RequesterOpts{
-		APIURL:             url,
-		APIKey:             apikey,
-		InsecureSkipVerify: true,
-		UseRecorder:        useRecorder,
-		Concurrency:        make(chan bool, 10),
-	}
-
-	return
-
-}
-
 func (g *GitlabIntegration) setExportConfig(export sdk.Export) (err error) {
 
-	err, config := initRequesterConfig(export)
+	g.pipe = export.Pipe()
+	g.historical = export.Historical()
+	g.state = export.State()
+	g.integrationInstanceID = pstrings.Pointer(export.IntegrationInstanceID())
+
+	logger := sdk.LogWith(g.logger, "customer_id", export.CustomerID(), "job_id", export.JobID())
+
+	g.logger = logger
+
+	apiURL, client, err := g.newHTTPClient(g.logger)
 	if err != nil {
-		return fmt.Errorf("error init requester, err: %s", err)
+		return err
 	}
 
-	config.Logger = g.logger
+	opts := &api.RequesterOpts{
+		Concurrency: make(chan bool, 10),
+		Client:      client,
+		Logger:      g.logger,
+	}
 
-	requester := api.NewRequester(config)
+	requester := api.NewRequester(opts)
 	g.qc.Request = requester.MakeRequest
 
-	g.pipe = export.Pipe()
-
-	u, err := url.Parse(config.APIURL)
+	u, err := url.Parse(apiURL)
 	if err != nil {
 		return fmt.Errorf("url is not valid: %v", err)
 	}
 	g.isGitlabCom = u.Hostname() == "gitlab.com"
 
-	g.historical = export.Historical()
-	sdk.LogDebug(g.logger, "historical", "value", g.historical)
+	var ok bool
+	ok, g.integrationType = g.config.GetString("int_type")
+	if !ok {
+		return fmt.Errorf("int_type type missing")
+	}
 
-	g.state = export.State()
-	g.pipe = export.Pipe()
+	g.lastExportKey = g.integrationType + "@last_export_date"
+
+	if err = g.exportDate(); err != nil {
+		return
+	}
 
 	g.qc.Logger = g.logger
 	g.qc.RefType = GitlabRefType
@@ -130,11 +121,11 @@ func (g *GitlabIntegration) setExportConfig(export sdk.Export) (err error) {
 	return
 }
 
-func (g *GitlabIntegration) exportDate(export sdk.Export, lastExportKey string) (rerr error) {
+func (g *GitlabIntegration) exportDate() (rerr error) {
 
 	if !g.historical {
 		var exportDate string
-		ok, err := g.state.Get(lastExportKey, &exportDate)
+		ok, err := g.state.Get(g.lastExportKey, &exportDate)
 		if err != nil {
 			rerr = err
 			return

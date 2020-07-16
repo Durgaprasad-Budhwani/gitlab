@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -26,68 +27,79 @@ const GitLabDateFormat = "2006-01-02T15:04:05.000Z"
 // Export is called to tell the integration to run an export
 func (g *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 
-	sdk.LogDebug(g.logger, "export starting")
-
 	if rerr = g.setExportConfig(export); rerr != nil {
 		return
 	}
 
-	// TODO: Add suport for multiple test repos
-	_, repo := export.Config().GetString("repo")
-
-	ok, integrationType := export.Config().GetString("int_type")
-	if !ok {
-		return fmt.Errorf("integration type missing")
-	}
-
-	lastExportKey := integrationType + "@last_export_date"
-
-	if rerr = g.exportDate(export, lastExportKey); rerr != nil {
-		return
-	}
+	sdk.LogInfo(g.logger, "export started", "historical", g.historical, "int_type", g.integrationType)
 
 	exportStartDate := time.Now()
 
-	sdk.LogInfo(g.logger, "export started", "int_type", integrationType)
-
-	if repo != "" {
-		switch integrationType {
-		case IntegrationSourceCodeType:
-			g.exportIndividualRepo(repo)
-		case IntegrationWorkType:
-			g.exportIndividualProject(repo)
-		default:
-			return fmt.Errorf("integration type not defined %s", integrationType)
+	orgs := make([]*api.Group, 0)
+	users := make([]*api.GitlabUser, 0)
+	if g.config.Accounts == nil {
+		groups, err := api.GroupsAll(g.qc)
+		if err != nil {
+			rerr = err
+			return
 		}
+		orgs = append(orgs, groups...)
 
-		rerr = g.state.Set(lastExportKey, exportStartDate.Format(time.RFC3339))
-		return
-	}
-
-	groups, err := api.GroupsAll(g.qc)
-	if err != nil {
-		rerr = err
-		return
-	}
-
-	for _, group := range groups {
-		sdk.LogDebug(g.logger, "group", "name", group)
-		switch integrationType {
-		case IntegrationSourceCodeType:
-			g.exportSourceCode(group)
-		case IntegrationWorkType:
-			g.exportWork(group)
-		default:
-			return fmt.Errorf("integration type not defined %s", integrationType)
+		user, err := api.LoginUser(g.qc)
+		if err != nil {
+			return err
+		}
+		users = append(users, user)
+	} else {
+		for _, acct := range *g.config.Accounts {
+			if acct.Type == sdk.ConfigAccountTypeOrg {
+				orgs = append(orgs, &api.Group{ID: acct.ID})
+			} else {
+				users = append(users, &api.GitlabUser{ID: acct.ID})
+			}
 		}
 	}
 
-	rerr = g.state.Set(lastExportKey, exportStartDate.Format(time.RFC3339))
+	for _, group := range orgs {
+		sdk.LogDebug(g.logger, "group", "name", group.Name)
+		switch g.integrationType {
+		case IntegrationSourceCodeType:
+			err := g.exportGroupSourceCode(group)
+			if err != nil {
+				sdk.LogWarn(g.logger, "error exporting sourcecode group", "group_id", group.ID, "group_name", group.Name, "err", err)
+			}
+		case IntegrationWorkType:
+			err := g.exportGroupWork(group)
+			if err != nil {
+				sdk.LogWarn(g.logger, "error exporting sourcecode group", "group_id", group.ID, "group_name", group.Name, "err", err)
+			}
+		default:
+			return fmt.Errorf("integration type not defined %s", g.integrationType)
+		}
+	}
+
+	for _, user := range users {
+		sdk.LogDebug(g.logger, "user", "name", user.Name)
+		switch g.integrationType {
+		case IntegrationSourceCodeType:
+			if err := g.exportUserSourceCode(user); err != nil {
+				sdk.LogWarn(g.logger, "error exporting work user", "user_id", user.ID, "user_name", user.Name, "err", err)
+			}
+		case IntegrationWorkType:
+			if err := g.exportUserWork(user); err != nil {
+				sdk.LogWarn(g.logger, "error exporting work user", "user_id", user.ID, "user_name", user.Name, "err", err)
+			}
+		default:
+			return fmt.Errorf("integration type not defined %s", g.integrationType)
+		}
+	}
+
+	rerr = g.state.Set(g.lastExportKey, exportStartDate.Format(time.RFC3339))
 
 	return
 }
 
-func (g *GitlabIntegration) exportSourceCode(group *api.Group) (rerr error) {
+func (g *GitlabIntegration) exportGroupSourceCode(group *api.Group) (rerr error) {
 
 	if !g.isGitlabCom {
 		if err := g.exportEnterpriseUsers(); err != nil {
@@ -96,11 +108,28 @@ func (g *GitlabIntegration) exportSourceCode(group *api.Group) (rerr error) {
 		}
 	}
 
-	repos, err := g.exportRepos(group)
+	repos, err := g.exportGroupRepos(group)
 	if err != nil {
 		rerr = err
 		return
 	}
+
+	return g.exportCommonRepos(repos)
+}
+
+func (g *GitlabIntegration) exportUserSourceCode(user *api.GitlabUser) (rerr error) {
+
+	repos, err := g.exportUserRepos(user)
+	if err != nil {
+		rerr = err
+		return
+	}
+
+	return g.exportCommonRepos(repos)
+}
+
+func (g *GitlabIntegration) exportCommonRepos(repos []*sdk.SourceCodeRepo) (rerr error) {
+
 	for _, repo := range repos {
 		err := g.exportRepoAndWrite(repo)
 		if err != nil {
@@ -120,6 +149,7 @@ func (g *GitlabIntegration) exportSourceCode(group *api.Group) (rerr error) {
 }
 
 func (g *GitlabIntegration) exportRepoAndWrite(repo *sdk.SourceCodeRepo) (rerr error) {
+	repo.IntegrationInstanceID = g.integrationInstanceID
 	if rerr = g.pipe.Write(repo); rerr != nil {
 		return
 	}
@@ -171,9 +201,9 @@ func (g *GitlabIntegration) exportIssuesFutures(projectUsersMap map[string]api.U
 	return
 }
 
-func (g *GitlabIntegration) exportWork(group *api.Group) (rerr error) {
+func (g *GitlabIntegration) exportGroupWork(group *api.Group) (rerr error) {
 
-	projects, err := g.exportProjects(group)
+	projects, err := g.exportGroupProjects(group)
 	if err != nil {
 		rerr = err
 		return
@@ -198,35 +228,95 @@ func (g *GitlabIntegration) exportWork(group *api.Group) (rerr error) {
 	return
 }
 
-func (g *GitlabIntegration) exportIndividualRepo(r string) (rerr error) {
+func (g *GitlabIntegration) exportUserWork(user *api.GitlabUser) (rerr error) {
 
-	repo, err := api.Repo(g.qc, r)
+	projects, err := g.exportUserProjects(user)
 	if err != nil {
-		return err
+		rerr = err
+		return
 	}
-	if err := g.exportRepoAndWrite(repo); err != nil {
-		return err
+	projectUsersMap := make(map[string]api.UsernameMap)
+	for _, project := range projects {
+		err := g.exportProjectAndWrite(project, projectUsersMap)
+		if err != nil {
+			sdk.LogError(g.logger, "error exporting project", "project", project.Name, "project_refid", project.RefID, "err", err)
+		}
 	}
-	if err := g.exportPullRequestsFutures(); err != nil {
-		return err
+	rerr = g.pipe.Flush()
+	if rerr != nil {
+		return
+	}
+	sdk.LogDebug(g.logger, "remaining project issues", "futures count", len(g.isssueFutures))
+	rerr = g.exportIssuesFutures(projectUsersMap)
+	if rerr != nil {
+		return
 	}
 
 	return
 }
 
-func (g *GitlabIntegration) exportIndividualProject(p string) (rerr error) {
+func (g *GitlabIntegration) IncludeRepo(login string, name string, isArchived bool) bool {
+	if g.config.Exclusions != nil && g.config.Exclusions.Matches(login, name) {
+		// skip any repos that don't match our rule
+		sdk.LogInfo(g.logger, "skipping repo because it matched exclusion rule", "name", name)
+		return false
+	}
+	if g.config.Inclusions != nil && !g.config.Inclusions.Matches(login, name) {
+		// skip any repos that don't match our rule
+		sdk.LogInfo(g.logger, "skipping repo because it didn't match inclusion rule", "name", name)
+		return false
+	}
+	if isArchived {
+		sdk.LogInfo(g.logger, "skipping repo because it is archived", "name", name)
+		return false
+	}
+	return true
+}
 
-	project, err := api.Repo(g.qc, p)
-	if err != nil {
-		return err
-	}
-	projectUsersMap := make(map[string]api.UsernameMap)
-	if err := g.exportProjectAndWrite(ToProject(project), projectUsersMap); err != nil {
-		return err
-	}
-	if err := g.exportIssuesFutures(projectUsersMap); err != nil {
-		return err
+func (g *GitlabIntegration) newHTTPClient(logger sdk.Logger) (url string, cl sdk.HTTPClient, err error) {
+
+	ok, url := g.config.GetString("url")
+	if !ok {
+		url = "https://gitlab.com/api/v4/"
 	}
 
-	return
+	var client sdk.HTTPClient
+
+	if g.config.APIKeyAuth != nil {
+		apikey := g.config.APIKeyAuth.APIKey
+		if g.config.APIKeyAuth.URL != "" {
+			url = g.config.APIKeyAuth.URL
+		}
+		client = g.manager.HTTPManager().New(url, map[string]string{
+			"Authorization": "bearer " + apikey,
+		})
+		sdk.LogInfo(logger, "using apikey authorization")
+	} else if g.config.OAuth2Auth != nil {
+		authToken := g.config.OAuth2Auth.AccessToken
+		if g.config.OAuth2Auth.RefreshToken != nil {
+			token, err := g.manager.AuthManager().RefreshOAuth2Token(GitlabRefType, *g.config.OAuth2Auth.RefreshToken)
+			if err != nil {
+				return "", nil, fmt.Errorf("error refreshing oauth2 access token: %w", err)
+			}
+			authToken = token
+		}
+		if g.config.OAuth2Auth.URL != "" {
+			url = g.config.OAuth2Auth.URL
+		}
+		client = g.manager.HTTPManager().New(url, map[string]string{
+			"Authorization": "bearer " + authToken,
+		})
+		sdk.LogInfo(logger, "using oauth2 authorization")
+	} else if g.config.BasicAuth != nil {
+		if g.config.BasicAuth.URL != "" {
+			url = g.config.BasicAuth.URL
+		}
+		client = g.manager.HTTPManager().New(url, map[string]string{
+			"Authorization": "Basic " + base64.StdEncoding.EncodeToString([]byte(g.config.BasicAuth.Username+":"+g.config.BasicAuth.Password)),
+		})
+		sdk.LogInfo(logger, "using basic authorization", "username", g.config.BasicAuth.Username)
+	} else {
+		return "", nil, fmt.Errorf("supported authorization not provided. support for: apikey, oauth2, basic")
+	}
+	return url, client, nil
 }

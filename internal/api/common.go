@@ -20,7 +20,7 @@ const (
 type QueryContext struct {
 	BaseURL string
 	Logger  sdk.Logger
-	Request func(url string, params url.Values, response interface{}) (PageInfo, error)
+	Request func(url string, params url.Values, response interface{}) (NextPage, error)
 
 	CustomerID string
 	RefType    string
@@ -30,11 +30,13 @@ type QueryContext struct {
 	Re *RequesterOpts
 }
 
-// PageInfo page info
-type PageInfo struct {
-	PageSize   int
-	NextPage   string
-	Page       string
-	TotalPages string
-	Total      int
-}
+type NextPage string
+
+// NextPage page info
+// type NextPage struct {
+// 	PageSize   int
+// 	NextPage   string
+// 	Page       string
+// 	TotalPages string
+// 	Total      int
+// }

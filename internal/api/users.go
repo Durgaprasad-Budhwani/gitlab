@@ -11,7 +11,7 @@ import (
 // UsernameMap map[username]ref_id
 type UsernameMap map[string]string
 
-func RepoUsersPage(qc QueryContext, repo *sdk.SourceCodeRepo, params url.Values) (page PageInfo, repos []*sdk.SourceCodeUser, err error) {
+func RepoUsersPage(qc QueryContext, repo *sdk.SourceCodeRepo, params url.Values) (page NextPage, repos []*sdk.SourceCodeUser, err error) {
 
 	sdk.LogDebug(qc.Logger, "users request", "repo", repo.Name, "repo_ref_id", repo.RefID, "params", params)
 
@@ -56,7 +56,7 @@ type User struct {
 	URL       string
 }
 
-func UsersPage(qc QueryContext, params url.Values) (page PageInfo, users []*sdk.SourceCodeUser, err error) {
+func UsersPage(qc QueryContext, params url.Values) (page NextPage, users []*sdk.SourceCodeUser, err error) {
 
 	sdk.LogDebug(qc.Logger, "users request")
 
@@ -86,6 +86,33 @@ func UsersPage(qc QueryContext, params url.Values) (page PageInfo, users []*sdk.
 		})
 
 	}
+
+	return
+}
+
+type GitlabUser struct {
+	ID   string
+	Name string
+}
+
+func LoginUser(qc QueryContext) (u *GitlabUser, err error) {
+
+	sdk.LogDebug(qc.Logger, "user request")
+
+	objectPath := pstrings.JoinURL("user")
+
+	var ru struct {
+		ID   int64  `json:"id"`
+		Name string `json:"name"`
+	}
+	_, err = qc.Request(objectPath, nil, &ru)
+	if err != nil {
+		return
+	}
+
+	u = &GitlabUser{}
+	u.ID = strconv.FormatInt(ru.ID, 10)
+	u.Name = ru.Name
 
 	return
 }

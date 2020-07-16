@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
@@ -14,7 +15,7 @@ func PullRequestReviewsPage(
 	qc QueryContext,
 	repo *sdk.SourceCodeRepo,
 	pr PullRequest,
-	params url.Values) (pi PageInfo, res []*sdk.SourceCodePullRequestReview, err error) {
+	params url.Values) (pi NextPage, res []*sdk.SourceCodePullRequestReview, err error) {
 
 	sdk.LogDebug(qc.Logger, "pull request reviews", "repo", repo.Name, "repo_ref_id", repo.RefID, "pr_iid", pr.IID, "params", params)
 
@@ -24,12 +25,12 @@ func PullRequestReviewsPage(
 		ID         int64 `json:"id"`
 		ApprovedBy []struct {
 			User struct {
-				ID string `json:"id"`
+				ID int64 `json:"id"`
 			} `json:"user"`
 		} `json:"approved_by"`
 		SuggestedApprovers []struct {
 			User struct {
-				ID string `json:"id"`
+				ID int64 `json:"id"`
 			} `json:"user"`
 		} `json:"suggested_approvers"`
 		CreatedAt time.Time `json:"created_at"`
@@ -55,7 +56,7 @@ func PullRequestReviewsPage(
 
 		datetime.ConvertToModel(rreview.CreatedAt, &item.CreatedDate)
 
-		item.UserRefID = a.User.ID
+		item.UserRefID = strconv.FormatInt(a.User.ID, 10)
 
 		res = append(res, item)
 	}
@@ -71,7 +72,7 @@ func PullRequestReviewsPage(
 
 		datetime.ConvertToModel(rreview.CreatedAt, &item.CreatedDate)
 
-		item.UserRefID = a.User.ID
+		item.UserRefID = strconv.FormatInt(a.User.ID, 10)
 
 		res = append(res, item)
 	}

@@ -26,11 +26,11 @@ func (g *GitlabIntegration) exportRepoPullRequests(repo *sdk.SourceCodeRepo) {
 		done <- true
 	}()
 
-	page := &api.PageInfo{}
+	var np api.NextPage
 	go func() {
 		defer close(prsChan)
 		var err error
-		*page, err = g.fetchInitialRepoPullRequests(repo, prsChan)
+		np, err = g.fetchInitialRepoPullRequests(repo, prsChan)
 		if err != nil {
 			sdk.LogError(g.logger, "error initial pull requests", "repo", repo.Name, "err", err)
 			done <- true
@@ -38,7 +38,7 @@ func (g *GitlabIntegration) exportRepoPullRequests(repo *sdk.SourceCodeRepo) {
 	}()
 
 	<-done
-	g.addPullRequestFuture(repo, page)
+	g.addPullRequestFuture(repo, np)
 }
 
 func (g *GitlabIntegration) exportRemainingRepoPullRequests(repo *sdk.SourceCodeRepo) {
@@ -101,15 +101,14 @@ func (g *GitlabIntegration) exportPullRequestEntitiesAndWrite(repo *sdk.SourceCo
 
 }
 
-func (g *GitlabIntegration) addPullRequestFuture(repo *sdk.SourceCodeRepo, page *api.PageInfo) {
-	if page != nil && page.NextPage != "" {
+func (g *GitlabIntegration) addPullRequestFuture(repo *sdk.SourceCodeRepo, np api.NextPage) {
+	if string(np) != "" {
 		g.pullrequestsFutures = append(g.pullrequestsFutures, PullRequestFuture{repo})
 	}
 }
 
-func (g *GitlabIntegration) fetchInitialRepoPullRequests(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) (pi api.PageInfo, rerr error) {
+func (g *GitlabIntegration) fetchInitialRepoPullRequests(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) (pi api.NextPage, rerr error) {
 	params := url.Values{}
-	params.Set("per_page", MaxFetchedEntitiesCount)
 
 	if g.lastExportDateGitlabFormat != "" {
 		params.Set("updated_after", g.lastExportDateGitlabFormat)
@@ -119,11 +118,10 @@ func (g *GitlabIntegration) fetchInitialRepoPullRequests(repo *sdk.SourceCodeRep
 }
 
 func (g *GitlabIntegration) fetchRemainingRepoPullRequests(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) (rerr error) {
-	rerr = api.PaginateNewerThan(g.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.PageInfo, rerr error) {
+	rerr = api.Paginate(g.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.NextPage, rerr error) {
 		if g.lastExportDateGitlabFormat != "" {
 			params.Set("updated_after", g.lastExportDateGitlabFormat)
 		}
-		params.Set("per_page", MaxFetchedEntitiesCount)
 		pi, rerr = api.PullRequestPage(g.qc, repo, params, prs)
 		return
 	})
