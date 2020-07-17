@@ -3,7 +3,6 @@ module github.com/pinpt/agent.next.gitlab
 go 1.14
 
 require (
-	github.com/dnaeon/go-vcr v1.0.1
 	github.com/go-redis/redis/v8 v8.0.0-beta.6 // indirect
 	github.com/mattn/go-colorable v0.1.7 // indirect
 	github.com/pinpt/agent.next v0.0.0-20200715044241-0a4f3403a457

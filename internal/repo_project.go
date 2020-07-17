@@ -12,9 +12,9 @@ import (
 
 type callback func(item *sdk.SourceCodeRepo)
 
-func (g *GitlabIntegration) exportGroupProjectsRepos(group *api.Group, appendItem callback) (rerr error) {
-	return api.Paginate(g.logger, "", g.lastExportDate, func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (pi api.NextPage, err error) {
-		pi, arr, err := api.GroupReposPage(g.qc, group, params, stopOnUpdatedAt)
+func (ge *GitlabExport) exportGroupProjectsRepos(group *api.Group, appendItem callback) (rerr error) {
+	return api.Paginate(ge.logger, "", ge.lastExportDate, func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (pi api.NextPage, err error) {
+		pi, arr, err := api.GroupReposPage(ge.qc, group, params, stopOnUpdatedAt)
 		if err != nil {
 			return
 		}
@@ -25,9 +25,9 @@ func (g *GitlabIntegration) exportGroupProjectsRepos(group *api.Group, appendIte
 	})
 }
 
-func (g *GitlabIntegration) exportUserProjectsRepos(user *api.GitlabUser, appendItem callback) (rerr error) {
-	return api.Paginate(g.logger, "", g.lastExportDate, func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (pi api.NextPage, err error) {
-		pi, arr, err := api.UserReposPage(g.qc, user, params, stopOnUpdatedAt)
+func (ge *GitlabExport) exportUserProjectsRepos(user *api.GitlabUser, appendItem callback) (rerr error) {
+	return api.Paginate(ge.logger, "", ge.lastExportDate, func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (pi api.NextPage, err error) {
+		pi, arr, err := api.UserReposPage(ge.qc, user, params, stopOnUpdatedAt)
 		if err != nil {
 			return
 		}

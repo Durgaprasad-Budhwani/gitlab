@@ -26,7 +26,7 @@ func WorkIssuesPage(
 
 	var rawissues []IssueModel
 
-	pi, err = qc.Request(objectPath, params, &rawissues)
+	pi, err = qc.Get(objectPath, params, &rawissues)
 	if err != nil {
 		return
 	}

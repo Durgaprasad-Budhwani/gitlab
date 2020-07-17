@@ -33,7 +33,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.WorkProject, issueID
 			System    bool      `json:"system"`
 		} `json:"notes"`
 	}
-	pi, err = qc.Request(objectPath, params, &notes)
+	pi, err = qc.Get(objectPath, params, &notes)
 	if err != nil {
 		return
 	}

@@ -9,45 +9,39 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-// RequesterOpts requester opts
-type RequesterOpts struct {
-	Logger      sdk.Logger
-	Concurrency chan bool
-	Client      sdk.HTTPClient
+// Requester requester
+type Requester struct {
+	logger      sdk.Logger
+	concurrency chan bool
+	client      sdk.HTTPClient
 }
 
 // NewRequester new requester
-func NewRequester(opts *RequesterOpts) *Requester {
-	re := &Requester{}
-
-	re.opts = opts
-
-	return re
+func NewRequester(logger sdk.Logger, client sdk.HTTPClient, concurrency int) *Requester {
+	return &Requester{
+		logger:      logger,
+		client:      client,
+		concurrency: make(chan bool, concurrency),
+	}
 }
 
 type internalRequest struct {
 	EndPoint string
 	Params   url.Values
 	Response interface{}
-	NextPage NextPage
-}
-
-// Requester requester
-type Requester struct {
-	opts *RequesterOpts
 }
 
 // MakeRequest make request
 func (e *Requester) MakeRequest(endpoint string, params url.Values, response interface{}) (np NextPage, err error) {
-	e.opts.Concurrency <- true
+	e.concurrency <- true
 	defer func() {
-		<-e.opts.Concurrency
+		<-e.concurrency
 	}()
 
 	ir := internalRequest{
 		EndPoint: endpoint,
-		Response: &response,
 		Params:   params,
+		Response: &response,
 	}
 
 	return e.makeRequestRetry(&ir, 0)
@@ -73,19 +67,13 @@ func (e *Requester) makeRequestRetry(req *internalRequest, generalRetry int) (np
 
 const maxThrottledRetries = 3
 
-type errorResponse struct {
-	Error            string `json:"error"`
-	ErrorDescription string `json:"error_description"`
-	Message          string `json:"message"`
-}
-
 func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetryable bool, np NextPage, rerr error) {
 
 	headers := sdk.WithHTTPHeader("Accept", "application/json")
 	endpoint := sdk.WithEndpoint(r.EndPoint)
 	parameters := sdk.WithGetQueryParameters(r.Params)
 
-	resp, err := e.opts.Client.Get(&r.Response, headers, endpoint, parameters)
+	resp, err := e.client.Get(&r.Response, headers, endpoint, parameters)
 	if err != nil {
 		return true, np, err
 	}
@@ -94,15 +82,15 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 
 		waitTime := time.Minute * 3
 
-		sdk.LogWarn(e.opts.Logger, "api request failed due to throttling, the quota of 600 calls has been reached, will sleep for 3m and retry", "retryThrottled", retryThrottled)
+		sdk.LogWarn(e.logger, "api request failed due to throttling, the quota of 600 calls has been reached, will sleep for 3m and retry", "retryThrottled", retryThrottled)
 
 		paused := time.Now()
 		resumeDate := paused.Add(waitTime)
-		sdk.LogWarn(e.opts.Logger, "gitlab paused, it will resume in %v, resume data %v", waitTime, resumeDate)
+		sdk.LogWarn(e.logger, "gitlab paused, it will resume in %v, resume data %v", waitTime, resumeDate)
 
 		time.Sleep(waitTime)
 
-		sdk.LogWarn(e.opts.Logger, fmt.Sprintf("gitlab resumed, time elapsed %v", time.Since(paused)))
+		sdk.LogWarn(e.logger, fmt.Sprintf("gitlab resumed, time elapsed %v", time.Since(paused)))
 
 		return true, np, fmt.Errorf("too many requests")
 
@@ -119,7 +107,7 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 			return false, np, fmt.Errorf("permissions error")
 		}
 
-		sdk.LogWarn(e.opts.Logger, "gitlab returned invalid status code, retrying", "code", resp.StatusCode, "retry", retryThrottled)
+		sdk.LogWarn(e.logger, "gitlab returned invalid status code, retrying", "code", resp.StatusCode, "retry", retryThrottled)
 
 		return true, np, fmt.Errorf("request with status %d", resp.StatusCode)
 	}

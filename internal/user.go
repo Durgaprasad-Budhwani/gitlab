@@ -8,21 +8,21 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-func (g *GitlabIntegration) exportRepoUsers(repo *sdk.SourceCodeRepo) error {
+func (ge *GitlabExport) exportRepoUsers(repo *sdk.SourceCodeRepo) error {
 
-	return g.exportUsers(repo, func(user *sdk.SourceCodeUser) error {
-		return g.pipe.Write(user)
+	return ge.exportUsers(repo, func(user *sdk.SourceCodeUser) error {
+		return ge.pipe.Write(user)
 	})
 
 }
 
-func (g *GitlabIntegration) exportProjectUsers(project *sdk.WorkProject) (usermap api.UsernameMap, rerr error) {
+func (ge *GitlabExport) exportProjectUsers(project *sdk.WorkProject) (usermap api.UsernameMap, rerr error) {
 
 	usermap = make(api.UsernameMap)
 
-	rerr = g.exportUsers(ToRepo(project), func(user *sdk.SourceCodeUser) error {
+	rerr = ge.exportUsers(ToRepo(project), func(user *sdk.SourceCodeUser) error {
 		usermap[*user.Username] = user.RefID
-		return g.pipe.Write(toWorkUser(user))
+		return ge.pipe.Write(toWorkUser(user))
 	})
 
 	return
@@ -51,9 +51,9 @@ func toWorkUser(user *sdk.SourceCodeUser) *sdk.WorkUser {
 
 type callBackSourceUser func(item *sdk.SourceCodeUser) error
 
-func (g *GitlabIntegration) exportUsers(repo *sdk.SourceCodeRepo, callback callBackSourceUser) (rerr error) {
-	return api.Paginate(g.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, err error) {
-		pi, arr, err := api.RepoUsersPage(g.qc, repo, params)
+func (ge *GitlabExport) exportUsers(repo *sdk.SourceCodeRepo, callback callBackSourceUser) (rerr error) {
+	return api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, err error) {
+		pi, arr, err := api.RepoUsersPage(ge.qc, repo, params)
 		if err != nil {
 			return
 		}
@@ -66,16 +66,16 @@ func (g *GitlabIntegration) exportUsers(repo *sdk.SourceCodeRepo, callback callB
 	})
 }
 
-func (g *GitlabIntegration) exportEnterpriseUsers() error {
-	return g.fetchEnterpriseUsers(func(user *sdk.SourceCodeUser) error {
-		return g.pipe.Write(user)
+func (ge *GitlabExport) exportEnterpriseUsers() error {
+	return ge.fetchEnterpriseUsers(func(user *sdk.SourceCodeUser) error {
+		return ge.pipe.Write(user)
 	})
 }
 
-func (g *GitlabIntegration) fetchEnterpriseUsers(callback callBackSourceUser) (rerr error) {
-	return api.Paginate(g.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, err error) {
+func (ge *GitlabExport) fetchEnterpriseUsers(callback callBackSourceUser) (rerr error) {
+	return api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, err error) {
 		params.Set("membership", "true")
-		pi, arr, err := api.UsersPage(g.qc, params)
+		pi, arr, err := api.UsersPage(ge.qc, params)
 		if err != nil {
 			return
 		}

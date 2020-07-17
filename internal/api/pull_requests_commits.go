@@ -28,7 +28,7 @@ func PullRequestCommitsPage(
 		CommitterEmail string    `json:"committer_email"`
 	}
 
-	pi, err = qc.Request(objectPath, params, &rcommits)
+	pi, err = qc.Get(objectPath, params, &rcommits)
 	if err != nil {
 		return
 	}

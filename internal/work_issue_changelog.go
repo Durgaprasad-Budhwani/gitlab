@@ -8,11 +8,11 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-func (g *GitlabIntegration) exportIssueDiscussions(project *sdk.WorkProject, issue sdk.WorkIssue, projectUsers api.UsernameMap) (rerr error) {
+func (ge *GitlabExport) exportIssueDiscussions(project *sdk.WorkProject, issue sdk.WorkIssue, projectUsers api.UsernameMap) (rerr error) {
 
-	sdk.LogDebug(g.logger, "exporting issue changelog", "issue", issue.Identifier)
+	sdk.LogDebug(ge.logger, "exporting issue changelog", "issue", issue.Identifier)
 
-	changelogs, err := g.fetchIssueDiscussions(project, issue, projectUsers)
+	changelogs, err := ge.fetchIssueDiscussions(project, issue, projectUsers)
 	if err != nil {
 		return err
 	}
@@ -22,10 +22,10 @@ func (g *GitlabIntegration) exportIssueDiscussions(project *sdk.WorkProject, iss
 	return
 }
 
-func (g *GitlabIntegration) fetchIssueDiscussions(project *sdk.WorkProject, issue sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, rerr error) {
+func (ge *GitlabExport) fetchIssueDiscussions(project *sdk.WorkProject, issue sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, rerr error) {
 
-	rerr = api.Paginate(g.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, rerr error) {
-		pi, arr, comments, err := api.WorkIssuesDiscussionPage(g.qc, project, issue.RefID, projectUsers, params)
+	rerr = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, rerr error) {
+		pi, arr, comments, err := api.WorkIssuesDiscussionPage(ge.qc, project, issue.RefID, projectUsers, params)
 		if err != nil {
 			return pi, err
 		}
@@ -33,7 +33,7 @@ func (g *GitlabIntegration) fetchIssueDiscussions(project *sdk.WorkProject, issu
 			changelogs = append(changelogs, *cl)
 		}
 		for _, c := range comments {
-			if err := g.pipe.Write(c); err != nil {
+			if err := ge.pipe.Write(c); err != nil {
 				return
 			}
 		}
@@ -43,9 +43,9 @@ func (g *GitlabIntegration) fetchIssueDiscussions(project *sdk.WorkProject, issu
 	return
 }
 
-func (g *GitlabIntegration) writeProjectIssues(commits []*sdk.SourceCodePullRequestCommit) (rerr error) {
+func (ge *GitlabExport) writeProjectIssues(commits []*sdk.SourceCodePullRequestCommit) (rerr error) {
 	for _, c := range commits {
-		if err := g.pipe.Write(c); err != nil {
+		if err := ge.pipe.Write(c); err != nil {
 			rerr = err
 			return
 		}

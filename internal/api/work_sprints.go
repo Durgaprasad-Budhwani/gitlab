@@ -28,7 +28,7 @@ func WorkSprintPage(qc QueryContext, project *sdk.WorkProject, params url.Values
 		StartDate   string    `json:"start_date"`
 		WebURL      string    `json:"web_url"`
 	}
-	pi, err = qc.Request(objectPath, params, &rawsprints)
+	pi, err = qc.Get(objectPath, params, &rawsprints)
 	if err != nil {
 		return
 	}

@@ -1,42 +1,26 @@
 package internal
 
 import (
+	"encoding/base64"
 	"fmt"
-	"net/url"
 	"sync"
-	"time"
 
-	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 // GitlabIntegration is an integration for GitHub
 type GitlabIntegration struct {
-	logger                     sdk.Logger
-	config                     sdk.Config
-	manager                    sdk.Manager
-	client                     sdk.GraphQLClient
-	lock                       sync.Mutex
-	qc                         api.QueryContext
-	pipe                       sdk.Pipe
-	pullrequestsFutures        []PullRequestFuture
-	isssueFutures              []IssueFuture
-	historical                 bool
-	state                      sdk.State
-	lastExportDate             time.Time
-	lastExportDateGitlabFormat string
-	isGitlabCom                bool
-	integrationInstanceID      *string
-	integrationType            string
-	lastExportKey              string
+	logger  sdk.Logger
+	config  sdk.Config
+	manager sdk.Manager
+	lock    sync.Mutex
 }
 
 var _ sdk.Integration = (*GitlabIntegration)(nil)
 
 // Start is called when the integration is starting up
 func (g *GitlabIntegration) Start(logger sdk.Logger, config sdk.Config, manager sdk.Manager) error {
-	g.logger = sdk.LogWith(logger, "pkg", GitlabRefType)
+	g.logger = sdk.LogWith(logger, "pkg", gitlabRefType)
 	g.config = config
 	g.manager = manager
 	sdk.LogInfo(g.logger, "starting")
@@ -71,79 +55,47 @@ func (g *GitlabIntegration) Stop() error {
 	return nil
 }
 
-func (g *GitlabIntegration) setExportConfig(export sdk.Export) (err error) {
+func (i *GitlabIntegration) newHTTPClient(logger sdk.Logger) (url string, cl sdk.HTTPClient, err error) {
 
-	g.pipe = export.Pipe()
-	g.historical = export.Historical()
-	g.state = export.State()
-	g.integrationInstanceID = pstrings.Pointer(export.IntegrationInstanceID())
+	url = "https://gitlab.com/api/v4/"
 
-	logger := sdk.LogWith(g.logger, "customer_id", export.CustomerID(), "job_id", export.JobID())
+	var client sdk.HTTPClient
 
-	g.logger = logger
-
-	apiURL, client, err := g.newHTTPClient(g.logger)
-	if err != nil {
-		return err
-	}
-
-	opts := &api.RequesterOpts{
-		Concurrency: make(chan bool, 10),
-		Client:      client,
-		Logger:      g.logger,
-	}
-
-	requester := api.NewRequester(opts)
-	g.qc.Request = requester.MakeRequest
-
-	u, err := url.Parse(apiURL)
-	if err != nil {
-		return fmt.Errorf("url is not valid: %v", err)
-	}
-	g.isGitlabCom = u.Hostname() == "gitlab.com"
-
-	var ok bool
-	ok, g.integrationType = g.config.GetString("int_type")
-	if !ok {
-		return fmt.Errorf("int_type type missing")
-	}
-
-	g.lastExportKey = g.integrationType + "@last_export_date"
-
-	if err = g.exportDate(); err != nil {
-		return
-	}
-
-	g.qc.Logger = g.logger
-	g.qc.RefType = GitlabRefType
-	g.qc.CustomerID = export.CustomerID()
-
-	return
-}
-
-func (g *GitlabIntegration) exportDate() (rerr error) {
-
-	if !g.historical {
-		var exportDate string
-		ok, err := g.state.Get(g.lastExportKey, &exportDate)
-		if err != nil {
-			rerr = err
-			return
+	if i.config.APIKeyAuth != nil {
+		apikey := i.config.APIKeyAuth.APIKey
+		if i.config.APIKeyAuth.URL != "" {
+			url = i.config.APIKeyAuth.URL
 		}
-		if !ok {
-			return
+		client = i.manager.HTTPManager().New(url, map[string]string{
+			"Authorization": "bearer " + apikey,
+		})
+		sdk.LogInfo(logger, "using apikey authorization")
+	} else if i.config.OAuth2Auth != nil {
+		authToken := i.config.OAuth2Auth.AccessToken
+		if i.config.OAuth2Auth.RefreshToken != nil {
+			token, err := i.manager.AuthManager().RefreshOAuth2Token(gitlabRefType, *i.config.OAuth2Auth.RefreshToken)
+			if err != nil {
+				return "", nil, fmt.Errorf("error refreshing oauth2 access token: %w", err)
+			}
+			authToken = token
 		}
-		lastExportDate, err := time.Parse(time.RFC3339, exportDate)
-		if err != nil {
-			rerr = fmt.Errorf("error formating last export date. date %s err %s", exportDate, err)
-			return
+		if i.config.OAuth2Auth.URL != "" {
+			url = i.config.OAuth2Auth.URL
 		}
-
-		g.lastExportDate = lastExportDate.UTC()
-		g.lastExportDateGitlabFormat = lastExportDate.UTC().Format(GitLabDateFormat)
+		client = i.manager.HTTPManager().New(url, map[string]string{
+			"Authorization": "bearer " + authToken,
+		})
+		sdk.LogInfo(logger, "using oauth2 authorization")
+	} else if i.config.BasicAuth != nil {
+		if i.config.BasicAuth.URL != "" {
+			url = i.config.BasicAuth.URL
+		}
+		client = i.manager.HTTPManager().New(url, map[string]string{
+			"Authorization": "Basic " + base64.StdEncoding.EncodeToString([]byte(i.config.BasicAuth.Username+":"+i.config.BasicAuth.Password)),
+		})
+		sdk.LogInfo(logger, "using basic authorization", "username", i.config.BasicAuth.Username)
+	} else {
+		return "", nil, fmt.Errorf("supported authorization not provided. support for: apikey, oauth2, basic")
 	}
-
-	sdk.LogDebug(g.logger, "last export date", "date", g.lastExportDate)
-
-	return
+	return url, client, nil
 }

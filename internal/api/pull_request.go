@@ -57,7 +57,7 @@ func PullRequestPage(
 		} `json:"references"`
 	}
 
-	pi, err = qc.Request(objectPath, params, &rprs)
+	pi, err = qc.Get(objectPath, params, &rprs)
 	if err != nil {
 		return
 	}

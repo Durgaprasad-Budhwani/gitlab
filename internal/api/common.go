@@ -20,14 +20,14 @@ const (
 type QueryContext struct {
 	BaseURL string
 	Logger  sdk.Logger
-	Request func(url string, params url.Values, response interface{}) (NextPage, error)
+	Get     func(url string, params url.Values, response interface{}) (NextPage, error)
 
 	CustomerID string
 	RefType    string
 
 	UserEmailMap map[string]string
 	// IDs          ids2.Gen
-	Re *RequesterOpts
+	// Re *RequesterOpts
 }
 
 type NextPage string

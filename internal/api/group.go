@@ -43,7 +43,7 @@ func groups(qc QueryContext, params url.Values) (np NextPage, groups []*Group, e
 		FullPath string `json:"full_path"`
 	}
 
-	np, err = qc.Request(objectPath, params, &rgroups)
+	np, err = qc.Get(objectPath, params, &rgroups)
 	if err != nil {
 		return
 	}

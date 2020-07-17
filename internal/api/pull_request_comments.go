@@ -32,7 +32,7 @@ func PullRequestCommentsPage(
 		System    bool      `json:"system"`
 	}
 
-	pi, err = qc.Request(objectPath, params, &rcomments)
+	pi, err = qc.Get(objectPath, params, &rcomments)
 	if err != nil {
 		return
 	}

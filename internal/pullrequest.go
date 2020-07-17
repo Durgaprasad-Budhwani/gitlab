@@ -14,15 +14,15 @@ type PullRequestFuture struct {
 	Repo *sdk.SourceCodeRepo
 }
 
-func (g *GitlabIntegration) exportRepoPullRequests(repo *sdk.SourceCodeRepo) {
+func (ge *GitlabExport) exportRepoPullRequests(repo *sdk.SourceCodeRepo) {
 
-	sdk.LogDebug(g.logger, "pull requests", "repo", repo.Name)
+	sdk.LogDebug(ge.logger, "pull requests", "repo", repo.Name)
 
 	prsChan := make(chan api.PullRequest, 10)
 
 	done := make(chan bool, 1)
 	go func() {
-		g.exportPullRequestEntitiesAndWrite(repo, prsChan)
+		ge.exportPullRequestEntitiesAndWrite(repo, prsChan)
 		done <- true
 	}()
 
@@ -30,35 +30,35 @@ func (g *GitlabIntegration) exportRepoPullRequests(repo *sdk.SourceCodeRepo) {
 	go func() {
 		defer close(prsChan)
 		var err error
-		np, err = g.fetchInitialRepoPullRequests(repo, prsChan)
+		np, err = ge.fetchInitialRepoPullRequests(repo, prsChan)
 		if err != nil {
-			sdk.LogError(g.logger, "error initial pull requests", "repo", repo.Name, "err", err)
+			sdk.LogError(ge.logger, "error initial pull requests", "repo", repo.Name, "err", err)
 			done <- true
 		}
 	}()
 
 	<-done
-	g.addPullRequestFuture(repo, np)
+	ge.addPullRequestFuture(repo, np)
 }
 
-func (g *GitlabIntegration) exportRemainingRepoPullRequests(repo *sdk.SourceCodeRepo) {
+func (ge *GitlabExport) exportRemainingRepoPullRequests(repo *sdk.SourceCodeRepo) {
 
-	sdk.LogDebug(g.logger, "remaining pull requests", "repo", repo.Name)
+	sdk.LogDebug(ge.logger, "remaining pull requests", "repo", repo.Name)
 
 	prsChan := make(chan api.PullRequest, 10)
 
 	done := make(chan bool, 1)
 	go func() {
-		g.exportPullRequestEntitiesAndWrite(repo, prsChan)
+		ge.exportPullRequestEntitiesAndWrite(repo, prsChan)
 		done <- true
 	}()
 
 	go func() {
 		defer close(prsChan)
 		var err error
-		err = g.fetchRemainingRepoPullRequests(repo, prsChan)
+		err = ge.fetchRemainingRepoPullRequests(repo, prsChan)
 		if err != nil {
-			sdk.LogError(g.logger, "error remaining  pull requests", "repo", repo.Name, "err", err)
+			sdk.LogError(ge.logger, "error remaining  pull requests", "repo", repo.Name, "err", err)
 			done <- true
 		}
 	}()
@@ -66,7 +66,7 @@ func (g *GitlabIntegration) exportRemainingRepoPullRequests(repo *sdk.SourceCode
 	<-done
 }
 
-func (g *GitlabIntegration) exportPullRequestEntitiesAndWrite(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) {
+func (ge *GitlabExport) exportPullRequestEntitiesAndWrite(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) {
 
 	var wg sync.WaitGroup
 
@@ -75,24 +75,24 @@ func (g *GitlabIntegration) exportPullRequestEntitiesAndWrite(repo *sdk.SourceCo
 		go func(pr api.PullRequest) {
 			defer wg.Done()
 
-			err := g.exportPullRequestsComments(repo, pr)
+			err := ge.exportPullRequestsComments(repo, pr)
 			if err != nil {
-				sdk.LogError(g.logger, "error on pull request comments", "err", err)
+				sdk.LogError(ge.logger, "error on pull request comments", "err", err)
 			}
 
-			err = g.exportPullRequestsReviews(repo, pr)
+			err = ge.exportPullRequestsReviews(repo, pr)
 			if err != nil {
-				sdk.LogError(g.logger, "error on pull request reviews", "err", err)
+				sdk.LogError(ge.logger, "error on pull request reviews", "err", err)
 			}
 
-			err = g.exportPullRequestCommits(repo, pr)
+			err = ge.exportPullRequestCommits(repo, pr)
 			if err != nil {
-				sdk.LogError(g.logger, "error on pull request commits", "err", err)
+				sdk.LogError(ge.logger, "error on pull request commits", "err", err)
 			}
 
-			sdk.LogDebug(g.logger, "pull request done", "identifier", pr.Identifier, "title", pr.Title)
-			if err := g.pipe.Write(pr.SourceCodePullRequest); err != nil {
-				sdk.LogError(g.logger, "error writting pr", "err", err)
+			sdk.LogDebug(ge.logger, "pull request done", "identifier", pr.Identifier, "title", pr.Title)
+			if err := ge.pipe.Write(pr.SourceCodePullRequest); err != nil {
+				sdk.LogError(ge.logger, "error writting pr", "err", err)
 			}
 		}(pr)
 	}
@@ -101,28 +101,28 @@ func (g *GitlabIntegration) exportPullRequestEntitiesAndWrite(repo *sdk.SourceCo
 
 }
 
-func (g *GitlabIntegration) addPullRequestFuture(repo *sdk.SourceCodeRepo, np api.NextPage) {
+func (ge *GitlabExport) addPullRequestFuture(repo *sdk.SourceCodeRepo, np api.NextPage) {
 	if string(np) != "" {
-		g.pullrequestsFutures = append(g.pullrequestsFutures, PullRequestFuture{repo})
+		ge.pullrequestsFutures = append(ge.pullrequestsFutures, PullRequestFuture{repo})
 	}
 }
 
-func (g *GitlabIntegration) fetchInitialRepoPullRequests(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) (pi api.NextPage, rerr error) {
+func (ge *GitlabExport) fetchInitialRepoPullRequests(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) (pi api.NextPage, rerr error) {
 	params := url.Values{}
 
-	if g.lastExportDateGitlabFormat != "" {
-		params.Set("updated_after", g.lastExportDateGitlabFormat)
+	if ge.lastExportDateGitlabFormat != "" {
+		params.Set("updated_after", ge.lastExportDateGitlabFormat)
 	}
 
-	return api.PullRequestPage(g.qc, repo, params, prs)
+	return api.PullRequestPage(ge.qc, repo, params, prs)
 }
 
-func (g *GitlabIntegration) fetchRemainingRepoPullRequests(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) (rerr error) {
-	rerr = api.Paginate(g.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.NextPage, rerr error) {
-		if g.lastExportDateGitlabFormat != "" {
-			params.Set("updated_after", g.lastExportDateGitlabFormat)
+func (ge *GitlabExport) fetchRemainingRepoPullRequests(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) (rerr error) {
+	rerr = api.Paginate(ge.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.NextPage, rerr error) {
+		if ge.lastExportDateGitlabFormat != "" {
+			params.Set("updated_after", ge.lastExportDateGitlabFormat)
 		}
-		pi, rerr = api.PullRequestPage(g.qc, repo, params, prs)
+		pi, rerr = api.PullRequestPage(ge.qc, repo, params, prs)
 		return
 	})
 	return
@@ -135,23 +135,23 @@ func setPullRequestCommits(pr *sdk.SourceCodePullRequest, commits []*sdk.SourceC
 	for i := len(commits) - 1; i >= 0; i-- {
 		commit := commits[i]
 		commitshas = append(commitshas, commit.Sha)
-		commitids = append(commitids, sdk.NewSourceCodeCommitID(pr.CustomerID, commit.Sha, GitlabRefType, pr.RepoID))
+		commitids = append(commitids, sdk.NewSourceCodeCommitID(pr.CustomerID, commit.Sha, gitlabRefType, pr.RepoID))
 	}
 	pr.CommitShas = commitshas
 	pr.CommitIds = commitids
 	if len(commitids) > 0 {
-		pr.BranchID = sdk.NewSourceCodeBranchID(GitlabRefType, pr.RepoID, pr.CustomerID, pr.BranchName, pr.CommitIds[0])
+		pr.BranchID = sdk.NewSourceCodeBranchID(gitlabRefType, pr.RepoID, pr.CustomerID, pr.BranchName, pr.CommitIds[0])
 	} else {
-		pr.BranchID = sdk.NewSourceCodeBranchID(GitlabRefType, pr.RepoID, pr.CustomerID, pr.BranchName, "")
+		pr.BranchID = sdk.NewSourceCodeBranchID(gitlabRefType, pr.RepoID, pr.CustomerID, pr.BranchName, "")
 	}
 	for _, commit := range commits {
 		commit.BranchID = pr.BranchID
 	}
 }
 
-func (g *GitlabIntegration) writePullRequestCommits(commits []*sdk.SourceCodePullRequestCommit) (rerr error) {
+func (ge *GitlabExport) writePullRequestCommits(commits []*sdk.SourceCodePullRequestCommit) (rerr error) {
 	for _, c := range commits {
-		if err := g.pipe.Write(c); err != nil {
+		if err := ge.pipe.Write(c); err != nil {
 			rerr = err
 			return
 		}

@@ -8,9 +8,9 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-func (g *GitlabIntegration) fetchPullRequestsCommits(repo *sdk.SourceCodeRepo, pr api.PullRequest) (commits []*sdk.SourceCodePullRequestCommit, rerr error) {
-	rerr = api.Paginate(g.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (api.NextPage, error) {
-		pi, commitsArr, err := api.PullRequestCommitsPage(g.qc, repo, pr, params)
+func (ge *GitlabExport) fetchPullRequestsCommits(repo *sdk.SourceCodeRepo, pr api.PullRequest) (commits []*sdk.SourceCodePullRequestCommit, rerr error) {
+	rerr = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (api.NextPage, error) {
+		pi, commitsArr, err := api.PullRequestCommitsPage(ge.qc, repo, pr, params)
 		if err != nil {
 			return pi, err
 		}
@@ -25,18 +25,18 @@ func (g *GitlabIntegration) fetchPullRequestsCommits(repo *sdk.SourceCodeRepo, p
 
 }
 
-func (g *GitlabIntegration) exportPullRequestCommits(repo *sdk.SourceCodeRepo, pr api.PullRequest) (rerr error) {
+func (ge *GitlabExport) exportPullRequestCommits(repo *sdk.SourceCodeRepo, pr api.PullRequest) (rerr error) {
 
-	sdk.LogDebug(g.logger, "exporting pull requests commits", "pr", pr.Identifier)
+	sdk.LogDebug(ge.logger, "exporting pull requests commits", "pr", pr.Identifier)
 
-	commits, err := g.fetchPullRequestsCommits(repo, pr)
+	commits, err := ge.fetchPullRequestsCommits(repo, pr)
 	if err != nil {
 		rerr = err
 		return
 	}
 
 	setPullRequestCommits(pr.SourceCodePullRequest, commits)
-	if err := g.writePullRequestCommits(commits); err != nil {
+	if err := ge.writePullRequestCommits(commits); err != nil {
 		rerr = err
 		return
 	}

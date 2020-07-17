@@ -14,15 +14,15 @@ type IssueFuture struct {
 	Project *sdk.WorkProject
 }
 
-func (g *GitlabIntegration) exportProjectIssues(project *sdk.WorkProject, users api.UsernameMap) {
+func (ge *GitlabExport) exportProjectIssues(project *sdk.WorkProject, users api.UsernameMap) {
 
-	sdk.LogDebug(g.logger, "issues", "project", project.Name)
+	sdk.LogDebug(ge.logger, "issues", "project", project.Name)
 
 	issuesC := make(chan sdk.WorkIssue, 10)
 
 	done := make(chan bool, 1)
 	go func() {
-		g.exportIssueEntitiesAndWrite(project, issuesC, users)
+		ge.exportIssueEntitiesAndWrite(project, issuesC, users)
 		done <- true
 	}()
 
@@ -30,34 +30,34 @@ func (g *GitlabIntegration) exportProjectIssues(project *sdk.WorkProject, users 
 	go func() {
 		defer close(issuesC)
 		var err error
-		np, err = g.fetchInitialProjectIssues(project, issuesC)
+		np, err = ge.fetchInitialProjectIssues(project, issuesC)
 		if err != nil {
-			sdk.LogError(g.logger, "error initial issues", "project", project.Name, "err", err)
+			sdk.LogError(ge.logger, "error initial issues", "project", project.Name, "err", err)
 			done <- true
 		}
 	}()
 
 	<-done
-	g.addIssueFuture(project, np)
+	ge.addIssueFuture(project, np)
 }
 
-func (g *GitlabIntegration) fetchInitialProjectIssues(project *sdk.WorkProject, issues chan sdk.WorkIssue) (pi api.NextPage, rerr error) {
+func (ge *GitlabExport) fetchInitialProjectIssues(project *sdk.WorkProject, issues chan sdk.WorkIssue) (pi api.NextPage, rerr error) {
 	params := url.Values{}
 
-	if g.lastExportDateGitlabFormat != "" {
-		params.Set("updated_after", g.lastExportDateGitlabFormat)
+	if ge.lastExportDateGitlabFormat != "" {
+		params.Set("updated_after", ge.lastExportDateGitlabFormat)
 	}
 
-	return api.WorkIssuesPage(g.qc, project, params, issues)
+	return api.WorkIssuesPage(ge.qc, project, params, issues)
 }
 
-func (g *GitlabIntegration) addIssueFuture(project *sdk.WorkProject, np api.NextPage) {
+func (ge *GitlabExport) addIssueFuture(project *sdk.WorkProject, np api.NextPage) {
 	if string(np) != "" {
-		g.isssueFutures = append(g.isssueFutures, IssueFuture{project})
+		ge.isssueFutures = append(ge.isssueFutures, IssueFuture{project})
 	}
 }
 
-func (g *GitlabIntegration) exportIssueEntitiesAndWrite(project *sdk.WorkProject, issues chan sdk.WorkIssue, users api.UsernameMap) {
+func (ge *GitlabExport) exportIssueEntitiesAndWrite(project *sdk.WorkProject, issues chan sdk.WorkIssue, users api.UsernameMap) {
 
 	var wg sync.WaitGroup
 
@@ -65,12 +65,12 @@ func (g *GitlabIntegration) exportIssueEntitiesAndWrite(project *sdk.WorkProject
 		wg.Add(1)
 		go func(issue sdk.WorkIssue) {
 			defer wg.Done()
-			err := g.exportIssueDiscussions(project, issue, users)
+			err := ge.exportIssueDiscussions(project, issue, users)
 			if err != nil {
-				sdk.LogError(g.logger, "error on issue changelog", "err", err)
+				sdk.LogError(ge.logger, "error on issue changelog", "err", err)
 			}
-			if err = g.pipe.Write(&issue); err != nil {
-				sdk.LogError(g.logger, "error writting pr", "err", err)
+			if err = ge.pipe.Write(&issue); err != nil {
+				sdk.LogError(ge.logger, "error writting pr", "err", err)
 			}
 		}(issue)
 	}
@@ -80,24 +80,24 @@ func (g *GitlabIntegration) exportIssueEntitiesAndWrite(project *sdk.WorkProject
 	return
 }
 
-func (g *GitlabIntegration) exportRemainingProjectIssues(project *sdk.WorkProject, users api.UsernameMap) {
+func (ge *GitlabExport) exportRemainingProjectIssues(project *sdk.WorkProject, users api.UsernameMap) {
 
-	sdk.LogDebug(g.logger, "remaining issues", "project", project.Name)
+	sdk.LogDebug(ge.logger, "remaining issues", "project", project.Name)
 
 	issuesC := make(chan sdk.WorkIssue, 10)
 
 	done := make(chan bool, 1)
 	go func() {
-		g.exportIssueEntitiesAndWrite(project, issuesC, users)
+		ge.exportIssueEntitiesAndWrite(project, issuesC, users)
 		done <- true
 	}()
 
 	go func() {
 		defer close(issuesC)
 		var err error
-		err = g.fetchRemainingProjectIssues(project, issuesC)
+		err = ge.fetchRemainingProjectIssues(project, issuesC)
 		if err != nil {
-			sdk.LogError(g.logger, "error remaining  issues", "project", project.Name, "err", err)
+			sdk.LogError(ge.logger, "error remaining  issues", "project", project.Name, "err", err)
 			done <- true
 		}
 	}()
@@ -105,12 +105,12 @@ func (g *GitlabIntegration) exportRemainingProjectIssues(project *sdk.WorkProjec
 	<-done
 }
 
-func (g *GitlabIntegration) fetchRemainingProjectIssues(project *sdk.WorkProject, pissues chan sdk.WorkIssue) (rerr error) {
-	return api.Paginate(g.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.NextPage, rerr error) {
-		if g.lastExportDateGitlabFormat != "" {
-			params.Set("updated_after", g.lastExportDateGitlabFormat)
+func (ge *GitlabExport) fetchRemainingProjectIssues(project *sdk.WorkProject, pissues chan sdk.WorkIssue) (rerr error) {
+	return api.Paginate(ge.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.NextPage, rerr error) {
+		if ge.lastExportDateGitlabFormat != "" {
+			params.Set("updated_after", ge.lastExportDateGitlabFormat)
 		}
-		pi, rerr = api.WorkIssuesPage(g.qc, project, params, pissues)
+		pi, rerr = api.WorkIssuesPage(ge.qc, project, params, pissues)
 		return
 	})
 }

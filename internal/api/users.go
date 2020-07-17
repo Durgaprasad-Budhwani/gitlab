@@ -24,7 +24,7 @@ func RepoUsersPage(qc QueryContext, repo *sdk.SourceCodeRepo, params url.Values)
 		AvatarURL string `json:"avatar_url"`
 		WebURL    string `json:"web_url"`
 	}
-	page, err = qc.Request(objectPath, params, &ru)
+	page, err = qc.Get(objectPath, params, &ru)
 	if err != nil {
 		return
 	}
@@ -64,7 +64,7 @@ func UsersPage(qc QueryContext, params url.Values) (page NextPage, users []*sdk.
 
 	var rawUsers []UserModel
 
-	page, err = qc.Request(objectPath, params, &rawUsers)
+	page, err = qc.Get(objectPath, params, &rawUsers)
 	if err != nil {
 		return
 	}
@@ -105,7 +105,7 @@ func LoginUser(qc QueryContext) (u *GitlabUser, err error) {
 		ID   int64  `json:"id"`
 		Name string `json:"name"`
 	}
-	_, err = qc.Request(objectPath, nil, &ru)
+	_, err = qc.Get(objectPath, nil, &ru)
 	if err != nil {
 		return
 	}

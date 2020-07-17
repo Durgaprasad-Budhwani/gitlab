@@ -37,7 +37,7 @@ func PullRequestReviewsPage(
 		UpdatedAt time.Time `json:"updated_at"`
 	}
 
-	pi, err = qc.Request(objectPath, params, &rreview)
+	pi, err = qc.Get(objectPath, params, &rreview)
 	if err != nil {
 		return
 	}

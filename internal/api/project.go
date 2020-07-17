@@ -40,7 +40,7 @@ func repoLanguage(qc QueryContext, repoID string) (maxLanguage string, err error
 
 	var languages map[string]float32
 
-	if _, err = qc.Request(objectPath, nil, &languages); err != nil {
+	if _, err = qc.Get(objectPath, nil, &languages); err != nil {
 		return "", err
 	}
 
@@ -70,7 +70,7 @@ func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Ti
 		ForkedFromProject json.RawMessage `json:"forked_from_project"`
 	}
 
-	page, err = qc.Request(objectPath, params, &rr)
+	page, err = qc.Get(objectPath, params, &rr)
 	if err != nil {
 		return
 	}
