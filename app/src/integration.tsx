@@ -8,10 +8,10 @@ import {
 	OAuthConnect,
 	Graphql,
 	IAuth,
-	IAppBasicAuth,
 	Form,
 	FormType,
 	Http,
+	IAPIKeyAuth,
 	IOAuth2Auth,
 } from '@pinpt/agent.websdk';
 
@@ -25,24 +25,24 @@ interface workspacesResponse {
 	uuid: string;
 }
 
-function createAuthHeader(auth: IAppBasicAuth | IOAuth2Auth): string {
+function createAuthHeader(auth: IAPIKeyAuth | IOAuth2Auth): string {
 	var header: string;
 	if ('username' in auth) {
-		var basic = (auth as IAppBasicAuth);
-		return 'Basic ' + btoa(basic.username + ':' + basic.password);
+		var apiauth = (auth as IAPIKeyAuth);
+		return 'bearer ' + apiauth.apikey;
 	}
 	var oauth = (auth as IOAuth2Auth);
-	return 'Bearer ' + oauth.access_token;
+	return 'bearer ' + oauth.access_token;
 }
-async function fetchWorkspaces(auth: IAppBasicAuth | IOAuth2Auth): Promise<[number, workspacesResponse[]]> {
-	var url = auth.url + '/2.0/workspaces';
+async function fetchWorkspaces(auth: IAPIKeyAuth | IOAuth2Auth): Promise<[number, workspacesResponse[]]> {
+	var url = auth.url + '/api/v4/groups?top_level_only=true';
 	var res = await Http.get(url, { 'Authorization': createAuthHeader(auth) });
 	if (res[1] === 200) {
 		return [res[1], res[0].values];
 	}
 	return [res[1], []]
 }
-async function fetchRepoCount(reponame: string, auth: IAppBasicAuth | IOAuth2Auth): Promise<[number, number]> {
+async function fetchRepoCount(reponame: string, auth: IAPIKeyAuth | IOAuth2Auth): Promise<[number, number]> {
 	var url = auth.url + '/2.0/repositories/' + encodeURIComponent(reponame);
 	var res = await Http.get(url, { 'Authorization': createAuthHeader(auth) });
 	if (res[1] === 200) {
@@ -56,9 +56,9 @@ const AccountList = ({ workspaces, setWorkspaces }: { workspaces: workspacesResp
 	const [accounts, setAccounts] = useState<Account[]>([]);
 	const [fetching, setFetching] = useState(false);
 
-	let auth: IAppBasicAuth | IOAuth2Auth;
+	let auth: IAPIKeyAuth | IOAuth2Auth;
 	if (config.basic_auth) {
-		auth = config.basic_auth as IAppBasicAuth;
+		auth = config.apikey_auth as IAPIKeyAuth;
 	} else {
 		auth = config.oauth2_auth as IOAuth2Auth;
 	}
@@ -146,7 +146,7 @@ const LocationSelector = ({ setType }: { setType: (val: IntegrationType) => void
 const SelfManagedForm = ({ setWorkspaces }: { setWorkspaces: (val: workspacesResponse[]) => void }) => {
 	async function verify(auth: IAuth): Promise<boolean> {
 		try {
-			var res = await fetchWorkspaces(auth as IAppBasicAuth);
+			var res = await fetchWorkspaces(auth as IAPIKeyAuth);
 			if (res[0] === 200) {
 				setWorkspaces(res[1]);
 				return true;
@@ -158,7 +158,7 @@ const SelfManagedForm = ({ setWorkspaces }: { setWorkspaces: (val: workspacesRes
 			return false;
 		}
 	}
-	return <Form type={FormType.BASIC} name='gitlab' callback={verify} />;
+	return <Form type={FormType.API} name='gitlab' callback={verify} />;
 };
 
 const Integration = () => {
