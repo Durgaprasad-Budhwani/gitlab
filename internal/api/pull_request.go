@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/pinpt/agent.next/sdk"
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 func PullRequestPage(
@@ -19,7 +18,7 @@ func PullRequestPage(
 
 	sdk.LogDebug(qc.Logger, "repo pull requests", "repo", repo.Name, "repo_ref_id", repo.RefID, "params", params)
 
-	objectPath := pstrings.JoinURL("projects", repo.RefID, "merge_requests")
+	objectPath := sdk.JoinURL("projects", repo.RefID, "merge_requests")
 
 	var rprs []apiPullRequest
 

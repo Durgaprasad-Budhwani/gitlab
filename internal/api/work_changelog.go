@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
-	"github.com/pinpt/go-common/v10/datetime"
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.WorkProject, issueID string, usermap UsernameMap, params url.Values) (pi NextPage, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
@@ -20,7 +18,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.WorkProject, issueID
 
 	sdk.LogDebug(qc.Logger, "work issues changelog", "project", project.Name, "project_ref_id", project.RefID, "issue", issueID, "params", params)
 
-	objectPath := pstrings.JoinURL("projects", url.QueryEscape(project.RefID), "issues", issueID, "discussions.json")
+	objectPath := sdk.JoinURL("projects", url.QueryEscape(project.RefID), "issues", issueID, "discussions.json")
 
 	var notes []struct {
 		ID    string `json:"id"`
@@ -49,8 +47,8 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.WorkProject, issueID
 					ProjectID: project.ID,
 					Body:      nn.Body,
 				}
-				datetime.ConvertToModel(nn.CreatedAt, &comment.CreatedDate)
-				datetime.ConvertToModel(nn.UpdatedAt, &comment.UpdatedDate)
+				sdk.ConvertTimeToDateModel(nn.CreatedAt, &comment.CreatedDate)
+				sdk.ConvertTimeToDateModel(nn.UpdatedAt, &comment.UpdatedDate)
 				comments = append(comments, comment)
 				continue
 			}
@@ -61,7 +59,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.WorkProject, issueID
 				RefID:  fmt.Sprint(nn.ID),
 				UserID: usermap[nn.Author.Username],
 			}
-			datetime.ConvertToModel(nn.CreatedAt, &changelog.CreatedDate)
+			sdk.ConvertTimeToDateModel(nn.CreatedAt, &changelog.CreatedDate)
 
 			if strings.HasPrefix(nn.Body, "closed") || strings.HasPrefix(nn.Body, "reopened") {
 				// IssueChangeLogFieldStatus

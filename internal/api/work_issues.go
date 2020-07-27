@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
-	"github.com/pinpt/go-common/v10/datetime"
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 func WorkIssuesPage(
@@ -22,7 +20,7 @@ func WorkIssuesPage(
 
 	sdk.LogDebug(qc.Logger, "work issues", "project", project.Name, "project_ref_id", project.RefID, "params", params)
 
-	objectPath := pstrings.JoinURL("projects", url.QueryEscape(project.RefID), "issues")
+	objectPath := sdk.JoinURL("projects", url.QueryEscape(project.RefID), "issues")
 
 	var rawissues []IssueModel
 
@@ -49,7 +47,7 @@ func WorkIssuesPage(
 		item.CreatorRefID = fmt.Sprint(rawissue.Author.ID)
 		item.Description = rawissue.Description
 		if rawissue.EpicIid != 0 {
-			item.EpicID = pstrings.Pointer(fmt.Sprint(rawissue.EpicIid))
+			item.EpicID = sdk.StringPointer(fmt.Sprint(rawissue.EpicIid))
 		}
 		item.Identifier = identifier
 		item.ProjectID = sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)
@@ -59,21 +57,21 @@ func WorkIssuesPage(
 		item.Type = "Issue"
 		item.URL = rawissue.WebURL
 
-		datetime.ConvertToModel(rawissue.CreatedAt, &item.CreatedDate)
-		datetime.ConvertToModel(rawissue.UpdatedAt, &item.UpdatedDate)
+		sdk.ConvertTimeToDateModel(rawissue.CreatedAt, &item.CreatedDate)
+		sdk.ConvertTimeToDateModel(rawissue.UpdatedAt, &item.UpdatedDate)
 
 		item.SprintIds = []string{sdk.NewAgileSprintID(qc.CustomerID, strconv.FormatInt(int64(rawissue.Milestone.Iid), 10), qc.RefType)}
 		duedate, err := time.Parse("2006-01-02", rawissue.Milestone.DueDate)
 		if err != nil {
 			duedate = time.Time{}
 		}
-		datetime.ConvertToModel(duedate, &item.PlannedEndDate)
+		sdk.ConvertTimeToDateModel(duedate, &item.PlannedEndDate)
 
 		startdate, err := time.Parse("2006-01-02", rawissue.Milestone.StartDate)
 		if err != nil {
 			startdate = time.Time{}
 		}
-		datetime.ConvertToModel(startdate, &item.PlannedStartDate)
+		sdk.ConvertTimeToDateModel(startdate, &item.PlannedStartDate)
 
 		issues <- item
 	}

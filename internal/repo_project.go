@@ -6,8 +6,6 @@ import (
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
-
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 type callback func(item *sdk.SourceCodeRepo)
@@ -42,7 +40,7 @@ func ToProject(repo *sdk.SourceCodeRepo) *sdk.WorkProject {
 	return &sdk.WorkProject{
 		Active:      repo.Active,
 		CustomerID:  repo.CustomerID,
-		Description: pstrings.Pointer(repo.Description),
+		Description: sdk.StringPointer(repo.Description),
 		ID:          repo.ID,
 		Name:        repo.Name,
 		RefID:       repo.RefID,

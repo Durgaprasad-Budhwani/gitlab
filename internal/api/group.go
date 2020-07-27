@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 // Group internal group
@@ -75,7 +74,7 @@ func GroupUser(qc QueryContext, group *Group, userId string) (u *GitlabUser, err
 
 	sdk.LogDebug(qc.Logger, "group user access level", "group_name", group.Name, "group_id", group.ID, "user_id", userId)
 
-	objectPath := pstrings.JoinURL("groups", group.ID, "members", userId)
+	objectPath := sdk.JoinURL("groups", group.ID, "members", userId)
 
 	_, err = qc.Get(objectPath, nil, &u)
 	if err != nil {

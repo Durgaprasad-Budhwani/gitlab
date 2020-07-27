@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/pinpt/agent.next/sdk"
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 const (
@@ -24,7 +23,7 @@ func RepoUsersPage(qc QueryContext, repo *sdk.SourceCodeRepo, params url.Values)
 
 	sdk.LogDebug(qc.Logger, "users request", "repo", repo.Name, "repo_ref_id", repo.RefID, "params", params)
 
-	objectPath := pstrings.JoinURL("projects", url.QueryEscape(repo.RefID), "users")
+	objectPath := sdk.JoinURL("projects", url.QueryEscape(repo.RefID), "users")
 
 	var ru []struct {
 		ID        int64  `json:"id"`
@@ -44,11 +43,13 @@ func RepoUsersPage(qc QueryContext, repo *sdk.SourceCodeRepo, params url.Values)
 		sourceUser.CustomerID = qc.CustomerID
 		sourceUser.RefID = strconv.FormatInt(user.ID, 10)
 		sourceUser.Name = user.Name
-		sourceUser.AvatarURL = pstrings.Pointer(user.AvatarURL)
-		sourceUser.Username = pstrings.Pointer(user.Username)
+		sourceUser.AvatarURL = sdk.StringPointer(user.AvatarURL)
+		sourceUser.Username = sdk.StringPointer(user.Username)
 		sourceUser.Member = true
 		sourceUser.Type = sdk.SourceCodeUserTypeHuman
-		sourceUser.URL = pstrings.Pointer(user.WebURL)
+		sourceUser.URL = sdk.StringPointer(user.WebURL)
+
+		sdk.StringPointer()
 
 		repos = append(repos, &sourceUser)
 	}
@@ -69,7 +70,7 @@ func UsersPage(qc QueryContext, params url.Values) (page NextPage, users []*sdk.
 
 	sdk.LogDebug(qc.Logger, "users request")
 
-	objectPath := pstrings.JoinURL("/users")
+	objectPath := sdk.JoinURL("/users")
 
 	var rawUsers []UserModel
 
@@ -82,12 +83,12 @@ func UsersPage(qc QueryContext, params url.Values) (page NextPage, users []*sdk.
 		refID := strconv.FormatInt(user.ID, 10)
 		users = append(users, &sdk.SourceCodeUser{
 			ID:         sdk.NewSourceCodeUserID(qc.CustomerID, qc.RefType, refID),
-			Email:      pstrings.Pointer(user.Email),
-			Username:   pstrings.Pointer(user.Username),
+			Email:      sdk.StringPointer(user.Email),
+			Username:   sdk.StringPointer(user.Username),
 			Name:       user.Name,
 			RefID:      refID,
-			AvatarURL:  pstrings.Pointer(user.AvatarURL),
-			URL:        pstrings.Pointer(user.WebURL),
+			AvatarURL:  sdk.StringPointer(user.AvatarURL),
+			URL:        sdk.StringPointer(user.WebURL),
 			Type:       sdk.SourceCodeUserTypeHuman,
 			Member:     true,
 			CustomerID: qc.CustomerID,
@@ -111,7 +112,7 @@ func LoginUser(qc QueryContext) (u *GitlabUser, err error) {
 
 	sdk.LogDebug(qc.Logger, "user request")
 
-	objectPath := pstrings.JoinURL("user")
+	objectPath := sdk.JoinURL("user")
 
 	_, err = qc.Get(objectPath, nil, &u)
 	if err != nil {

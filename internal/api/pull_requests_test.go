@@ -8,14 +8,14 @@ import (
 
 	"github.com/pinpt/agent.next/sdk"
 	"github.com/pinpt/go-common/datetime"
-	"github.com/pinpt/go-common/v10/log"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestApiPRToSrcCode(t *testing.T) {
 
 	assert := assert.New(t)
-	logger := log.NewNoOpTestLogger()
+
+	logger := sdk.NewNoOpTestLogger()
 	customerID := "123"
 	repoID := "w45fdc4"
 	refType := "gitlab"
@@ -77,7 +77,7 @@ func TestApiPRToSrcCode(t *testing.T) {
 func TestWebHookPRToSrcCode(t *testing.T) {
 
 	assert := assert.New(t)
-	logger := log.NewNoOpTestLogger()
+	logger := sdk.NewNoOpTestLogger()
 	customerID := "123"
 	repoID := "w45fdc4"
 	refType := "gitlab"

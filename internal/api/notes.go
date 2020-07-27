@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 type WebhookNote struct {
@@ -48,7 +47,7 @@ func GetGetSinglePullRequestNote(
 
 	sdk.LogDebug(qc.Logger, "pull request reviews", "project", projectName, "repo_ref_id", projectRefID, "pr_id", prRefID, "pr_iid", prIID, "params", params)
 
-	objectPath := pstrings.JoinURL("projects", projectRefID, "merge_requests", strconv.FormatInt(prIID, 10), "notes")
+	objectPath := sdk.JoinURL("projects", projectRefID, "merge_requests", strconv.FormatInt(prIID, 10), "notes")
 
 	var rnotes []*Note
 

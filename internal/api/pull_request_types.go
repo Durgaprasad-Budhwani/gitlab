@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
-	"github.com/pinpt/go-common/v10/datetime"
 )
 
 type PullRequest struct {
@@ -43,10 +42,10 @@ func (c *CommonPullRequestFields) commonToSourceCodePullRequest(logger sdk.Logge
 	pr.Title = c.Title
 	pr.BranchName = c.SourceBranch
 	pr.Description = setHTMLPRDescription(c.Description)
-	datetime.ConvertToModel(c.CreatedAt, &pr.CreatedDate)
-	datetime.ConvertToModel(c.MergedAt, &pr.MergedDate)
-	datetime.ConvertToModel(c.ClosedAt, &pr.ClosedDate)
-	datetime.ConvertToModel(c.UpdatedAt, &pr.UpdatedDate)
+	sdk.ConvertTimeToDateModel(c.CreatedAt, &pr.CreatedDate)
+	sdk.ConvertTimeToDateModel(c.MergedAt, &pr.MergedDate)
+	sdk.ConvertTimeToDateModel(c.ClosedAt, &pr.ClosedDate)
+	sdk.ConvertTimeToDateModel(c.UpdatedAt, &pr.UpdatedDate)
 	pr.Draft = c.Draft
 	switch c.State {
 	case "opened":

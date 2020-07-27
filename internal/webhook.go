@@ -10,7 +10,6 @@ import (
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
-	"github.com/pinpt/go-common/v10/datetime"
 )
 
 const hookVersion = "1" // change this to upgrade the hook in case the events change
@@ -137,7 +136,7 @@ func (i *GitlabIntegration) GetReviewFromAction(
 		review.State = sdk.SourceCodePullRequestReviewStateDismissed
 	}
 
-	datetime.ConvertToModel(note.CreatedAt, &review.CreatedDate)
+	sdk.ConvertTimeToDateModel(note.CreatedAt, &review.CreatedDate)
 	review.UserRefID = strconv.FormatInt(note.Author.ID, 10)
 
 	return

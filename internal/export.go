@@ -7,7 +7,6 @@ import (
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 type GitlabExport struct {
@@ -70,7 +69,7 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 	ge.historical = export.Historical()
 	ge.state = export.State()
 	ge.config = export.Config()
-	ge.integrationInstanceID = pstrings.Pointer(export.IntegrationInstanceID())
+	ge.integrationInstanceID = sdk.StringPointer(export.IntegrationInstanceID())
 
 	_, intType := ge.config.Get("integrationType")
 	if intType == "" {

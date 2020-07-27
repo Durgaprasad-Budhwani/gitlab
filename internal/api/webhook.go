@@ -4,7 +4,6 @@ import (
 	"net/url"
 
 	"github.com/pinpt/agent.next/sdk"
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 var systemEventNames = []string{
@@ -28,7 +27,7 @@ func CreateSystemWebHook(qc QueryContext, eventAPIWebhookURL string) error {
 
 	sdk.LogDebug(qc.Logger, "system webhooks")
 
-	objectPath := pstrings.JoinURL("hooks")
+	objectPath := sdk.JoinURL("hooks")
 
 	params := url.Values{}
 	params.Set("url", eventAPIWebhookURL)
@@ -53,7 +52,7 @@ func CreateGroupWebHook(qc QueryContext, group *Group, eventAPIWebhookURL string
 
 	sdk.LogDebug(qc.Logger, "group webhooks", "group_name", group.Name, "group_id", group.ID)
 
-	objectPath := pstrings.JoinURL("groups", group.ID, "hooks")
+	objectPath := sdk.JoinURL("groups", group.ID, "hooks")
 
 	params := url.Values{}
 	params.Set("url", eventAPIWebhookURL)
@@ -76,7 +75,7 @@ func CreateProjectWebHook(qc QueryContext, project *sdk.SourceCodeRepo, eventAPI
 
 	sdk.LogDebug(qc.Logger, "group webhooks", "project_name", project.Name, "project_id", project.RefID)
 
-	objectPath := pstrings.JoinURL("projects", project.RefID, "hooks")
+	objectPath := sdk.JoinURL("projects", project.RefID, "hooks")
 
 	params := url.Values{}
 	params.Set("url", eventAPIWebhookURL)
@@ -103,7 +102,7 @@ func GetSystemWebHookPage(qc QueryContext, params url.Values) (page NextPage, gw
 
 	sdk.LogDebug(qc.Logger, "system webhooks")
 
-	objectPath := pstrings.JoinURL("hooks")
+	objectPath := sdk.JoinURL("hooks")
 
 	page, err = qc.Get(objectPath, params, &gwhs)
 
@@ -114,7 +113,7 @@ func GetGroupWebHookPage(qc QueryContext, group *Group, params url.Values) (page
 
 	sdk.LogDebug(qc.Logger, "group webhooks", "group_id", group.ID, "group_name", group.Name, "params", params)
 
-	objectPath := pstrings.JoinURL("groups", group.ID, "hooks")
+	objectPath := sdk.JoinURL("groups", group.ID, "hooks")
 
 	page, err = qc.Get(objectPath, params, &gwhs)
 
@@ -125,7 +124,7 @@ func GetProjectWebHookPage(qc QueryContext, project *sdk.SourceCodeRepo, params 
 
 	sdk.LogDebug(qc.Logger, "project webhooks", "repo_id", project.RefID, "repo_name", project.Name, "params", params)
 
-	objectPath := pstrings.JoinURL("projects", project.RefID, "hooks")
+	objectPath := sdk.JoinURL("projects", project.RefID, "hooks")
 
 	page, err = qc.Get(objectPath, params, &gwhs)
 

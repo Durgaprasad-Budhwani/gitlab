@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
-	"github.com/pinpt/go-common/v10/datetime"
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 func PullRequestCommentsPage(
@@ -19,7 +17,7 @@ func PullRequestCommentsPage(
 
 	sdk.LogDebug(qc.Logger, "pull request comments", "repo", repo.Name, "repo_ref_id", repo.RefID, "pr", pr.IID, "params", params)
 
-	objectPath := pstrings.JoinURL("projects", url.QueryEscape(repo.RefID), "merge_requests", pr.IID, "notes")
+	objectPath := sdk.JoinURL("projects", url.QueryEscape(repo.RefID), "merge_requests", pr.IID, "notes")
 
 	var rcomments []struct {
 		ID     int64 `json:"id"`
@@ -53,13 +51,13 @@ func PullRequestCommentsPage(
 		item.CustomerID = qc.CustomerID
 		item.RefType = qc.RefType
 		item.RefID = fmt.Sprint(rcomment.ID)
-		item.URL = pstrings.JoinURL(u.Scheme, "://", u.Hostname(), repo.Name, "merge_requests", pr.IID)
-		datetime.ConvertToModel(rcomment.UpdatedAt, &item.UpdatedDate)
+		item.URL = sdk.JoinURL(u.Scheme, "://", u.Hostname(), repo.Name, "merge_requests", pr.IID)
+		sdk.ConvertTimeToDateModel(rcomment.UpdatedAt, &item.UpdatedDate)
 
 		item.RepoID = repoID
 		item.PullRequestID = pullRequestID
 		item.Body = rcomment.Body
-		datetime.ConvertToModel(rcomment.CreatedAt, &item.CreatedDate)
+		sdk.ConvertTimeToDateModel(rcomment.CreatedAt, &item.CreatedDate)
 
 		item.UserRefID = strconv.FormatInt(rcomment.Author.ID, 10)
 		res = append(res, item)

@@ -8,7 +8,6 @@ import (
 
 	"github.com/pinpt/agent.next/sdk"
 	"github.com/pinpt/go-common/v10/datetime"
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 func GroupReposPage(qc QueryContext, group *Group, params url.Values, stopOnUpdatedAt time.Time) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
@@ -18,7 +17,7 @@ func GroupReposPage(qc QueryContext, group *Group, params url.Values, stopOnUpda
 
 	sdk.LogDebug(qc.Logger, "group repos request", "group_id", group.ID, "group", group.FullPath, "params", params)
 
-	objectPath := pstrings.JoinURL("groups", group.ID, "projects")
+	objectPath := sdk.JoinURL("groups", group.ID, "projects")
 
 	return reposCommonPage(qc, params, stopOnUpdatedAt, objectPath, sdk.SourceCodeRepoAffiliationOrganization)
 }
@@ -27,7 +26,7 @@ func UserReposPage(qc QueryContext, user *GitlabUser, params url.Values, stopOnU
 
 	sdk.LogDebug(qc.Logger, "user repos request", "user_id", user.ID, "username", user.Name, "params", params)
 
-	objectPath := pstrings.JoinURL("users", user.StrID, "projects")
+	objectPath := sdk.JoinURL("users", user.StrID, "projects")
 
 	return reposCommonPage(qc, params, stopOnUpdatedAt, objectPath, sdk.SourceCodeRepoAffiliationUser)
 }
@@ -36,7 +35,7 @@ func repoLanguage(qc QueryContext, repoID string) (maxLanguage string, err error
 
 	// sdk.LogDebug(qc.Logger, "language request", "repo", repoID)
 
-	objectPath := pstrings.JoinURL("projects", repoID, "languages")
+	objectPath := sdk.JoinURL("projects", repoID, "languages")
 
 	var languages map[string]float32
 
@@ -89,8 +88,9 @@ func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Ti
 			URL:           r.WebURL,
 			DefaultBranch: r.DefaultBranch,
 			Description:   r.Description,
-			UpdatedAt:     datetime.TimeToEpoch(r.UpdatedAt),
-			Active:        !r.Archived,
+			// TODO: expose TimeToEpoch in sdk
+			UpdatedAt: datetime.TimeToEpoch(r.UpdatedAt),
+			Active:    !r.Archived,
 		}
 
 		repo.Language, err = repoLanguage(qc, refID)
@@ -119,7 +119,7 @@ func ProjectUser(qc QueryContext, repo *sdk.SourceCodeRepo, userId string) (u *G
 
 	sdk.LogDebug(qc.Logger, "project user access level", "project_name", repo.Name, "project_id", repo.ID, "user_id", userId)
 
-	objectPath := pstrings.JoinURL("projects", repo.RefID, "members", userId)
+	objectPath := sdk.JoinURL("projects", repo.RefID, "members", userId)
 
 	_, err = qc.Get(objectPath, nil, &u)
 	if err != nil {

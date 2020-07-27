@@ -5,9 +5,6 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
-	"github.com/pinpt/go-common/v10/datetime"
-	"github.com/pinpt/go-common/v10/hash"
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 func PullRequestCommitsPage(
@@ -18,7 +15,7 @@ func PullRequestCommitsPage(
 
 	sdk.LogDebug(qc.Logger, "pull request commits", "repo", repo.Name, "repo_ref_id", repo.RefID, "pr_iid", pr.IID, "params", params)
 
-	objectPath := pstrings.JoinURL("projects", repo.RefID, "merge_requests", pr.IID, "commits")
+	objectPath := sdk.JoinURL("projects", repo.RefID, "merge_requests", pr.IID, "commits")
 
 	var rcommits []struct {
 		ID             string    `json:"id"`
@@ -48,7 +45,7 @@ func PullRequestCommitsPage(
 		item.Sha = rcommit.ID
 		item.Message = rcommit.Message
 		item.URL = rcommit.WebURL
-		datetime.ConvertToModel(rcommit.CreatedAt, &item.CreatedDate)
+		sdk.ConvertTimeToDateModel(rcommit.CreatedAt, &item.CreatedDate)
 
 		item.AuthorRefID = CodeCommitEmail(qc.CustomerID, rcommit.AuthorEmail)
 		item.CommitterRefID = CodeCommitEmail(qc.CustomerID, rcommit.CommitterEmail)
@@ -60,5 +57,6 @@ func PullRequestCommitsPage(
 }
 
 func CodeCommitEmail(customerID string, email string) string {
-	return hash.Values(customerID, email)
+	sdk.Hash()
+	return sdk.Hash(customerID, email)
 }

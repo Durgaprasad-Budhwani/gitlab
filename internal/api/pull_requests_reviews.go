@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
-	"github.com/pinpt/go-common/v10/datetime"
-	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 // PullRequestReviewsPage get reviews page
@@ -21,7 +19,7 @@ func PullRequestReviewsPage(
 
 	sdk.LogDebug(qc.Logger, "pull request reviews", "repo", repo.Name, "repo_ref_id", repo.RefID, "pr_iid", pr.IID, "params", params)
 
-	objectPath := pstrings.JoinURL("projects", repo.RefID, "merge_requests", pr.IID, "approvals")
+	objectPath := sdk.JoinURL("projects", repo.RefID, "merge_requests", pr.IID, "approvals")
 
 	var rreview struct {
 		ID         int64 `json:"id"`
@@ -56,7 +54,7 @@ func PullRequestReviewsPage(
 		item.PullRequestID = pullRequestID
 		item.State = sdk.SourceCodePullRequestReviewStateApproved
 
-		datetime.ConvertToModel(rreview.CreatedAt, &item.CreatedDate)
+		sdk.ConvertTimeToDateModel(rreview.CreatedAt, &item.CreatedDate)
 
 		item.UserRefID = strconv.FormatInt(a.User.ID, 10)
 
@@ -72,7 +70,7 @@ func PullRequestReviewsPage(
 		item.PullRequestID = pullRequestID
 		item.State = sdk.SourceCodePullRequestReviewStatePending
 
-		datetime.ConvertToModel(rreview.CreatedAt, &item.CreatedDate)
+		sdk.ConvertTimeToDateModel(rreview.CreatedAt, &item.CreatedDate)
 
 		item.UserRefID = strconv.FormatInt(a.User.ID, 10)
 
