@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
-	"github.com/pinpt/go-common/v10/datetime"
 )
 
 func GroupReposPage(qc QueryContext, group *Group, params url.Values, stopOnUpdatedAt time.Time) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
@@ -89,7 +88,7 @@ func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Ti
 			DefaultBranch: r.DefaultBranch,
 			Description:   r.Description,
 			// TODO: expose TimeToEpoch in sdk
-			UpdatedAt: datetime.TimeToEpoch(r.UpdatedAt),
+			UpdatedAt: sdk.TimeToEpoch(r.UpdatedAt),
 			Active:    !r.Archived,
 		}
 

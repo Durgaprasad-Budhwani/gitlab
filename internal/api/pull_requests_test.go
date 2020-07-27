@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
-	"github.com/pinpt/go-common/datetime"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -62,9 +61,9 @@ func TestApiPRToSrcCode(t *testing.T) {
 	assert.Equal(fmt.Sprintf("!%d", pr.IID), sourceCodePR.Identifier)
 	assert.Equal(pr.Title, sourceCodePR.Title)
 	assert.Equal(setHTMLPRDescription(pr.Description), sourceCodePR.Description)
-	assert.Equal(datetime.TimeToEpoch(pr.CreatedAt), sourceCodePR.CreatedDate.Epoch)
-	assert.Equal(datetime.TimeToEpoch(pr.UpdatedAt), sourceCodePR.UpdatedDate.Epoch)
-	assert.Equal(datetime.TimeToEpoch(pr.MergedAt), sourceCodePR.MergedDate.Epoch)
+	assert.Equal(sdk.TimeToEpoch(pr.CreatedAt), sourceCodePR.CreatedDate.Epoch)
+	assert.Equal(sdk.TimeToEpoch(pr.UpdatedAt), sourceCodePR.UpdatedDate.Epoch)
+	assert.Equal(sdk.TimeToEpoch(pr.MergedAt), sourceCodePR.MergedDate.Epoch)
 	assert.Equal(pr.SourceBranch, sourceCodePR.BranchName)
 	assert.Equal(pr.MergeCommitSHA, sourceCodePR.MergeSha)
 	assert.Equal(pr.WebURL, sourceCodePR.URL)
@@ -113,9 +112,9 @@ func TestWebHookPRToSrcCode(t *testing.T) {
 	assert.Equal(fmt.Sprintf("!%d", pr.IID), sourceCodePR.Identifier)
 	assert.Equal(pr.Title, sourceCodePR.Title)
 	assert.Equal(setHTMLPRDescription(pr.Description), sourceCodePR.Description)
-	assert.Equal(datetime.TimeToEpoch(pr.CreatedAt), sourceCodePR.CreatedDate.Epoch)
-	assert.Equal(datetime.TimeToEpoch(pr.UpdatedAt), sourceCodePR.UpdatedDate.Epoch)
-	assert.Equal(datetime.TimeToEpoch(pr.MergedAt), sourceCodePR.MergedDate.Epoch)
+	assert.Equal(sdk.TimeToEpoch(pr.CreatedAt), sourceCodePR.CreatedDate.Epoch)
+	assert.Equal(sdk.TimeToEpoch(pr.UpdatedAt), sourceCodePR.UpdatedDate.Epoch)
+	assert.Equal(sdk.TimeToEpoch(pr.MergedAt), sourceCodePR.MergedDate.Epoch)
 	assert.Equal(pr.SourceBranch, sourceCodePR.BranchName)
 	assert.Equal(pr.MergeCommitSHA, sourceCodePR.MergeSha)
 	assert.Equal(pr.URL, sourceCodePR.URL)
