@@ -135,6 +135,11 @@ func (i *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 
 	config := export.Config()
 
+	// TODO: Create a list with the most common use cases, prioritize them and work on them
+	// For instance: It is higher priority to have SOURCECODE ready first than WORK
+
+	// TODO: remove webhooks in case inclusions/exclusions change
+
 	gexport, err := gitlabExport(i, logger, export)
 	if err != nil {
 		return err

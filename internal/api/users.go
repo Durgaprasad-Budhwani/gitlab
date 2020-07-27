@@ -49,8 +49,6 @@ func RepoUsersPage(qc QueryContext, repo *sdk.SourceCodeRepo, params url.Values)
 		sourceUser.Type = sdk.SourceCodeUserTypeHuman
 		sourceUser.URL = sdk.StringPointer(user.WebURL)
 
-		sdk.StringPointer()
-
 		repos = append(repos, &sourceUser)
 	}
 

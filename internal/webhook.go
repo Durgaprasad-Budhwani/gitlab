@@ -144,6 +144,8 @@ func (i *GitlabIntegration) GetReviewFromAction(
 
 func (g *GitlabIntegration) registerWebhooks(instance sdk.Instance) (rerr error) {
 
+	// TODO: Add concurrency to webhooks registration
+
 	webhookManager := g.manager.WebHookManager()
 
 	ge, err := g.SetQueryConfig(g.logger, instance.CustomerID())

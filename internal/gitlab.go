@@ -39,18 +39,20 @@ func (g *GitlabIntegration) Enroll(instance sdk.Instance) error {
 
 // Dismiss is called when an existing integration instance is removed
 func (g *GitlabIntegration) Dismiss(instance sdk.Instance) error {
-	// FIXME: remove integration
+	// TODO: Add logic for Dismiss
 	return nil
 }
 
 // Mutation is called when a mutation is received on behalf of the integration
 func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) error {
+	// TODO: Add mutations
 	return nil
 }
 
 // Stop is called when the integration is shutting down for cleanup
 func (g *GitlabIntegration) Stop() error {
 	sdk.LogInfo(g.logger, "stopping")
+	// TODO: Add Stop functionality
 	return nil
 }
 
