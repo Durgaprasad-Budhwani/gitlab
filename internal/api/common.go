@@ -1,6 +1,7 @@
 package api
 
 import (
+	"io"
 	"net/url"
 
 	"github.com/pinpt/agent.next/sdk"
@@ -21,6 +22,7 @@ type QueryContext struct {
 	BaseURL string
 	Logger  sdk.Logger
 	Get     func(url string, params url.Values, response interface{}) (NextPage, error)
+	Post    func(url string, params url.Values, data io.Reader, response interface{}) (NextPage, error)
 
 	CustomerID string
 	RefType    string

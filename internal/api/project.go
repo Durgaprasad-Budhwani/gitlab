@@ -27,7 +27,7 @@ func UserReposPage(qc QueryContext, user *GitlabUser, params url.Values, stopOnU
 
 	sdk.LogDebug(qc.Logger, "user repos request", "user_id", user.ID, "username", user.Name, "params", params)
 
-	objectPath := pstrings.JoinURL("users", user.ID, "projects")
+	objectPath := pstrings.JoinURL("users", user.StrID, "projects")
 
 	return reposCommonPage(qc, params, stopOnUpdatedAt, objectPath, sdk.SourceCodeRepoAffiliationUser)
 }
@@ -111,6 +111,22 @@ func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Ti
 
 		repos = append(repos, repo)
 	}
+
+	return
+}
+
+func ProjectUser(qc QueryContext, repo *sdk.SourceCodeRepo, userId string) (u *GitlabUser, err error) {
+
+	sdk.LogDebug(qc.Logger, "project user access level", "project_name", repo.Name, "project_id", repo.ID, "user_id", userId)
+
+	objectPath := pstrings.JoinURL("projects", repo.RefID, "members", userId)
+
+	_, err = qc.Get(objectPath, nil, &u)
+	if err != nil {
+		return
+	}
+
+	u.StrID = strconv.FormatInt(u.ID, 10)
 
 	return
 }

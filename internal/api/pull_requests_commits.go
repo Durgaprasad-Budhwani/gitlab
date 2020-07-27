@@ -26,6 +26,7 @@ func PullRequestCommitsPage(
 		CreatedAt      time.Time `json:"created_at"`
 		AuthorEmail    string    `json:"author_email"`
 		CommitterEmail string    `json:"committer_email"`
+		WebURL         string    `json:"web_url"`
 	}
 
 	pi, err = qc.Get(objectPath, params, &rcommits)
@@ -46,11 +47,7 @@ func PullRequestCommitsPage(
 		item.PullRequestID = pullRequestID
 		item.Sha = rcommit.ID
 		item.Message = rcommit.Message
-		url, err := url.Parse(qc.BaseURL)
-		if err != nil {
-			return pi, res, err
-		}
-		item.URL = url.Scheme + "://" + url.Hostname() + "/" + repo.Name + "/commit/" + rcommit.ID
+		item.URL = rcommit.WebURL
 		datetime.ConvertToModel(rcommit.CreatedAt, &item.CreatedDate)
 
 		item.AuthorRefID = CodeCommitEmail(qc.CustomerID, rcommit.AuthorEmail)

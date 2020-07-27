@@ -21,7 +21,7 @@ type GitlabExport struct {
 	config                     sdk.Config
 	lastExportDate             time.Time
 	lastExportDateGitlabFormat string
-	isGitlabCom                bool
+	isGitlabCloud              bool
 	integrationInstanceID      *string
 	integrationType            string
 	lastExportKey              string
@@ -29,16 +29,7 @@ type GitlabExport struct {
 
 const concurrentAPICalls = 10
 
-func newState(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (ge GitlabExport, rerr error) {
-
-	ge.logger = logger
-	ge.pipe = export.Pipe()
-	ge.historical = export.Historical()
-	ge.state = export.State()
-	sdk.LogDebug(logger, "jcoc", "MSG", export.Config().IntegrationType)
-	ge.config = export.Config()
-	sdk.LogDebug(logger, "jcoc", "MSG", export.Config().IntegrationType)
-	ge.integrationInstanceID = pstrings.Pointer(export.IntegrationInstanceID())
+func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, customerID string) (ge GitlabExport, rerr error) {
 
 	apiURL, client, err := i.newHTTPClient(logger)
 	if err != nil {
@@ -47,19 +38,39 @@ func newState(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (ge Gi
 	}
 
 	r := api.NewRequester(logger, client, concurrentAPICalls)
-	ge.qc.Get = r.MakeRequest
+	ge.qc.Get = r.Get
+	ge.qc.Post = r.Post
 	ge.qc.Logger = logger
 	ge.qc.RefType = gitlabRefType
-	ge.qc.CustomerID = export.CustomerID()
+	ge.qc.CustomerID = customerID
 
 	u, err := url.Parse(apiURL)
 	if err != nil {
 		rerr = fmt.Errorf("url is not valid: %v", err)
 		return
 	}
-	ge.isGitlabCom = u.Hostname() == "gitlab.com"
+	ge.isGitlabCloud = u.Hostname() == "gitlab.com"
 
-	sdk.LogDebug(logger, "jcoc", "ge.config.IntegrationType", ge.config.IntegrationType)
+	return ge, nil
+}
+
+func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (ge GitlabExport, rerr error) {
+
+	// TODO: Add logic for incrementals
+	// to get users and repos details
+	// if there is not system hook available
+
+	ge, rerr = i.SetQueryConfig(logger, export.CustomerID())
+	if rerr != nil {
+		return
+	}
+
+	ge.logger = logger
+	ge.pipe = export.Pipe()
+	ge.historical = export.Historical()
+	ge.state = export.State()
+	ge.config = export.Config()
+	ge.integrationInstanceID = pstrings.Pointer(export.IntegrationInstanceID())
 
 	_, intType := ge.config.Get("integrationType")
 	if intType == "" {
@@ -70,7 +81,7 @@ func newState(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (ge Gi
 
 	ge.lastExportKey = ge.integrationType + "@last_export_date"
 
-	if err = ge.exportDate(); err != nil {
+	if rerr = ge.exportDate(); rerr != nil {
 		return
 	}
 
@@ -125,26 +136,26 @@ func (i *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 
 	config := export.Config()
 
-	state, err := newState(i, logger, export)
+	gexport, err := gitlabExport(i, logger, export)
 	if err != nil {
 		return err
 	}
 
-	sdk.LogInfo(logger, "integraion type", "type", state.integrationType)
+	sdk.LogInfo(logger, "integraion type", "type", gexport.integrationType)
 
 	exportStartDate := time.Now()
 
 	orgs := make([]*api.Group, 0)
 	users := make([]*api.GitlabUser, 0)
 	if config.Accounts == nil {
-		groups, err := api.GroupsAll(state.qc)
+		groups, err := api.GroupsAll(gexport.qc)
 		if err != nil {
 			rerr = err
 			return
 		}
 		orgs = append(orgs, groups...)
 
-		user, err := api.LoginUser(state.qc)
+		user, err := api.LoginUser(gexport.qc)
 		if err != nil {
 			return err
 		}
@@ -154,53 +165,53 @@ func (i *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 			if acct.Type == sdk.ConfigAccountTypeOrg {
 				orgs = append(orgs, &api.Group{ID: acct.ID})
 			} else {
-				users = append(users, &api.GitlabUser{ID: acct.ID})
+				users = append(users, &api.GitlabUser{StrID: acct.ID})
 			}
 		}
 	}
 
 	for _, group := range orgs {
 		sdk.LogDebug(logger, "group", "name", group.Name)
-		switch state.integrationType {
+		switch gexport.integrationType {
 		case IntegrationSourceCodeType:
-			err := state.exportGroupSourceCode(group)
+			err := gexport.exportGroupSourceCode(group)
 			if err != nil {
 				sdk.LogWarn(logger, "error exporting sourcecode group", "group_id", group.ID, "group_name", group.Name, "err", err)
 			}
 		case IntegrationWorkType:
-			err := state.exportGroupWork(group)
+			err := gexport.exportGroupWork(group)
 			if err != nil {
 				sdk.LogWarn(logger, "error exporting sourcecode group", "group_id", group.ID, "group_name", group.Name, "err", err)
 			}
 		default:
-			return fmt.Errorf("integration type not defined %s", state.integrationType)
+			return fmt.Errorf("integration type not defined %s", gexport.integrationType)
 		}
 	}
 
 	for _, user := range users {
 		sdk.LogDebug(logger, "user", "name", user.Name)
-		switch state.integrationType {
+		switch gexport.integrationType {
 		case IntegrationSourceCodeType:
-			if err := state.exportUserSourceCode(user); err != nil {
+			if err := gexport.exportUserSourceCode(user); err != nil {
 				sdk.LogWarn(logger, "error exporting work user", "user_id", user.ID, "user_name", user.Name, "err", err)
 			}
 		case IntegrationWorkType:
-			if err := state.exportUserWork(user); err != nil {
+			if err := gexport.exportUserWork(user); err != nil {
 				sdk.LogWarn(logger, "error exporting work user", "user_id", user.ID, "user_name", user.Name, "err", err)
 			}
 		default:
-			return fmt.Errorf("integration type not defined %s", state.integrationType)
+			return fmt.Errorf("integration type not defined %s", gexport.integrationType)
 		}
 	}
 
-	rerr = state.state.Set(state.lastExportKey, exportStartDate.Format(time.RFC3339))
+	rerr = gexport.state.Set(gexport.lastExportKey, exportStartDate.Format(time.RFC3339))
 
 	return
 }
 
 func (ge *GitlabExport) exportGroupSourceCode(group *api.Group) (rerr error) {
 
-	if !ge.isGitlabCom {
+	if !ge.isGitlabCloud {
 		if err := ge.exportEnterpriseUsers(); err != nil {
 			rerr = err
 			return
@@ -253,7 +264,7 @@ func (ge *GitlabExport) exportRepoAndWrite(repo *sdk.SourceCodeRepo) (rerr error
 		return
 	}
 	ge.exportRepoPullRequests(repo)
-	if ge.isGitlabCom {
+	if ge.isGitlabCloud {
 		if rerr = ge.exportRepoUsers(repo); rerr != nil {
 			return
 		}

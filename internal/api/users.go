@@ -8,6 +8,15 @@ import (
 	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
+const (
+	NoAccess   = 0
+	Guest      = 10
+	Reporter   = 20
+	Developer  = 30
+	Maintainer = 40
+	Owner      = 50
+)
+
 // UsernameMap map[username]ref_id
 type UsernameMap map[string]string
 
@@ -91,8 +100,11 @@ func UsersPage(qc QueryContext, params url.Values) (page NextPage, users []*sdk.
 }
 
 type GitlabUser struct {
-	ID   string
-	Name string
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	IsAdmin     bool   `json:"is_admin"`
+	AccessLevel int64  `json:"access_level"`
+	StrID       string
 }
 
 func LoginUser(qc QueryContext) (u *GitlabUser, err error) {
@@ -101,18 +113,12 @@ func LoginUser(qc QueryContext) (u *GitlabUser, err error) {
 
 	objectPath := pstrings.JoinURL("user")
 
-	var ru struct {
-		ID   int64  `json:"id"`
-		Name string `json:"name"`
-	}
-	_, err = qc.Get(objectPath, nil, &ru)
+	_, err = qc.Get(objectPath, nil, &u)
 	if err != nil {
 		return
 	}
 
-	u = &GitlabUser{}
-	u.ID = strconv.FormatInt(ru.ID, 10)
-	u.Name = ru.Name
+	u.StrID = strconv.FormatInt(u.ID, 10)
 
 	return
 }

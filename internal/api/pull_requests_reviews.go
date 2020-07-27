@@ -11,6 +11,8 @@ import (
 	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
+// PullRequestReviewsPage get reviews page
+// TODO: Fix this with updated notion docs
 func PullRequestReviewsPage(
 	qc QueryContext,
 	repo *sdk.SourceCodeRepo,

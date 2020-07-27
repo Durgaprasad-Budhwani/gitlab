@@ -1,18 +1,23 @@
 package api
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
+	pstrings "github.com/pinpt/go-common/v10/strings"
 )
 
 // Group internal group
 type Group struct {
-	ID       string
-	Name     string
-	FullPath string
+	ID                            string
+	Name                          string
+	FullPath                      string
+	ValidTier                     bool
+	MarkedToCreateProjectWebHooks bool
 }
 
 // GroupsAll all groups
@@ -38,9 +43,11 @@ func groups(qc QueryContext, params url.Values) (np NextPage, groups []*Group, e
 	objectPath := "groups"
 
 	var rgroups []struct {
-		ID       int64  `json:"id"`
-		Name     string `json:"name"`
-		FullPath string `json:"full_path"`
+		json.RawMessage
+		ID                 int64  `json:"id"`
+		Name               string `json:"name"`
+		FullPath           string `json:"full_path"`
+		MarkedForDeletring string `json:"marked_for_deletion"`
 	}
 
 	np, err = qc.Get(objectPath, params, &rgroups)
@@ -50,11 +57,32 @@ func groups(qc QueryContext, params url.Values) (np NextPage, groups []*Group, e
 
 	for _, group := range rgroups {
 		groups = append(groups, &Group{
-			ID:       strconv.FormatInt(group.ID, 10),
-			Name:     group.Name,
-			FullPath: group.FullPath,
+			ID:        strconv.FormatInt(group.ID, 10),
+			Name:      group.Name,
+			FullPath:  group.FullPath,
+			ValidTier: isValidTier(group.RawMessage),
 		})
 	}
+
+	return
+}
+
+func isValidTier(raw []byte) bool {
+	return bytes.Contains(raw, []byte("marked_for_deletion"))
+}
+
+func GroupUser(qc QueryContext, group *Group, userId string) (u *GitlabUser, err error) {
+
+	sdk.LogDebug(qc.Logger, "group user access level", "group_name", group.Name, "group_id", group.ID, "user_id", userId)
+
+	objectPath := pstrings.JoinURL("groups", group.ID, "members", userId)
+
+	_, err = qc.Get(objectPath, nil, &u)
+	if err != nil {
+		return
+	}
+
+	u.StrID = strconv.FormatInt(u.ID, 10)
 
 	return
 }

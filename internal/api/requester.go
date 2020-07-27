@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -25,23 +26,52 @@ func NewRequester(logger sdk.Logger, client sdk.HTTPClient, concurrency int) *Re
 	}
 }
 
+type requestType int
+
+const (
+	Get requestType = iota
+	Post
+)
+
 type internalRequest struct {
-	EndPoint string
-	Params   url.Values
-	Response interface{}
+	EndPoint    string
+	Params      url.Values
+	Data        io.Reader
+	Response    interface{}
+	RequestType requestType
 }
 
-// MakeRequest make request
-func (e *Requester) MakeRequest(endpoint string, params url.Values, response interface{}) (np NextPage, err error) {
+// Get request
+func (e *Requester) Get(endpoint string, params url.Values, response interface{}) (np NextPage, err error) {
 	e.concurrency <- true
 	defer func() {
 		<-e.concurrency
 	}()
 
 	ir := internalRequest{
-		EndPoint: endpoint,
-		Params:   params,
-		Response: &response,
+		EndPoint:    endpoint,
+		Params:      params,
+		Response:    &response,
+		RequestType: Get,
+	}
+
+	return e.makeRequestRetry(&ir, 0)
+
+}
+
+// Post request Post(data io.Reader, out interface{}, options ...WithHTTPOption) (*HTTPResponse, error)
+func (e *Requester) Post(endpoint string, params url.Values, data io.Reader, response interface{}) (np NextPage, err error) {
+	e.concurrency <- true
+	defer func() {
+		<-e.concurrency
+	}()
+
+	ir := internalRequest{
+		EndPoint:    endpoint,
+		Params:      params,
+		Data:        data,
+		Response:    &response,
+		RequestType: Post,
 	}
 
 	return e.makeRequestRetry(&ir, 0)
@@ -73,9 +103,18 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 	endpoint := sdk.WithEndpoint(r.EndPoint)
 	parameters := sdk.WithGetQueryParameters(r.Params)
 
-	resp, err := e.client.Get(&r.Response, headers, endpoint, parameters)
-	if err != nil {
-		return true, np, err
+	var resp *sdk.HTTPResponse
+	switch r.RequestType {
+	case Get:
+		resp, rerr = e.client.Get(&r.Response, headers, endpoint, parameters)
+		if rerr != nil {
+			return true, np, rerr
+		}
+	case Post:
+		resp, rerr = e.client.Post(r.Data, &r.Response, headers, endpoint, parameters)
+		if rerr != nil {
+			return true, np, rerr
+		}
 	}
 
 	rateLimited := func() (isErrorRetryable bool, NextPage NextPage, rerr error) {
