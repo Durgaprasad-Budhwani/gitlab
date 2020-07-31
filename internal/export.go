@@ -28,9 +28,9 @@ type GitlabExport struct {
 
 const concurrentAPICalls = 10
 
-func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, customerID string) (ge GitlabExport, rerr error) {
+func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config, manager sdk.Manager, customerID string) (ge GitlabExport, rerr error) {
 
-	apiURL, client, err := i.newHTTPClient(logger)
+	apiURL, client, err := newHTTPClient(logger, config, manager)
 	if err != nil {
 		rerr = err
 		return
@@ -59,7 +59,7 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 	// to get users and repos details
 	// if there is not system hook available
 
-	ge, rerr = i.SetQueryConfig(logger, export.CustomerID())
+	ge, rerr = i.SetQueryConfig(logger, export.Config(), i.manager, export.CustomerID())
 	if rerr != nil {
 		return
 	}
@@ -71,14 +71,10 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 	ge.config = export.Config()
 	ge.integrationInstanceID = sdk.StringPointer(export.IntegrationInstanceID())
 
-	_, intType := ge.config.Get("integrationType")
-	if intType == "" {
-		rerr = fmt.Errorf("integrationType type missing")
-		return
-	}
-	ge.integrationType = intType.(string)
+	// TODO: call WORK export
+	ge.integrationType = IntegrationSourceCodeType
 
-	ge.lastExportKey = ge.integrationType + "@last_export_date"
+	ge.lastExportKey = string(ge.integrationType) + "@last_export_date"
 
 	if rerr = ge.exportDate(); rerr != nil {
 		return

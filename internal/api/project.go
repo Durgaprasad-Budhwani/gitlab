@@ -11,7 +11,7 @@ import (
 
 func GroupReposPage(qc QueryContext, group *Group, params url.Values, stopOnUpdatedAt time.Time) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
 
-	params.Set("with_shared", "no")
+	params.Set("with_shared", "false")
 	params.Set("include_subgroups", "true")
 
 	sdk.LogDebug(qc.Logger, "group repos request", "group_id", group.ID, "group", group.FullPath, "params", params)

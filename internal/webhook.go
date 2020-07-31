@@ -30,15 +30,15 @@ type webHookRootPayload struct {
 }
 
 // WebHook is called when a webhook is received on behalf of the integration
-func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (err error) {
+func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 
 	logger := sdk.LogWith(i.logger, "customer_id", webhook.CustomerID())
 
 	event := webhook.Headers()["X-Gitlab-Event"]
 
 	var rootWebHookObject webHookRootPayload
-	err = json.Unmarshal(webhook.Bytes(), &rootWebHookObject)
-	if err != nil {
+	rerr = json.Unmarshal(webhook.Bytes(), &rootWebHookObject)
+	if rerr != nil {
 		return
 	}
 
@@ -50,23 +50,29 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (err error) {
 		projectID := sdk.NewSourceCodeRepoID(webhook.CustomerID(), projectRefID, gitlabRefType)
 
 		var pr *api.WebhookPullRequest
-		err = json.Unmarshal(rootWebHookObject.WebHookMainObject, pr)
-		if err != nil {
+		rerr = json.Unmarshal(rootWebHookObject.WebHookMainObject, pr)
+		if rerr != nil {
 			return
 		}
 
 		scPr := pr.ToSourceCodePullRequest(logger, webhook.CustomerID(), projectID, gitlabRefType)
 
-		err = webhook.Pipe().Write(scPr)
-		if err != nil {
+		rerr = webhook.Pipe().Write(scPr)
+		if rerr != nil {
 			return
 		}
 
 		pullRequestID := sdk.NewSourceCodePullRequestID(webhook.CustomerID(), scPr.RefID, gitlabRefType, projectID)
 
 		if pr.Action == "approved" || pr.Action == "unapproved" {
+			ge, err := i.SetQueryConfig(logger, webhook.Config(), i.manager, webhook.CustomerID())
+			if err != nil {
+				rerr = err
+				return
+			}
 			review, err := i.GetReviewFromAction(
 				logger,
+				ge.qc,
 				webhook.CustomerID(),
 				rootWebHookObject.Project.Name,
 				projectID,
@@ -78,12 +84,13 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (err error) {
 				rootWebHookObject.User.Username,
 				pr.Action)
 			if err != nil {
-				return err
+				rerr = err
+				return
 			}
 
-			err = webhook.Pipe().Write(review)
-			if err != nil {
-				return err
+			rerr = webhook.Pipe().Write(review)
+			if rerr != nil {
+				return
 			}
 
 		}
@@ -101,6 +108,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (err error) {
 
 func (i *GitlabIntegration) GetReviewFromAction(
 	logger sdk.Logger,
+	qc api.QueryContext,
 	customerID string,
 	projectName string,
 	projectID string,
@@ -111,15 +119,10 @@ func (i *GitlabIntegration) GetReviewFromAction(
 	prUpdatedAt time.Time,
 	username string,
 	action string) (review *sdk.SourceCodePullRequestReview, rerr error) {
-	ge, err := i.SetQueryConfig(logger, customerID)
-	if err != nil {
-		rerr = err
-		return
-	}
 
 	// TODO: iterate over more notes in rare case it is not foudn in the first 20 notes
 	// _, note, err := api.GetGetSinglePullRequestNote(ge.qc, nil, whp.Project.Name, repoRefID, scpr.RefID, wh.IID, whp.User.Username, wh.UpdatedAt, wh.Action)
-	_, note, err := api.GetGetSinglePullRequestNote(ge.qc, nil, projectName, projectRefID, prRefID, prIID, username, prUpdatedAt, action)
+	_, note, err := api.GetGetSinglePullRequestNote(qc, nil, projectName, projectRefID, prRefID, prIID, username, prUpdatedAt, action)
 	if err != nil {
 		rerr = err
 		return
@@ -148,7 +151,7 @@ func (g *GitlabIntegration) registerWebhooks(instance sdk.Instance) (rerr error)
 
 	webhookManager := g.manager.WebHookManager()
 
-	ge, err := g.SetQueryConfig(g.logger, instance.CustomerID())
+	ge, err := g.SetQueryConfig(g.logger, instance.Config(), g.manager, instance.CustomerID())
 	if err != nil {
 		rerr = err
 		return

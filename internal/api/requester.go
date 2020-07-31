@@ -103,6 +103,8 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 	endpoint := sdk.WithEndpoint(r.EndPoint)
 	parameters := sdk.WithGetQueryParameters(r.Params)
 
+	sdk.LogDebug(e.logger, "debug", "endpoint", endpoint, "parameters", parameters, "headers", headers)
+
 	var resp *sdk.HTTPResponse
 	switch r.RequestType {
 	case Get:
