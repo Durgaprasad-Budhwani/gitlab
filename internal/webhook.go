@@ -26,7 +26,8 @@ type webHookRootPayload struct {
 		Name string `json:"name"`
 		ID   int64  `json:"id"`
 	} `json:"project"`
-	User user `json:"user"`
+	User    user                       `json:"user"`
+	Changes map[string]json.RawMessage `json:"changes"`
 	// push events
 	// TotalCommitsCount int64           `json:"total_commits_count"`
 	// Commits           []*api.WhCommit `json:"commits"`
@@ -102,8 +103,20 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 				return
 			}
 		case "update":
-			// TODO: add filter if the change was just changes/updated_at/ previous current
-			// then we fetch comits otherwise do nothing
+			var keyCount int
+			var updateKeyExist bool
+			for range rootWebHookObject.Changes {
+				_, updateKeyExist = rootWebHookObject.Changes["updated_at"]
+				keyCount++
+				if keyCount > 1 {
+					return
+				}
+			}
+			if !updateKeyExist {
+				return
+			}
+			fallthrough
+		case "open":
 			// TODO: implement commits from push events instead
 			var repo *sdk.SourceCodeRepo
 			repo.Name = rootWebHookObject.Project.Name
