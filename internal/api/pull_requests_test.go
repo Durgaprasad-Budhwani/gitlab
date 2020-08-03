@@ -70,6 +70,9 @@ func TestApiPRToSrcCode(t *testing.T) {
 	assert.Equal(strconv.FormatInt(pr.Author.ID, 10), sourceCodePR.CreatedByRefID)
 	assert.Equal(strconv.FormatInt(pr.ClosedBy.ID, 10), sourceCodePR.ClosedByRefID)
 	assert.Equal(strconv.FormatInt(pr.MergedBy.ID, 10), sourceCodePR.MergedByRefID)
+
+	sourceCodePR.ToMap()
+
 	assert.Equal(sdk.NewSourceCodePullRequestID(customerID, strconv.FormatInt(pr.ID, 10), refType, repoID), sourceCodePR.ID)
 
 }
@@ -121,6 +124,9 @@ func TestWebHookPRToSrcCode(t *testing.T) {
 	assert.Equal(strconv.FormatInt(pr.AuthorID, 10), sourceCodePR.CreatedByRefID)
 	assert.Equal(strconv.FormatInt(pr.ClosedByID, 10), sourceCodePR.ClosedByRefID)
 	assert.Equal(strconv.FormatInt(pr.MergedByID, 10), sourceCodePR.MergedByRefID)
+
+	sourceCodePR.ToMap()
+
 	assert.Equal(sdk.NewSourceCodePullRequestID(customerID, strconv.FormatInt(pr.ID, 10), refType, repoID), sourceCodePR.ID)
 
 }

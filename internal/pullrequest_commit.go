@@ -10,14 +10,26 @@ import (
 
 func (ge *GitlabExport) fetchPullRequestsCommits(repo *sdk.SourceCodeRepo, pr api.PullRequest) (commits []*sdk.SourceCodePullRequestCommit, rerr error) {
 	rerr = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (api.NextPage, error) {
-		pi, commitsArr, err := api.PullRequestCommitsPage(ge.qc, repo, pr, params)
+		pi, commitsArr, err := api.PullRequestCommitsPage(ge.qc, repo, pr, params, t)
+		if err != nil {
+			return pi, err
+		}
+		commits = append(commits, commitsArr...)
+		return pi, nil
+	})
+
+	return
+
+}
+
+func (ge *GitlabExport) FetchPullRequestsCommitsAfter(repo *sdk.SourceCodeRepo, pr api.PullRequest, after time.Time) (commits []*sdk.SourceCodePullRequestCommit, rerr error) {
+	rerr = api.Paginate(ge.logger, "", after, func(log sdk.Logger, params url.Values, t time.Time) (api.NextPage, error) {
+		pi, commitsArr, err := api.PullRequestCommitsPage(ge.qc, repo, pr, params, t)
 		if err != nil {
 			return pi, err
 		}
 
-		for _, c := range commitsArr {
-			commits = append(commits, c)
-		}
+		commits = append(commits, commitsArr...)
 		return pi, nil
 	})
 

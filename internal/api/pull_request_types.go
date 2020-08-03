@@ -33,7 +33,6 @@ func (c *CommonPullRequestFields) commonToSourceCodePullRequest(logger sdk.Logge
 
 	pr = &sdk.SourceCodePullRequest{}
 	prRefID := strconv.FormatInt(c.ID, 10)
-	pr.ID = sdk.NewSourceCodePullRequestID(customerID, prRefID, refType, repoID)
 	pr.CustomerID = customerID
 	pr.RefType = refType
 	pr.RefID = prRefID
