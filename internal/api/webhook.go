@@ -56,7 +56,7 @@ func CreateGroupWebHook(qc QueryContext, group *Group, eventAPIWebhookURL string
 
 	params := url.Values{}
 	params.Set("url", eventAPIWebhookURL)
-	params.Set("push_events", "true")
+	// params.Set("push_events", "true")
 	params.Set("merge_requests_events", "true")
 	params.Set("note_events", "true")
 	params.Set("enable_ssl_verification", "true")
@@ -79,7 +79,7 @@ func CreateProjectWebHook(qc QueryContext, project *sdk.SourceCodeRepo, eventAPI
 
 	params := url.Values{}
 	params.Set("url", eventAPIWebhookURL)
-	params.Set("push_events", "true")
+	// params.Set("push_events", "true")
 	params.Set("merge_requests_events", "true")
 	params.Set("note_events", "true")
 	params.Set("enable_ssl_verification", "true")

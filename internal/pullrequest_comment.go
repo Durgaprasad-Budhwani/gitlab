@@ -15,6 +15,7 @@ func (ge *GitlabExport) exportPullRequestsComments(repo *sdk.SourceCodeRepo, pr 
 			return pi, err
 		}
 		for _, c := range comments {
+			c.IntegrationInstanceID = ge.integrationInstanceID
 			if err := ge.pipe.Write(c); err != nil {
 				return
 			}

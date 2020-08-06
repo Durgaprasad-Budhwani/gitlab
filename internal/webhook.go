@@ -26,8 +26,9 @@ type webHookRootPayload struct {
 		Name string `json:"name"`
 		ID   int64  `json:"id"`
 	} `json:"project"`
-	User    user                       `json:"user"`
-	Changes map[string]json.RawMessage `json:"changes"`
+	User         user                       `json:"user"`
+	Changes      map[string]json.RawMessage `json:"changes"`
+	MergeRequest api.WebhookPullRequest     `json:"merge_request"`
 	// push events
 	// TotalCommitsCount int64           `json:"total_commits_count"`
 	// Commits           []*api.WhCommit `json:"commits"`
@@ -37,6 +38,7 @@ type webHookRootPayload struct {
 func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 
 	customerID := webhook.CustomerID()
+	integrationInstanceID := webhook.IntegrationInstanceID()
 
 	logger := sdk.LogWith(i.logger, "customer_id", customerID)
 
@@ -98,6 +100,8 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 				return
 			}
 
+			review.IntegrationInstanceID = &integrationInstanceID
+
 			rerr = pipe.Write(review)
 			if rerr != nil {
 				return
@@ -130,6 +134,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 				return fmt.Errorf("error fetching pull requests commits on webhook, err %d", err)
 			}
 			for _, c := range commits {
+				c.IntegrationInstanceID = &integrationInstanceID
 				rerr = pipe.Write(c)
 				if rerr != nil {
 					return
@@ -138,22 +143,55 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 		}
 
 	case "Push Hook":
-		// Pending
-		// // TODO: get prID
-		// for _, c := range rootWebHookObject.Commits {
-		// 	// TODO: add pr manager to help get the prID
-		// 	rerr = pipe.Write(c.ToSourceCodePullRequestCommit(customerID, gitlabRefType, projectID, "pullRequestID"))
-		// 	if rerr != nil {
-		// 		return
-		// 	}
-		// }
-
-		// if rootWebHookObject.TotalCommitsCount > 20 {
-		// 	// need to fetch the rest of commits with the api
-		// }
-
+		// No need to implement this at this moment
+		// After Merge Requeste event it will fetch commits
 	case "Note Hook":
-		// TODO: add reciever for note events
+		note := api.WebhookNote{}
+		rerr = json.Unmarshal(rootWebHookObject.WebHookMainObject, &note)
+		if rerr != nil {
+			return
+		}
+
+		if note.System == false {
+			scPr := rootWebHookObject.MergeRequest.ToSourceCodePullRequest(logger, customerID, projectID, gitlabRefType)
+
+			if note.NoteType == "DiffNote" {
+				review := note.ToSourceCodePullRequestReview()
+				review.CustomerID = customerID
+				review.IntegrationInstanceID = sdk.StringPointer(integrationInstanceID)
+				review.PullRequestID = scPr.ID
+				review.RepoID = projectID
+
+				rerr = pipe.Write(review)
+				if rerr != nil {
+					return
+				}
+			} else if note.NoteType == "" {
+				prComment := &sdk.SourceCodePullRequestComment{}
+				prComment.CustomerID = customerID
+				prComment.IntegrationInstanceID = sdk.StringPointer(integrationInstanceID)
+				prComment.PullRequestID = scPr.ID
+
+				prComment.RefType = gitlabRefType
+				prComment.RefID = strconv.FormatInt(note.ID, 10)
+				prComment.URL = note.URL
+
+				sdk.ConvertTimeToDateModel(note.CreatedAt, &prComment.CreatedDate)
+				sdk.ConvertTimeToDateModel(note.UpdatedAt, &prComment.UpdatedDate)
+
+				prComment.RepoID = projectID
+				prComment.Body = note.Note
+
+				prComment.UserRefID = note.AuthorID
+
+				rerr = pipe.Write(prComment)
+				if rerr != nil {
+					return
+				}
+
+			}
+		}
+		// SourceCodePullRequestReview
 	}
 
 	// TODO: Add webhooks for WORK type

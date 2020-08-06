@@ -10,27 +10,41 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
+// WebhookNote note struct comming from webhooks
 type WebhookNote struct {
-	ID   int64  `json:"id"`
-	Note string `json:"note"`
-	// Author struct {
-	// 	ID       int64  `json:"id"`
-	// 	Username string `jsons:"username"`
-	// } `json:"author"`
-	// CreatedAt time.Time `json:"created_at"`
-	System bool `json:"system"`
+	ID        int64     `json:"id"`
+	System    bool      `json:"system"`
+	Note      string    `json:"note"`
+	NoteType  string    `json:"type"`
+	URL       string    `json:"url"`
+	AuthorID  string    `json:"author_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (wn *WebhookNote) ToSourceCodePullRequestReview() (review *sdk.SourceCodePullRequestReview) {
+
+	review.RefType = "gitlab"
+	review.RefID = strconv.FormatInt(wn.ID, 10)
+	review.State = sdk.SourceCodePullRequestReviewStateCommented
+	review.URL = wn.URL
+	review.UserRefID = wn.AuthorID
+
+	sdk.ConvertTimeToDateModel(wn.CreatedAt, &review.CreatedDate)
+
+	return
 }
 
 // Note raw struct from api
 type Note struct {
 	ID     int64           `json:"id"`
+	System bool            `json:"system"`
 	Body   json.RawMessage `json:"body"`
 	Author struct {
 		ID       int64  `json:"id"`
 		Username string `jsons:"username"`
 	} `json:"author"`
 	CreatedAt time.Time `json:"created_at"`
-	System    bool      `json:"system"`
 }
 
 // GetGetSinglePullRequestNote get note details to write review
