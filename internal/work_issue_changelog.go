@@ -33,6 +33,7 @@ func (ge *GitlabExport) fetchIssueDiscussions(project *sdk.WorkProject, issue sd
 			changelogs = append(changelogs, *cl)
 		}
 		for _, c := range comments {
+			c.IntegrationInstanceID = ge.integrationInstanceID
 			if err := ge.pipe.Write(c); err != nil {
 				return
 			}
@@ -45,6 +46,7 @@ func (ge *GitlabExport) fetchIssueDiscussions(project *sdk.WorkProject, issue sd
 
 func (ge *GitlabExport) writeProjectIssues(commits []*sdk.SourceCodePullRequestCommit) (rerr error) {
 	for _, c := range commits {
+		c.IntegrationInstanceID = ge.integrationInstanceID
 		if err := ge.pipe.Write(c); err != nil {
 			rerr = err
 			return

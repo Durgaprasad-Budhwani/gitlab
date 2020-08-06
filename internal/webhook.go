@@ -66,6 +66,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 		}
 
 		scPr := pr.ToSourceCodePullRequest(logger, customerID, projectID, gitlabRefType)
+		scPr.IntegrationInstanceID = &integrationInstanceID
 
 		rerr = pipe.Write(scPr)
 		if rerr != nil {

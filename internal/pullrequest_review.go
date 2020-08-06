@@ -15,6 +15,7 @@ func (ge *GitlabExport) exportPullRequestsReviews(repo *sdk.SourceCodeRepo, pr a
 			return pi, err
 		}
 		for _, c := range reviews {
+			c.IntegrationInstanceID = ge.integrationInstanceID
 			if err := ge.pipe.Write(c); err != nil {
 				return
 			}

@@ -15,6 +15,7 @@ func (ge *GitlabExport) exportProjectSprints(project *sdk.WorkProject) error {
 			return pi, err
 		}
 		for _, s := range sprints {
+			s.IntegrationInstanceID = ge.integrationInstanceID
 			if err := ge.pipe.Write(s); err != nil {
 				return
 			}

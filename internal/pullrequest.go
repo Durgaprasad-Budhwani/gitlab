@@ -91,6 +91,7 @@ func (ge *GitlabExport) exportPullRequestEntitiesAndWrite(repo *sdk.SourceCodeRe
 			}
 
 			sdk.LogDebug(ge.logger, "pull request done", "identifier", pr.Identifier, "title", pr.Title)
+			pr.IntegrationInstanceID = ge.integrationInstanceID
 			if err := ge.pipe.Write(pr.SourceCodePullRequest); err != nil {
 				sdk.LogError(ge.logger, "error writting pr", "err", err)
 			}
@@ -151,6 +152,7 @@ func setPullRequestCommits(pr *sdk.SourceCodePullRequest, commits []*sdk.SourceC
 
 func (ge *GitlabExport) writePullRequestCommits(commits []*sdk.SourceCodePullRequestCommit) (rerr error) {
 	for _, c := range commits {
+		c.IntegrationInstanceID = ge.integrationInstanceID
 		if err := ge.pipe.Write(c); err != nil {
 			rerr = err
 			return

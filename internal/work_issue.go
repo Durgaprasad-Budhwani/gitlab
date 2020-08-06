@@ -69,6 +69,7 @@ func (ge *GitlabExport) exportIssueEntitiesAndWrite(project *sdk.WorkProject, is
 			if err != nil {
 				sdk.LogError(ge.logger, "error on issue changelog", "err", err)
 			}
+			issue.IntegrationInstanceID = ge.integrationInstanceID
 			if err = ge.pipe.Write(&issue); err != nil {
 				sdk.LogError(ge.logger, "error writting pr", "err", err)
 			}

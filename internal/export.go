@@ -273,6 +273,7 @@ func (ge *GitlabExport) exportRepoAndWrite(repo *sdk.SourceCodeRepo) (rerr error
 }
 
 func (ge *GitlabExport) exportProjectAndWrite(project *sdk.WorkProject, projectUsersMap map[string]api.UsernameMap) (rerr error) {
+	project.IntegrationInstanceID = ge.integrationInstanceID
 	if rerr = ge.pipe.Write(project); rerr != nil {
 		return
 	}

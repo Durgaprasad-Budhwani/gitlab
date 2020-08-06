@@ -11,6 +11,7 @@ import (
 func (ge *GitlabExport) exportRepoUsers(repo *sdk.SourceCodeRepo) error {
 
 	return ge.exportUsers(repo, func(user *sdk.SourceCodeUser) error {
+		user.IntegrationInstanceID = ge.integrationInstanceID
 		return ge.pipe.Write(user)
 	})
 
@@ -22,6 +23,7 @@ func (ge *GitlabExport) exportProjectUsers(project *sdk.WorkProject) (usermap ap
 
 	rerr = ge.exportUsers(ToRepo(project), func(user *sdk.SourceCodeUser) error {
 		usermap[*user.Username] = user.RefID
+		user.IntegrationInstanceID = ge.integrationInstanceID
 		return ge.pipe.Write(toWorkUser(user))
 	})
 
@@ -68,6 +70,7 @@ func (ge *GitlabExport) exportUsers(repo *sdk.SourceCodeRepo, callback callBackS
 
 func (ge *GitlabExport) exportEnterpriseUsers() error {
 	return ge.fetchEnterpriseUsers(func(user *sdk.SourceCodeUser) error {
+		user.IntegrationInstanceID = ge.integrationInstanceID
 		return ge.pipe.Write(user)
 	})
 }

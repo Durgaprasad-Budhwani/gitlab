@@ -28,6 +28,10 @@ func (g *GitlabIntegration) Start(logger sdk.Logger, config sdk.Config, manager 
 	return nil
 }
 
+func (g *GitlabIntegration) Validate(config sdk.Config) (result map[string]interface{}, err error) {
+	return
+}
+
 // Enroll is called when a new integration instance is added
 func (g *GitlabIntegration) Enroll(instance sdk.Instance) error {
 	// attempt to add an org level web hook
