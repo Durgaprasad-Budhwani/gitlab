@@ -79,7 +79,7 @@ type apiPullRequest struct {
 	ClosedBy   author `json:"closed_by"`
 	MergedBy   author `json:"merged_by"`
 	References struct {
-		Short string `json:"short"` // this looks how we display in Gitlab such as !1
+		Full string `json:"full"` // this looks how we display in Gitlab such as !1
 	} `json:"references"`
 }
 
@@ -91,7 +91,7 @@ func (amr *apiPullRequest) toSourceCodePullRequest(logger sdk.Logger, customerID
 	pr.CreatedByRefID = strconv.FormatInt(amr.Author.ID, 10)
 	pr.ClosedByRefID = strconv.FormatInt(amr.ClosedBy.ID, 10)
 	pr.MergedByRefID = strconv.FormatInt(amr.MergedBy.ID, 10)
-	pr.Identifier = amr.References.Short
+	pr.Identifier = amr.References.Full
 
 	return
 }

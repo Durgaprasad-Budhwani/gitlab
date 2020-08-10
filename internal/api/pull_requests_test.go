@@ -47,9 +47,9 @@ func TestApiPRToSrcCode(t *testing.T) {
 			ID: 3,
 		},
 		References: struct {
-			Short string `json:"short"`
+			Full string `json:"full"`
 		}{
-			Short: "!2",
+			Full: "pinpt/test!2",
 		},
 	}
 
@@ -58,7 +58,7 @@ func TestApiPRToSrcCode(t *testing.T) {
 	assert.Equal(customerID, sourceCodePR.CustomerID)
 	assert.Equal(repoID, sourceCodePR.RepoID)
 	assert.Equal(refType, sourceCodePR.RefType)
-	assert.Equal(fmt.Sprintf("!%d", pr.IID), sourceCodePR.Identifier)
+	assert.Equal(pr.References.Full, sourceCodePR.Identifier)
 	assert.Equal(pr.Title, sourceCodePR.Title)
 	assert.Equal(setHTMLPRDescription(pr.Description), sourceCodePR.Description)
 	assert.Equal(sdk.TimeToEpoch(pr.CreatedAt), sourceCodePR.CreatedDate.Epoch)
