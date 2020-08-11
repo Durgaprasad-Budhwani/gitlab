@@ -28,7 +28,7 @@ func (g *GitlabIntegration) Start(logger sdk.Logger, config sdk.Config, manager 
 	return nil
 }
 
-func (g *GitlabIntegration) Validate(config sdk.Config) (result map[string]interface{}, err error) {
+func (g *GitlabIntegration) Validate(config sdk.Validate) (result map[string]interface{}, err error) {
 	return
 }
 
