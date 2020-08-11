@@ -24,6 +24,7 @@ type GitlabExport struct {
 	integrationInstanceID      *string
 	integrationType            string
 	lastExportKey              string
+	systemWebHooksEnabled      bool
 }
 
 const concurrentAPICalls = 10

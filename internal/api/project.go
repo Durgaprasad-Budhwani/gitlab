@@ -87,9 +87,8 @@ func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Ti
 			URL:           r.WebURL,
 			DefaultBranch: r.DefaultBranch,
 			Description:   r.Description,
-			// TODO: expose TimeToEpoch in sdk
-			UpdatedAt: sdk.TimeToEpoch(r.UpdatedAt),
-			Active:    !r.Archived,
+			UpdatedAt:     sdk.TimeToEpoch(r.UpdatedAt),
+			Active:        !r.Archived,
 		}
 
 		repo.Language, err = repoLanguage(qc, refID)
@@ -110,6 +109,57 @@ func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Ti
 
 		repos = append(repos, repo)
 	}
+
+	return
+}
+
+func ProjectByID(qc QueryContext, projectID string) (repo *sdk.SourceCodeRepo, err error) {
+
+	objectPath := sdk.JoinURL("projects", projectID)
+
+	var r struct {
+		CreatedAt         time.Time       `json:"created_at"`
+		UpdatedAt         time.Time       `json:"last_activity_at"`
+		ID                int64           `json:"id"`
+		FullName          string          `json:"path_with_namespace"`
+		Description       string          `json:"description"`
+		WebURL            string          `json:"web_url"`
+		Archived          bool            `json:"archived"`
+		DefaultBranch     string          `json:"default_branch"`
+		Visibility        string          `json:"visibility"`
+		ForkedFromProject json.RawMessage `json:"forked_from_project"`
+	}
+
+	_, err = qc.Get(objectPath, nil, &r)
+	if err != nil {
+		return
+	}
+
+	refID := strconv.FormatInt(r.ID, 10)
+	repo = &sdk.SourceCodeRepo{
+		ID:            sdk.NewSourceCodeRepoID(qc.CustomerID, refID, qc.RefType),
+		RefID:         refID,
+		RefType:       qc.RefType,
+		CustomerID:    qc.CustomerID,
+		Name:          r.FullName,
+		URL:           r.WebURL,
+		DefaultBranch: r.DefaultBranch,
+		Description:   r.Description,
+		UpdatedAt:     sdk.TimeToEpoch(r.UpdatedAt),
+		Active:        !r.Archived,
+	}
+
+	repo.Language, err = repoLanguage(qc, refID)
+	if err != nil {
+		return
+	}
+
+	if r.Visibility == "private" {
+		repo.Visibility = sdk.SourceCodeRepoVisibilityPrivate
+	} else {
+		repo.Visibility = sdk.SourceCodeRepoVisibilityPublic
+	}
+	repo.Affiliation = sdk.SourceCodeRepoAffiliationOrganization
 
 	return
 }

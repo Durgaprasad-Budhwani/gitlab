@@ -29,6 +29,9 @@ type webHookRootPayload struct {
 	User         user                       `json:"user"`
 	Changes      map[string]json.RawMessage `json:"changes"`
 	MergeRequest api.WebhookPullRequest     `json:"merge_request"`
+	EventName    string                     `json:"event_name"`
+	ProjectID    string                     `json:"project_id"`
+	UserID       string                     `json:"user_id"`
 	// push events
 	// TotalCommitsCount int64           `json:"total_commits_count"`
 	// Commits           []*api.WhCommit `json:"commits"`
@@ -192,7 +195,53 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 
 			}
 		}
-		// SourceCodePullRequestReview
+	case "System Hook":
+		switch rootWebHookObject.EventName {
+		case "repository_update", "project_update", "project_rename":
+			ge, err := i.SetQueryConfig(logger, webhook.Config(), i.manager, customerID)
+			if err != nil {
+				rerr = err
+				return
+			}
+			repo, err := api.ProjectByID(ge.qc, rootWebHookObject.ProjectID)
+			if err != nil {
+				rerr = err
+				return
+			}
+			repo.IntegrationInstanceID = &integrationInstanceID
+			rerr = pipe.Write(repo)
+			if rerr != nil {
+				return
+			}
+		case "user_create", "user_rename":
+			ge, err := i.SetQueryConfig(logger, webhook.Config(), i.manager, customerID)
+			if err != nil {
+				rerr = err
+				return
+			}
+
+			user, err := api.UserByID(ge.qc, rootWebHookObject.ProjectID)
+			if err != nil {
+				rerr = err
+				return
+			}
+			user.IntegrationInstanceID = &integrationInstanceID
+			rerr = pipe.Write(user)
+			if rerr != nil {
+				return
+			}
+			// TODO: check if these are useful
+			// case "user_add_to_team":
+			// case "user_update_for_team":
+			// case "user_add_to_group":
+			// case "user_update_for_group":
+			// case "group_create":
+			// case "user_remove_from_team":
+			// case "user_destroy":
+			// case "group_destroy":
+			// case "group_rename":
+			// case "user_remove_from_group":
+		}
 	}
 
 	// TODO: Add webhooks for WORK type
