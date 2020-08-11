@@ -98,6 +98,37 @@ func UsersPage(qc QueryContext, params url.Values) (page NextPage, users []*sdk.
 	return
 }
 
+func UserByID(qc QueryContext, userID string) (user *sdk.SourceCodeUser, err error) {
+
+	sdk.LogDebug(qc.Logger, "users request")
+
+	objectPath := sdk.JoinURL("/users", userID)
+
+	var rawUser UserModel
+
+	_, err = qc.Get(objectPath, nil, &rawUser)
+	if err != nil {
+		return
+	}
+
+	refID := strconv.FormatInt(rawUser.ID, 10)
+	user = &sdk.SourceCodeUser{
+		ID:         sdk.NewSourceCodeUserID(qc.CustomerID, qc.RefType, refID),
+		Email:      sdk.StringPointer(rawUser.Email),
+		Username:   sdk.StringPointer(rawUser.Username),
+		Name:       rawUser.Name,
+		RefID:      refID,
+		AvatarURL:  sdk.StringPointer(rawUser.AvatarURL),
+		URL:        sdk.StringPointer(rawUser.WebURL),
+		Type:       sdk.SourceCodeUserTypeHuman,
+		Member:     true,
+		CustomerID: qc.CustomerID,
+		RefType:    qc.RefType,
+	}
+
+	return
+}
+
 type GitlabUser struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
