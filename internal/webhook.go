@@ -356,20 +356,20 @@ func (g *GitlabIntegration) registerWebhooks(ge GitlabExport) error {
 				user, err := api.ProjectUser(ge.qc, project, user.StrID)
 				if err != nil {
 					err = fmt.Errorf("error trying to get project user user => %s err => %s", user.Name, err)
-					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeOrg, err)
+					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 					return err
 				}
 				if user.AccessLevel >= api.Owner || userHasProjectWebhookAcess {
 					err = wr.registerWebhook(sdk.WebHookScopeRepo, project.ID, project.Name)
 					if err != nil {
 						err := fmt.Errorf("error trying to register project webhooks err => %s", err)
-						webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeSystem, err)
+						webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 						sdk.LogError(ge.logger, "error creating project webhook", "err", err)
 						return err
 					}
 				} else {
 					err := fmt.Errorf("at least Maintainer level access is needed to create webhooks for this project project => %s user => %s user_access_level %d", project.Name, user.Name, user.AccessLevel)
-					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeSystem, err)
+					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 					sdk.LogError(ge.logger, err.Error())
 				}
 			}

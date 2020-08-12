@@ -10,11 +10,11 @@ import (
 )
 
 func (ge *GitlabExport) isWebHookInstalled(webhookType sdk.WebHookScope, manager sdk.WebHookManager, customerID, integrationInstanceID, entityID string) bool {
-	if manager.Exists(customerID, integrationInstanceID, gitlabRefType, entityID, sdk.WebHookScopeSystem) {
-		theurl, _ := manager.HookURL(customerID, integrationInstanceID, gitlabRefType, entityID, sdk.WebHookScopeSystem)
+	if manager.Exists(customerID, integrationInstanceID, gitlabRefType, entityID, webhookType) {
+		theurl, _ := manager.HookURL(customerID, integrationInstanceID, gitlabRefType, entityID, webhookType)
 		// check and see if we need to upgrade our hook
 		if !strings.Contains(theurl, "version="+hookVersion) {
-			manager.Delete(customerID, integrationInstanceID, gitlabRefType, entityID, sdk.WebHookScopeSystem)
+			manager.Delete(customerID, integrationInstanceID, gitlabRefType, entityID, webhookType)
 			return false
 		}
 		return true
