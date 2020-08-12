@@ -110,17 +110,11 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 	case Get:
 		resp, rerr = e.client.Get(&r.Response, headers, endpoint, parameters)
 		if rerr != nil {
-			if len(resp.Body) > 0 {
-				sdk.LogDebug(e.logger, "error", "err", string(resp.Body))
-			}
 			return true, np, fmt.Errorf("error: %s %s", rerr, string(resp.Body))
 		}
 	case Post:
 		resp, rerr = e.client.Post(r.Data, &r.Response, headers, endpoint, parameters)
 		if rerr != nil {
-			if len(resp.Body) > 0 {
-				sdk.LogDebug(e.logger, "error", "err", string(resp.Body))
-			}
 			return true, np, fmt.Errorf("error: %s %s", rerr, string(resp.Body))
 		}
 	}
