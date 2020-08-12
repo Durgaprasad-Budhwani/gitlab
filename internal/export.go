@@ -37,8 +37,6 @@ func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config,
 		return
 	}
 
-	sdk.LogInfo(logger, "msrg", "url", apiURL)
-
 	r := api.NewRequester(logger, client, concurrentAPICalls)
 	ge.qc.Get = r.Get
 	ge.qc.Post = r.Post
