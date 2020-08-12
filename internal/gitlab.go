@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/pinpt/agent.next/sdk"
 )
@@ -35,10 +34,9 @@ func (g *GitlabIntegration) Validate(config sdk.Validate) (result map[string]int
 // Enroll is called when a new integration instance is added
 func (g *GitlabIntegration) Enroll(instance sdk.Instance) error {
 	// attempt to add an org level web hook
-	started := time.Now()
-	err := g.registerWebhooks(instance)
-	sdk.LogInfo(g.logger, "enroll finished", "duration", time.Since(started), "customer_id", instance.CustomerID(), "integration_instance_id", instance.IntegrationInstanceID())
-	return err
+	// started := time.Now()
+	// sdk.LogInfo(g.logger, "enroll finished", "duration", time.Since(started), "customer_id", instance.CustomerID(), "integration_instance_id", instance.IntegrationInstanceID())
+	return nil
 }
 
 // Dismiss is called when an existing integration instance is removed

@@ -124,7 +124,7 @@ const gitlabRefType = "gitlab"
 const GitLabDateFormat = "2006-01-02T15:04:05.000Z"
 
 // Export is called to tell the integration to run an export
-func (i *GitlabIntegration) Export(export sdk.Export) (rerr error) {
+func (i *GitlabIntegration) Export(export sdk.Export) error {
 
 	logger := sdk.LogWith(i.logger, "customer_id", export.CustomerID(), "job_id", export.JobID())
 
@@ -144,6 +144,15 @@ func (i *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 
 	sdk.LogInfo(logger, "integraion type", "type", gexport.integrationType)
 
+	sdk.LogInfo(logger, "registering webhooks")
+
+	err = i.registerWebhooks(gexport)
+	if err != nil {
+		return err
+	}
+
+	sdk.LogInfo(logger, "registering webhooks done")
+
 	exportStartDate := time.Now()
 
 	orgs := make([]*api.Group, 0)
@@ -151,8 +160,7 @@ func (i *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 	if config.Accounts == nil {
 		groups, err := api.GroupsAll(gexport.qc)
 		if err != nil {
-			rerr = err
-			return
+			return err
 		}
 		orgs = append(orgs, groups...)
 
@@ -205,41 +213,36 @@ func (i *GitlabIntegration) Export(export sdk.Export) (rerr error) {
 		}
 	}
 
-	rerr = gexport.state.Set(gexport.lastExportKey, exportStartDate.Format(time.RFC3339))
-
-	return
+	return gexport.state.Set(gexport.lastExportKey, exportStartDate.Format(time.RFC3339))
 }
 
-func (ge *GitlabExport) exportGroupSourceCode(group *api.Group) (rerr error) {
+func (ge *GitlabExport) exportGroupSourceCode(group *api.Group) error {
 
 	if !ge.isGitlabCloud {
 		if err := ge.exportEnterpriseUsers(); err != nil {
-			rerr = err
-			return
+			return err
 		}
 	}
 
 	repos, err := ge.exportGroupRepos(group)
 	if err != nil {
-		rerr = err
-		return
+		return err
 	}
 
 	return ge.exportCommonRepos(repos)
 }
 
-func (ge *GitlabExport) exportUserSourceCode(user *api.GitlabUser) (rerr error) {
+func (ge *GitlabExport) exportUserSourceCode(user *api.GitlabUser) error {
 
 	repos, err := ge.exportUserRepos(user)
 	if err != nil {
-		rerr = err
-		return
+		return err
 	}
 
 	return ge.exportCommonRepos(repos)
 }
 
-func (ge *GitlabExport) exportCommonRepos(repos []*sdk.SourceCodeRepo) (rerr error) {
+func (ge *GitlabExport) exportCommonRepos(repos []*sdk.SourceCodeRepo) error {
 
 	for _, repo := range repos {
 		err := ge.exportRepoAndWrite(repo)
@@ -247,51 +250,48 @@ func (ge *GitlabExport) exportCommonRepos(repos []*sdk.SourceCodeRepo) (rerr err
 			sdk.LogError(ge.logger, "error exporting repo", "repo", repo.Name, "repo_refid", repo.RefID, "err", err)
 		}
 	}
-	rerr = ge.pipe.Flush()
-	if rerr != nil {
-		return
-	}
-	rerr = ge.exportPullRequestsFutures()
-	if rerr != nil {
-		return
+
+	if err := ge.pipe.Flush(); err != nil {
+		return err
 	}
 
-	return
+	ge.exportPullRequestsFutures()
+
+	return nil
 }
 
-func (ge *GitlabExport) exportRepoAndWrite(repo *sdk.SourceCodeRepo) (rerr error) {
+func (ge *GitlabExport) exportRepoAndWrite(repo *sdk.SourceCodeRepo) error {
 	repo.IntegrationInstanceID = ge.integrationInstanceID
-	if rerr = ge.pipe.Write(repo); rerr != nil {
-		return
+	if err := ge.pipe.Write(repo); err != nil {
+		return err
 	}
 	ge.exportRepoPullRequests(repo)
 	if ge.isGitlabCloud {
-		if rerr = ge.exportRepoUsers(repo); rerr != nil {
-			return
+		if err := ge.exportRepoUsers(repo); err != nil {
+			return err
 		}
 	}
-	return
+	return nil
 }
 
-func (ge *GitlabExport) exportProjectAndWrite(project *sdk.WorkProject, projectUsersMap map[string]api.UsernameMap) (rerr error) {
+func (ge *GitlabExport) exportProjectAndWrite(project *sdk.WorkProject, projectUsersMap map[string]api.UsernameMap) error {
 	project.IntegrationInstanceID = ge.integrationInstanceID
-	if rerr = ge.pipe.Write(project); rerr != nil {
-		return
+	if err := ge.pipe.Write(project); err != nil {
+		return err
 	}
 	users, err := ge.exportProjectUsers(project)
 	if err != nil {
-		rerr = err
-		return
+		return err
 	}
 	projectUsersMap[project.RefID] = users
 	ge.exportProjectIssues(project, users)
-	if rerr = ge.exportProjectSprints(project); rerr != nil {
-		return
+	if err := ge.exportProjectSprints(project); err != nil {
+		return err
 	}
-	return
+	return nil
 }
 
-func (ge *GitlabExport) exportPullRequestsFutures() (rerr error) {
+func (ge *GitlabExport) exportPullRequestsFutures() {
 
 	sdk.LogDebug(ge.logger, "remaining pull requests", "futures count", len(ge.pullrequestsFutures))
 
@@ -301,10 +301,9 @@ func (ge *GitlabExport) exportPullRequestsFutures() (rerr error) {
 		ge.exportRemainingRepoPullRequests(f.Repo)
 	}
 
-	return
 }
 
-func (ge *GitlabExport) exportIssuesFutures(projectUsersMap map[string]api.UsernameMap) (rerr error) {
+func (ge *GitlabExport) exportIssuesFutures(projectUsersMap map[string]api.UsernameMap) {
 
 	sdk.LogDebug(ge.logger, "remaining issues", "futures count", len(ge.isssueFutures))
 
@@ -312,7 +311,6 @@ func (ge *GitlabExport) exportIssuesFutures(projectUsersMap map[string]api.Usern
 		ge.exportRemainingProjectIssues(f.Project, projectUsersMap[f.Project.RefID])
 	}
 
-	return
 }
 
 func (ge *GitlabExport) exportGroupWork(group *api.Group) (rerr error) {
@@ -334,20 +332,16 @@ func (ge *GitlabExport) exportGroupWork(group *api.Group) (rerr error) {
 		return
 	}
 	sdk.LogDebug(ge.logger, "remaining project issues", "futures count", len(ge.isssueFutures))
-	rerr = ge.exportIssuesFutures(projectUsersMap)
-	if rerr != nil {
-		return
-	}
+	ge.exportIssuesFutures(projectUsersMap)
 
 	return
 }
 
-func (ge *GitlabExport) exportUserWork(user *api.GitlabUser) (rerr error) {
+func (ge *GitlabExport) exportUserWork(user *api.GitlabUser) error {
 
 	projects, err := ge.exportUserProjects(user)
 	if err != nil {
-		rerr = err
-		return
+		return err
 	}
 	projectUsersMap := make(map[string]api.UsernameMap)
 	for _, project := range projects {
@@ -356,17 +350,14 @@ func (ge *GitlabExport) exportUserWork(user *api.GitlabUser) (rerr error) {
 			sdk.LogError(ge.logger, "error exporting project", "project", project.Name, "project_refid", project.RefID, "err", err)
 		}
 	}
-	rerr = ge.pipe.Flush()
-	if rerr != nil {
-		return
+	err = ge.pipe.Flush()
+	if err != nil {
+		return err
 	}
 	sdk.LogDebug(ge.logger, "remaining project issues", "futures count", len(ge.isssueFutures))
-	rerr = ge.exportIssuesFutures(projectUsersMap)
-	if rerr != nil {
-		return
-	}
+	ge.exportIssuesFutures(projectUsersMap)
 
-	return
+	return nil
 }
 
 func (ge *GitlabExport) IncludeRepo(login string, name string, isArchived bool) bool {

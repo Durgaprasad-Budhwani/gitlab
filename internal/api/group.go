@@ -37,29 +37,34 @@ func GroupsAll(qc QueryContext) (allGroups []*Group, err error) {
 // Groups fetch groups
 func groups(qc QueryContext, params url.Values) (np NextPage, groups []*Group, err error) {
 
-	sdk.LogDebug(qc.Logger, "groups request", "params", params)
+	sdk.LogDebug(qc.Logger, "groups request", "params", sdk.Stringify(params))
 
 	objectPath := "groups"
 
-	var rgroups []struct {
-		json.RawMessage
-		ID                 int64  `json:"id"`
-		Name               string `json:"name"`
-		FullPath           string `json:"full_path"`
-		MarkedForDeletring string `json:"marked_for_deletion"`
-	}
+	var rawGroups []json.RawMessage
 
-	np, err = qc.Get(objectPath, params, &rgroups)
+	np, err = qc.Get(objectPath, params, &rawGroups)
 	if err != nil {
 		return
 	}
 
-	for _, group := range rgroups {
+	var group struct {
+		ID                 int64           `json:"id"`
+		Name               string          `json:"name"`
+		FullPath           string          `json:"full_path"`
+		MarkedForDeletring json.RawMessage `json:"marked_for_deletion"`
+	}
+
+	for _, g := range rawGroups {
+		err = json.Unmarshal(g, &group)
+		if err != nil {
+			return
+		}
 		groups = append(groups, &Group{
 			ID:        strconv.FormatInt(group.ID, 10),
 			Name:      group.Name,
 			FullPath:  group.FullPath,
-			ValidTier: isValidTier(group.RawMessage),
+			ValidTier: isValidTier(g),
 		})
 	}
 
