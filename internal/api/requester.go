@@ -103,19 +103,25 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 	endpoint := sdk.WithEndpoint(r.EndPoint)
 	parameters := sdk.WithGetQueryParameters(r.Params)
 
-	sdk.LogDebug(e.logger, "debug", "endpoint", endpoint, "parameters", parameters, "headers", headers)
+	sdk.LogDebug(e.logger, "request info", "method", r.RequestType, "endpoint", r.EndPoint, "parameters", r.Params)
 
 	var resp *sdk.HTTPResponse
 	switch r.RequestType {
 	case Get:
 		resp, rerr = e.client.Get(&r.Response, headers, endpoint, parameters)
 		if rerr != nil {
-			return true, np, rerr
+			if len(resp.Body) > 0 {
+				sdk.LogDebug(e.logger, "error", "err", string(resp.Body))
+			}
+			return true, np, fmt.Errorf("error: %s %s", rerr, string(resp.Body))
 		}
 	case Post:
 		resp, rerr = e.client.Post(r.Data, &r.Response, headers, endpoint, parameters)
 		if rerr != nil {
-			return true, np, rerr
+			if len(resp.Body) > 0 {
+				sdk.LogDebug(e.logger, "error", "err", string(resp.Body))
+			}
+			return true, np, fmt.Errorf("error: %s %s", rerr, string(resp.Body))
 		}
 	}
 
@@ -137,7 +143,7 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 
 		if resp.StatusCode == http.StatusTooManyRequests {
 			return rateLimited()

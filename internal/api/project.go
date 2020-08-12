@@ -14,7 +14,7 @@ func GroupReposPage(qc QueryContext, group *Group, params url.Values, stopOnUpda
 	params.Set("with_shared", "false")
 	params.Set("include_subgroups", "true")
 
-	sdk.LogDebug(qc.Logger, "group repos request", "group_id", group.ID, "group", group.FullPath, "params", params)
+	sdk.LogDebug(qc.Logger, "group repos request", "group_id", group.ID, "group", group.FullPath, "params", sdk.Stringify(params))
 
 	objectPath := sdk.JoinURL("groups", group.ID, "projects")
 
@@ -23,7 +23,7 @@ func GroupReposPage(qc QueryContext, group *Group, params url.Values, stopOnUpda
 
 func UserReposPage(qc QueryContext, user *GitlabUser, params url.Values, stopOnUpdatedAt time.Time) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
 
-	sdk.LogDebug(qc.Logger, "user repos request", "user_id", user.ID, "username", user.Name, "params", params)
+	sdk.LogDebug(qc.Logger, "user repos request", "user_id", user.ID, "username", user.Name, "params", sdk.Stringify(params))
 
 	objectPath := sdk.JoinURL("users", user.StrID, "projects")
 

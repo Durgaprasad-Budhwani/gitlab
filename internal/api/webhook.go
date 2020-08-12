@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/url"
+	"strings"
 
 	"github.com/pinpt/agent.next/sdk"
 )
@@ -25,22 +26,24 @@ var systemEventNames = []string{
 
 func CreateSystemWebHook(qc QueryContext, eventAPIWebhookURL string) error {
 
-	sdk.LogDebug(qc.Logger, "system webhooks")
+	sdk.LogDebug(qc.Logger, "create system webhooks")
 
 	objectPath := sdk.JoinURL("hooks")
 
+	// TODO: remove this
+	if eventAPIWebhookURL == "" {
+		eventAPIWebhookURL = "http://event-api"
+	}
+
 	params := url.Values{}
 	params.Set("url", eventAPIWebhookURL)
-	params.Set("token", "token")
 	// groups/projects webhooks will handle merge_requests_events
-	// params.Set("merge_requests_events", "true")
-	// params.Set("push_events", "true")
 	params.Set("repository_update_events", "true")
 	params.Set("enable_ssl_verification", "true")
 
 	var resp interface{}
 
-	_, err := qc.Post(objectPath, params, nil, &resp)
+	_, err := qc.Post(objectPath, params, strings.NewReader(""), &resp)
 	if err != nil {
 		return err
 	}
@@ -50,9 +53,14 @@ func CreateSystemWebHook(qc QueryContext, eventAPIWebhookURL string) error {
 
 func CreateGroupWebHook(qc QueryContext, group *Group, eventAPIWebhookURL string) error {
 
-	sdk.LogDebug(qc.Logger, "group webhooks", "group_name", group.Name, "group_id", group.ID)
+	sdk.LogDebug(qc.Logger, "create group webhooks", "group_name", group.Name, "group_id", group.ID)
 
 	objectPath := sdk.JoinURL("groups", group.ID, "hooks")
+
+	// TODO: remove this
+	if eventAPIWebhookURL == "" {
+		eventAPIWebhookURL = "http://event-api"
+	}
 
 	params := url.Values{}
 	params.Set("url", eventAPIWebhookURL)
@@ -63,7 +71,7 @@ func CreateGroupWebHook(qc QueryContext, group *Group, eventAPIWebhookURL string
 
 	var resp interface{}
 
-	_, err := qc.Post(objectPath, params, nil, &resp)
+	_, err := qc.Post(objectPath, params, strings.NewReader(""), &resp)
 	if err != nil {
 		return err
 	}
@@ -73,9 +81,14 @@ func CreateGroupWebHook(qc QueryContext, group *Group, eventAPIWebhookURL string
 
 func CreateProjectWebHook(qc QueryContext, project *sdk.SourceCodeRepo, eventAPIWebhookURL string) error {
 
-	sdk.LogDebug(qc.Logger, "group webhooks", "project_name", project.Name, "project_id", project.RefID)
+	sdk.LogDebug(qc.Logger, "create project webhook", "project_name", project.Name, "project_id", project.RefID)
 
 	objectPath := sdk.JoinURL("projects", project.RefID, "hooks")
+
+	// TODO: remove this
+	if eventAPIWebhookURL == "" {
+		eventAPIWebhookURL = "http://event-api"
+	}
 
 	params := url.Values{}
 	params.Set("url", eventAPIWebhookURL)
@@ -86,7 +99,7 @@ func CreateProjectWebHook(qc QueryContext, project *sdk.SourceCodeRepo, eventAPI
 
 	var resp interface{}
 
-	_, err := qc.Post(objectPath, params, nil, &resp)
+	_, err := qc.Post(objectPath, params, strings.NewReader(""), &resp)
 	if err != nil {
 		return err
 	}
@@ -111,7 +124,7 @@ func GetSystemWebHookPage(qc QueryContext, params url.Values) (page NextPage, gw
 
 func GetGroupWebHookPage(qc QueryContext, group *Group, params url.Values) (page NextPage, gwhs []*GitlabWebhook, err error) {
 
-	sdk.LogDebug(qc.Logger, "group webhooks", "group_id", group.ID, "group_name", group.Name, "params", params)
+	sdk.LogDebug(qc.Logger, "group webhooks page", "group_id", group.ID, "group_name", group.Name, "params", params)
 
 	objectPath := sdk.JoinURL("groups", group.ID, "hooks")
 
@@ -122,7 +135,7 @@ func GetGroupWebHookPage(qc QueryContext, group *Group, params url.Values) (page
 
 func GetProjectWebHookPage(qc QueryContext, project *sdk.SourceCodeRepo, params url.Values) (page NextPage, gwhs []*GitlabWebhook, err error) {
 
-	sdk.LogDebug(qc.Logger, "project webhooks", "repo_id", project.RefID, "repo_name", project.Name, "params", params)
+	sdk.LogDebug(qc.Logger, "project webhooks page", "repo_id", project.RefID, "repo_name", project.Name, "params", params)
 
 	objectPath := sdk.JoinURL("projects", project.RefID, "hooks")
 

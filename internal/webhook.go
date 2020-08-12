@@ -288,50 +288,49 @@ func (i *GitlabIntegration) GetReviewFromAction(
 	return
 }
 
-func (g *GitlabIntegration) registerWebhooks(instance sdk.Instance) (rerr error) {
+func (g *GitlabIntegration) registerWebhooks(ge GitlabExport) error {
 
 	// TODO: Add concurrency to webhooks registration
-
+	customerID := ge.qc.CustomerID
+	integrationInstanceID := ge.integrationInstanceID
 	webhookManager := g.manager.WebHookManager()
-
-	ge, err := g.SetQueryConfig(g.logger, instance.Config(), g.manager, instance.CustomerID())
-	if err != nil {
-		rerr = err
-		return
-	}
 
 	user, err := api.LoginUser(ge.qc)
 	if err != nil {
-		rerr = err
-		return
+		return err
 	}
 
 	if !ge.isGitlabCloud && user.IsAdmin {
-		rerr = ge.registerSystemWebhook(webhookManager, instance.CustomerID(), instance.IntegrationInstanceID())
-		if rerr != nil {
-			webhookManager.Errored(instance.CustomerID(), instance.IntegrationInstanceID(), gitlabRefType, "system", sdk.WebHookScopeSystem, err)
-			return
+		err = ge.registerSystemWebhook(webhookManager, customerID, *integrationInstanceID)
+		if err != nil {
+			sdk.LogDebug(ge.logger, "error registering sytem webhooks", "err", err)
+			webhookManager.Errored(customerID, *ge.integrationInstanceID, gitlabRefType, "system", sdk.WebHookScopeSystem, err)
+			return err
 		}
+		sdk.LogInfo(ge.logger, "system webhook created")
 	}
 
 	groups, err := api.GroupsAll(ge.qc)
 	if err != nil {
 		return err
 	}
+	sdk.LogDebug(ge.logger, "groups", "groups", sdk.Stringify(groups))
 	for _, group := range groups {
 		if group.ValidTier {
 			user, err := api.GroupUser(ge.qc, group, user.StrID)
 			if err != nil {
 				group.MarkedToCreateProjectWebHooks = true
 				sdk.LogWarn(g.logger, "there was an error trying to get group user access level, will try to create project webhooks instead", "group", group.Name, "user", user.Name, "user_access_level", user.AccessLevel, "err", err)
-				return
+				return err
 			}
+			sdk.LogDebug(ge.logger, "user", "access_level", user.AccessLevel)
 			if user.AccessLevel >= api.Owner {
-				rerr = ge.registerGroupWebhook(webhookManager, instance.CustomerID(), instance.IntegrationInstanceID(), group)
-				if rerr != nil {
+				err = ge.registerGroupWebhook(webhookManager, customerID, *integrationInstanceID, group)
+				if err != nil {
 					group.MarkedToCreateProjectWebHooks = true
 					sdk.LogWarn(g.logger, "there was an error trying to create group webhooks, will try to create project webhooks instead", "group", group.Name, "user", user.Name, "user_access_level", user.AccessLevel, "err", err)
-					return
+				} else {
+					sdk.LogInfo(ge.logger, "group webhook created", "group_id", group.ID, "group_name", group.Name)
 				}
 			} else {
 				group.MarkedToCreateProjectWebHooks = true
@@ -344,27 +343,30 @@ func (g *GitlabIntegration) registerWebhooks(instance sdk.Instance) (rerr error)
 		if group.MarkedToCreateProjectWebHooks {
 			projects, err := ge.exportGroupRepos(group)
 			if err != nil {
-				cerr := fmt.Errorf("error trying to get group projects err => %s", err)
-				webhookManager.Errored(instance.CustomerID(), instance.IntegrationInstanceID(), gitlabRefType, group.ID, sdk.WebHookScopeOrg, cerr)
-				return
+				err = fmt.Errorf("error trying to get group projects err => %s", err)
+				webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeOrg, err)
+				return err
 			}
 			for _, project := range projects {
 				user, err := api.ProjectUser(ge.qc, project, user.StrID)
 				if err != nil {
-					cerr := fmt.Errorf("error trying to get project user user => %s err => %s", user.Name, err)
-					webhookManager.Errored(instance.CustomerID(), instance.IntegrationInstanceID(), gitlabRefType, group.ID, sdk.WebHookScopeOrg, cerr)
-					return
+					err = fmt.Errorf("error trying to get project user user => %s err => %s", user.Name, err)
+					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeOrg, err)
+					return err
 				}
 				if user.AccessLevel >= api.Owner {
-					rerr = ge.registerProjectWebhook(webhookManager, instance.CustomerID(), instance.IntegrationInstanceID(), project)
-					if rerr != nil {
-						cerr := fmt.Errorf("error trying to register project webhooks err => %s", err)
-						webhookManager.Errored(instance.CustomerID(), instance.IntegrationInstanceID(), gitlabRefType, group.ID, sdk.WebHookScopeSystem, cerr)
-						return
+					err = ge.registerProjectWebhook(webhookManager, customerID, *integrationInstanceID, project)
+					if err != nil {
+						err := fmt.Errorf("error trying to register project webhooks err => %s", err)
+						webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeSystem, err)
+						sdk.LogError(ge.logger, "error creating project webhook", "err", err)
+						return err
 					}
+					sdk.LogInfo(ge.logger, "project webhook created", "project_id", project.RefID, "project_name", project.Name)
 				} else {
-					cerr := fmt.Errorf("at least Maintainer level access is needed to create webhooks for this project project => %s user => %s user_access_level %d err => %s", project.Name, user.Name, user.AccessLevel, err)
-					webhookManager.Errored(instance.CustomerID(), instance.IntegrationInstanceID(), gitlabRefType, group.ID, sdk.WebHookScopeSystem, cerr)
+					err := fmt.Errorf("at least Maintainer level access is needed to create webhooks for this project project => %s user => %s user_access_level %d err => %s", project.Name, user.Name, user.AccessLevel, err)
+					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeSystem, err)
+					sdk.LogError(ge.logger, err.Error())
 				}
 			}
 		}
@@ -372,7 +374,7 @@ func (g *GitlabIntegration) registerWebhooks(instance sdk.Instance) (rerr error)
 
 	// TODO: Refactor registerSystemHook, registerGroupWebHook, registerProjectWebHook
 
-	return
+	return nil
 }
 
 func (ge *GitlabExport) registerSystemWebhook(manager sdk.WebHookManager, customerID string, integrationInstanceID string) error {
