@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -24,21 +25,29 @@ var systemEventNames = []string{
 	"user_update_for_group",
 }
 
-func CreateSystemWebHook(qc QueryContext, eventAPIWebhookURL string) error {
+var webHookParams map[sdk.WebHookScope]url.Values = map[sdk.WebHookScope]url.Values{
+	sdk.WebHookScopeSystem: {
+		"repository_update_events": []string{"true"},
+	},
+	sdk.WebHookScopeOrg: {
+		"merge_requests_events": []string{"true"},
+		"note_events":           []string{"true"},
+	},
+	sdk.WebHookScopeRepo: {
+		"merge_requests_events": []string{"true"},
+		"note_events":           []string{"true"},
+	},
+}
 
-	sdk.LogDebug(qc.Logger, "create system webhooks")
+// CreateWebHook create
+func CreateWebHook(whType sdk.WebHookScope, qc QueryContext, eventAPIWebhookURL, entityID, entityName string) error {
 
-	objectPath := sdk.JoinURL("hooks")
+	sdk.LogInfo(qc.Logger, fmt.Sprintf("create %s webhooks", whType), "entityID", entityID, "entityName", entityName)
 
-	// TODO: remove this
-	if eventAPIWebhookURL == "" {
-		eventAPIWebhookURL = "http://event-api"
-	}
+	objectPath := buildPath(whType, entityID)
 
-	params := url.Values{}
+	params := webHookParams[whType]
 	params.Set("url", eventAPIWebhookURL)
-	// groups/projects webhooks will handle merge_requests_events
-	params.Set("repository_update_events", "true")
 	params.Set("enable_ssl_verification", "true")
 
 	var resp interface{}
@@ -51,95 +60,35 @@ func CreateSystemWebHook(qc QueryContext, eventAPIWebhookURL string) error {
 	return nil
 }
 
-func CreateGroupWebHook(qc QueryContext, group *Group, eventAPIWebhookURL string) error {
-
-	sdk.LogDebug(qc.Logger, "create group webhooks", "group_name", group.Name, "group_id", group.ID)
-
-	objectPath := sdk.JoinURL("groups", group.ID, "hooks")
-
-	// TODO: remove this
-	if eventAPIWebhookURL == "" {
-		eventAPIWebhookURL = "http://event-api"
-	}
-
-	params := url.Values{}
-	params.Set("url", eventAPIWebhookURL)
-	// params.Set("push_events", "true")
-	params.Set("merge_requests_events", "true")
-	params.Set("note_events", "true")
-	params.Set("enable_ssl_verification", "true")
-
-	var resp interface{}
-
-	_, err := qc.Post(objectPath, params, strings.NewReader(""), &resp)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func CreateProjectWebHook(qc QueryContext, project *sdk.SourceCodeRepo, eventAPIWebhookURL string) error {
-
-	sdk.LogDebug(qc.Logger, "create project webhook", "project_name", project.Name, "project_id", project.RefID)
-
-	objectPath := sdk.JoinURL("projects", project.RefID, "hooks")
-
-	// TODO: remove this
-	if eventAPIWebhookURL == "" {
-		eventAPIWebhookURL = "http://event-api"
-	}
-
-	params := url.Values{}
-	params.Set("url", eventAPIWebhookURL)
-	// params.Set("push_events", "true")
-	params.Set("merge_requests_events", "true")
-	params.Set("note_events", "true")
-	params.Set("enable_ssl_verification", "true")
-
-	var resp interface{}
-
-	_, err := qc.Post(objectPath, params, strings.NewReader(""), &resp)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
+// GitlabWebhook webhook object
 type GitlabWebhook struct {
 	URL string `json:"url"`
 }
 
-func GetSystemWebHookPage(qc QueryContext, params url.Values) (page NextPage, gwhs []*GitlabWebhook, err error) {
+// GetWebHooksPage get web-hooks page
+func GetWebHooksPage(webhookType sdk.WebHookScope, qc QueryContext, entityID string, entityName string, params url.Values) (page NextPage, gwhs []*GitlabWebhook, err error) {
 
-	sdk.LogDebug(qc.Logger, "system webhooks")
+	sdk.LogDebug(qc.Logger, fmt.Sprintf("%s webhooks page", webhookType), "entityID", entityID, "entityName", entityName)
 
-	objectPath := sdk.JoinURL("hooks")
-
-	page, err = qc.Get(objectPath, params, &gwhs)
-
-	return
-}
-
-func GetGroupWebHookPage(qc QueryContext, group *Group, params url.Values) (page NextPage, gwhs []*GitlabWebhook, err error) {
-
-	sdk.LogDebug(qc.Logger, "group webhooks page", "group_id", group.ID, "group_name", group.Name, "params", params)
-
-	objectPath := sdk.JoinURL("groups", group.ID, "hooks")
+	objectPath := buildPath(webhookType, entityID)
 
 	page, err = qc.Get(objectPath, params, &gwhs)
 
 	return
 }
 
-func GetProjectWebHookPage(qc QueryContext, project *sdk.SourceCodeRepo, params url.Values) (page NextPage, gwhs []*GitlabWebhook, err error) {
+func buildPath(whType sdk.WebHookScope, entityID string) string {
 
-	sdk.LogDebug(qc.Logger, "project webhooks page", "repo_id", project.RefID, "repo_name", project.Name, "params", params)
+	var path string
 
-	objectPath := sdk.JoinURL("projects", project.RefID, "hooks")
+	switch whType {
+	case sdk.WebHookScopeSystem:
+		path = "hooks"
+	case sdk.WebHookScopeOrg:
+		path = sdk.JoinURL("groups", entityID, "hooks")
+	case sdk.WebHookScopeRepo:
+		path = sdk.JoinURL("projects", entityID, "hooks")
+	}
 
-	page, err = qc.Get(objectPath, params, &gwhs)
-
-	return
+	return path
 }

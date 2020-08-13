@@ -3,7 +3,6 @@ package internal
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -295,19 +294,25 @@ func (g *GitlabIntegration) registerWebhooks(ge GitlabExport) error {
 	integrationInstanceID := ge.integrationInstanceID
 	webhookManager := g.manager.WebHookManager()
 
+	wr := webHookRegistration{
+		customerID:            customerID,
+		integrationInstanceID: *integrationInstanceID,
+		manager:               webhookManager,
+		ge:                    &ge,
+	}
+
 	user, err := api.LoginUser(ge.qc)
 	if err != nil {
 		return err
 	}
 
 	if !ge.isGitlabCloud && user.IsAdmin {
-		err = ge.registerSystemWebhook(webhookManager, customerID, *integrationInstanceID)
+		err = wr.registerWebhook(sdk.WebHookScopeSystem, "", "")
 		if err != nil {
 			sdk.LogDebug(ge.logger, "error registering sytem webhooks", "err", err)
 			webhookManager.Errored(customerID, *ge.integrationInstanceID, gitlabRefType, "system", sdk.WebHookScopeSystem, err)
 			return err
 		}
-		sdk.LogInfo(ge.logger, "system webhook created")
 	}
 
 	groups, err := api.GroupsAll(ge.qc)
@@ -315,6 +320,7 @@ func (g *GitlabIntegration) registerWebhooks(ge GitlabExport) error {
 		return err
 	}
 	sdk.LogDebug(ge.logger, "groups", "groups", sdk.Stringify(groups))
+	var userHasProjectWebhookAcess bool
 	for _, group := range groups {
 		if group.ValidTier {
 			user, err := api.GroupUser(ge.qc, group, user.StrID)
@@ -325,12 +331,11 @@ func (g *GitlabIntegration) registerWebhooks(ge GitlabExport) error {
 			}
 			sdk.LogDebug(ge.logger, "user", "access_level", user.AccessLevel)
 			if user.AccessLevel >= api.Owner {
-				err = ge.registerGroupWebhook(webhookManager, customerID, *integrationInstanceID, group)
+				userHasProjectWebhookAcess = true
+				err = wr.registerWebhook(sdk.WebHookScopeOrg, group.ID, group.Name)
 				if err != nil {
 					group.MarkedToCreateProjectWebHooks = true
 					sdk.LogWarn(g.logger, "there was an error trying to create group webhooks, will try to create project webhooks instead", "group", group.Name, "user", user.Name, "user_access_level", user.AccessLevel, "err", err)
-				} else {
-					sdk.LogInfo(ge.logger, "group webhook created", "group_id", group.ID, "group_name", group.Name)
 				}
 			} else {
 				group.MarkedToCreateProjectWebHooks = true
@@ -351,205 +356,65 @@ func (g *GitlabIntegration) registerWebhooks(ge GitlabExport) error {
 				user, err := api.ProjectUser(ge.qc, project, user.StrID)
 				if err != nil {
 					err = fmt.Errorf("error trying to get project user user => %s err => %s", user.Name, err)
-					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeOrg, err)
+					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 					return err
 				}
-				if user.AccessLevel >= api.Owner {
-					err = ge.registerProjectWebhook(webhookManager, customerID, *integrationInstanceID, project)
+				if user.AccessLevel >= api.Owner || userHasProjectWebhookAcess {
+					err = wr.registerWebhook(sdk.WebHookScopeRepo, project.ID, project.Name)
 					if err != nil {
 						err := fmt.Errorf("error trying to register project webhooks err => %s", err)
-						webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeSystem, err)
+						webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 						sdk.LogError(ge.logger, "error creating project webhook", "err", err)
 						return err
 					}
-					sdk.LogInfo(ge.logger, "project webhook created", "project_id", project.RefID, "project_name", project.Name)
 				} else {
-					err := fmt.Errorf("at least Maintainer level access is needed to create webhooks for this project project => %s user => %s user_access_level %d err => %s", project.Name, user.Name, user.AccessLevel, err)
-					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeSystem, err)
+					err := fmt.Errorf("at least Maintainer level access is needed to create webhooks for this project project => %s user => %s user_access_level %d", project.Name, user.Name, user.AccessLevel)
+					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 					sdk.LogError(ge.logger, err.Error())
 				}
 			}
 		}
 	}
 
-	// TODO: Refactor registerSystemHook, registerGroupWebHook, registerProjectWebHook
-
 	return nil
 }
 
-func (ge *GitlabExport) registerSystemWebhook(manager sdk.WebHookManager, customerID string, integrationInstanceID string) error {
-	if ge.isSystemWebHookInstalled(manager, customerID, integrationInstanceID) {
+type webHookRegistration struct {
+	manager               sdk.WebHookManager
+	customerID            string
+	integrationInstanceID string
+	ge                    *GitlabExport
+}
+
+func (wr *webHookRegistration) registerWebhook(whType sdk.WebHookScope, entityID, entityName string) error {
+	if wr.ge.isWebHookInstalled(whType, wr.manager, wr.customerID, wr.integrationInstanceID, entityID) {
 		return nil
 	}
 
-	systeWebHooks, err := ge.getSystemHooks()
+	webHooks, err := wr.ge.getHooks(whType, entityID, entityName)
 	if err != nil {
 		return err
 	}
 
 	var found bool
-	for _, wh := range systeWebHooks {
-		if strings.Contains(wh.URL, "event-api") && strings.Contains(wh.URL, "pinpoint.com") && strings.Contains(wh.URL, integrationInstanceID) {
+	for _, wh := range webHooks {
+		if strings.Contains(wh.URL, "event.api") && strings.Contains(wh.URL, "pinpoint.com") && strings.Contains(wh.URL, wr.integrationInstanceID) {
 			found = true
 			break
 		}
 	}
 
 	if !found {
-		url, err := manager.Create(customerID, integrationInstanceID, gitlabRefType, "system", sdk.WebHookScopeSystem, "scope=system", "version="+hookVersion)
+		url, err := wr.manager.Create(wr.customerID, wr.integrationInstanceID, gitlabRefType, entityID, whType, "version="+hookVersion)
 		if err != nil {
-			manager.Delete(customerID, integrationInstanceID, gitlabRefType, "system", sdk.WebHookScopeSystem)
+			wr.manager.Delete(wr.customerID, wr.integrationInstanceID, gitlabRefType, entityID, whType)
 			return err
 		}
-		err = api.CreateSystemWebHook(ge.qc, url)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (ge *GitlabExport) isSystemWebHookInstalled(manager sdk.WebHookManager, customerID string, integrationInstanceID string) bool {
-	// TODO: define system hook scope type in agent.next sdk
-	if manager.Exists(customerID, integrationInstanceID, gitlabRefType, "system", sdk.WebHookScopeSystem) {
-		theurl, _ := manager.HookURL(customerID, integrationInstanceID, gitlabRefType, "system", sdk.WebHookScopeSystem)
-		// check and see if we need to upgrade our hook
-		if !strings.Contains(theurl, "version="+hookVersion) {
-			manager.Delete(customerID, integrationInstanceID, gitlabRefType, "system", sdk.WebHookScopeSystem)
-			return false
-		}
-		return true
-	}
-	return false
-}
-
-func (ge *GitlabExport) getSystemHooks() (gwhs []*api.GitlabWebhook, rerr error) {
-	rerr = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (np api.NextPage, rerr error) {
-		pi, whs, err := api.GetSystemWebHookPage(ge.qc, params)
-		if err != nil {
-			return pi, err
-		}
-		gwhs = append(gwhs, whs...)
-		return
-	})
-	return
-}
-
-func (ge *GitlabExport) registerGroupWebhook(manager sdk.WebHookManager, customerID string, integrationInstanceID string, group *api.Group) error {
-	if ge.isGroupWebHookInstalled(manager, customerID, integrationInstanceID, group) {
-		return nil
-	}
-
-	groupWebHooks, err := ge.getGroupHooks(group)
-	if err != nil {
-		return err
-	}
-
-	var found bool
-	for _, wh := range groupWebHooks {
-		if strings.Contains(wh.URL, "event-api") && strings.Contains(wh.URL, "pinpoint.com") && strings.Contains(wh.URL, integrationInstanceID) {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		url, err := manager.Create(customerID, integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeOrg, "scope=org", "version="+hookVersion)
-		if err != nil {
-			manager.Delete(customerID, integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeOrg)
-			return err
-		}
-		err = api.CreateGroupWebHook(ge.qc, group, url)
+		err = api.CreateWebHook(whType, wr.ge.qc, url, entityID, entityName)
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func (ge *GitlabExport) isGroupWebHookInstalled(manager sdk.WebHookManager, customerID string, integrationInstanceID string, group *api.Group) bool {
-	// TODO: define system hook scope type in agent.next sdk
-	if manager.Exists(customerID, integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeOrg) {
-		theurl, _ := manager.HookURL(customerID, integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeOrg)
-		// check and see if we need to upgrade our hook
-		if !strings.Contains(theurl, "version="+hookVersion) {
-			manager.Delete(customerID, integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeOrg)
-			return false
-		}
-		return true
-	}
-	return false
-}
-
-func (ge *GitlabExport) getGroupHooks(group *api.Group) (gwhs []*api.GitlabWebhook, rerr error) {
-	rerr = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (np api.NextPage, rerr error) {
-		pi, whs, err := api.GetGroupWebHookPage(ge.qc, group, params)
-		if err != nil {
-			return pi, err
-		}
-		gwhs = append(gwhs, whs...)
-		return
-	})
-	return
-}
-
-func (ge *GitlabExport) registerProjectWebhook(manager sdk.WebHookManager, customerID string, integrationInstanceID string, project *sdk.SourceCodeRepo) error {
-	if ge.isProjectWebHookInstalled(manager, customerID, integrationInstanceID, project) {
-		return nil
-	}
-
-	projectWebHooks, err := ge.getProjectHooks(project)
-	if err != nil {
-		return err
-	}
-
-	var found bool
-	for _, wh := range projectWebHooks {
-		if strings.Contains(wh.URL, "event-api") && strings.Contains(wh.URL, "pinpoint.com") && strings.Contains(wh.URL, integrationInstanceID) {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		url, err := manager.Create(customerID, integrationInstanceID, gitlabRefType, project.RefID, sdk.WebHookScopeRepo, "scope=repo", "version="+hookVersion)
-		if err != nil {
-			manager.Delete(customerID, integrationInstanceID, gitlabRefType, project.RefID, sdk.WebHookScopeRepo)
-			return err
-		}
-		err = api.CreateProjectWebHook(ge.qc, project, url)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (ge *GitlabExport) isProjectWebHookInstalled(manager sdk.WebHookManager, customerID string, integrationInstanceID string, project *sdk.SourceCodeRepo) bool {
-	// TODO: define system hook scope type in agent.next sdk
-	if manager.Exists(customerID, integrationInstanceID, gitlabRefType, project.RefID, sdk.WebHookScopeRepo) {
-		theurl, _ := manager.HookURL(customerID, integrationInstanceID, gitlabRefType, project.RefID, sdk.WebHookScopeRepo)
-		// check and see if we need to upgrade our hook
-		if !strings.Contains(theurl, "version="+hookVersion) {
-			manager.Delete(customerID, integrationInstanceID, gitlabRefType, project.RefID, sdk.WebHookScopeRepo)
-			return false
-		}
-		return true
-	}
-	return false
-}
-
-func (ge *GitlabExport) getProjectHooks(project *sdk.SourceCodeRepo) (gwhs []*api.GitlabWebhook, rerr error) {
-	rerr = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (np api.NextPage, rerr error) {
-		pi, whs, err := api.GetProjectWebHookPage(ge.qc, project, params)
-		if err != nil {
-			return pi, err
-		}
-		gwhs = append(gwhs, whs...)
-		return
-	})
-	return
 }
