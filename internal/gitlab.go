@@ -33,6 +33,7 @@ const (
 	FetchAccounts = "FETCH_ACCOUNTS"
 )
 
+// Validate validate
 func (g *GitlabIntegration) Validate(validate sdk.Validate) (map[string]interface{}, error) {
 	config := validate.Config()
 	sdk.LogDebug(g.logger, "Validate", "config", config)
@@ -41,22 +42,6 @@ func (g *GitlabIntegration) Validate(validate sdk.Validate) (map[string]interfac
 		return nil, fmt.Errorf("validation had no action")
 	}
 	switch action {
-	// case ValidateURL:
-	// 	found, url := config.GetString("url")
-	// 	if !found {
-	// 		return nil, fmt.Errorf("url validation had no url")
-	// 	}
-	// 	client := i.httpmanager.New(url, nil)
-	// 	_, err := client.Get(nil)
-	// 	if err != nil {
-	// 		if _, ok := err.(*sdk.HTTPError); ok {
-	// 			// NOTE: if we get an http response then we're good
-	// 			// TODO(robin): scrape err body for jira metas
-	// 			return nil, nil
-	// 		}
-	// 		return nil, fmt.Errorf("error reaching %s: %w", url, err)
-	// 	}
-	// 	return nil, nil
 	case FetchAccounts:
 
 		ge, err := g.SetQueryConfig(g.logger, config, g.manager, validate.CustomerID())
@@ -67,6 +52,9 @@ func (g *GitlabIntegration) Validate(validate sdk.Validate) (map[string]interfac
 		accounts := []sdk.ValidatedAccount{}
 
 		groups, err := api.GroupsAll(ge.qc)
+		if err != nil {
+			return nil, err
+		}
 		for _, group := range groups {
 			reposCount, err := api.GroupProjectsCount(ge.qc, group)
 			if err != nil {

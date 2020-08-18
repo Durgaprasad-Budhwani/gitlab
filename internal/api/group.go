@@ -36,6 +36,24 @@ func GroupsAll(qc QueryContext) (allGroups []*Group, err error) {
 	return
 }
 
+type rawGroup struct {
+	ID                 int64           `json:"id"`
+	Name               string          `json:"name"`
+	FullPath           string          `json:"full_path"`
+	MarkedForDeletring json.RawMessage `json:"marked_for_deletion"`
+	Visibility         string          `json:"visibility"`
+	AvatarURL          string          `json:"avatar_url"`
+}
+
+func (g *rawGroup) reset() {
+	g.ID = 0
+	g.Name = ""
+	g.FullPath = ""
+	g.MarkedForDeletring = []byte("")
+	g.Visibility = ""
+	g.AvatarURL = ""
+}
+
 // Groups fetch groups
 func groups(qc QueryContext, params url.Values) (np NextPage, groups []*Group, err error) {
 
@@ -50,14 +68,7 @@ func groups(qc QueryContext, params url.Values) (np NextPage, groups []*Group, e
 		return
 	}
 
-	var group struct {
-		ID                 int64           `json:"id"`
-		Name               string          `json:"name"`
-		FullPath           string          `json:"full_path"`
-		MarkedForDeletring json.RawMessage `json:"marked_for_deletion"`
-		Visibility         string          `json:"visibility"`
-		AvatarURL          string          `json:"avatar_url"`
-	}
+	var group rawGroup
 
 	for _, g := range rawGroups {
 		err = json.Unmarshal(g, &group)
@@ -72,6 +83,7 @@ func groups(qc QueryContext, params url.Values) (np NextPage, groups []*Group, e
 			ValidTier:  isValidTier(g),
 			AvatarURL:  group.AvatarURL,
 		})
+		group.reset()
 	}
 
 	return
