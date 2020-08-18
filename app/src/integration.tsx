@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useCallback,  useRef } from 'react';
 import { Icon, Button, Loader, Theme } from '@pinpt/uic.next';
 import {
 	useIntegration,
@@ -6,7 +6,7 @@ import {
 	AccountsTable,
 	IntegrationType,
 	OAuthConnect,
-	ISession,
+	// ISession,
 	Form,
 	FormType,
 	Config,
@@ -14,13 +14,14 @@ import {
 	IAPIKeyAuth,
 	IOAuth2Auth,
 	IAuth,
-	IInstalledLocation,
-	ConfigAccount,
+	// IAuth,
+	// IInstalledLocation,
+	// ConfigAccount,
 } from '@pinpt/agent.websdk';
 
 import styles from './styles.module.less';
-import { Verify } from 'crypto';
-import { Item } from '@pinpt/uic.next/dist/SegmentedControl';
+// import { Verify } from 'crypto';
+// import { Item } from '@pinpt/uic.next/dist/SegmentedControl';
 
 type Maybe<T> = T | undefined | null;
 
@@ -33,129 +34,6 @@ enum State {
 	Validate,
 	Repos,
 }
-
-interface workspacesResponse {
-	id: string;
-	name: string;
-	description: string;
-	visibility: string;
-}
-
-function createAuthHeader(auth: IAPIKeyAuth | IOAuth2Auth): string {
-	if ('apikey' in auth) {
-		var apiauth = (auth as IAPIKeyAuth);
-		return 'bearer ' + apiauth.apikey;
-	}
-	var oauth = (auth as IOAuth2Auth);
-	return 'bearer ' + oauth.access_token;
-}
-// TODO: add pagination for groups
-async function fetchWorkspaces(auth: IAPIKeyAuth | IOAuth2Auth): Promise<[number, workspacesResponse[]]> {
-	var url = auth.url + '/api/v4/groups?top_level_only=true';
-	var res = await Http.get(url, { 'Authorization': createAuthHeader(auth) });
-	// console.log("group-res",JSON.stringify(res))
-	if (res[1] === 200) {
-		return [res[1], res[0].map((item: any) => {
-			item.id = '' + item.id;
-			return item;
-		})];
-	}
-	return [res[1], []]
-}
-async function fetchRepoCount(groupid: string, auth: IAPIKeyAuth | IOAuth2Auth): Promise<[number, number]> {
-	// TODO: skip shared projects
-	var url = auth.url + '/api/v4/groups/' + groupid + '/projects?with_shared=false';
-	var res = await Http.get(url, { 'Authorization': createAuthHeader(auth) });
-	// console.log("repos-count-res",JSON.stringify(res))
-	if (res[1] === 200) {
-		return [res[1], res[0].length];
-	}
-	return [res[1], 0]
-}
-
-const gitlabTeamToAccount = (data: any, count: number): Account => {
-	return {
-		id: data.id,
-		name: data.name,
-		description: data.description,
-		avatarUrl: '',
-		totalCount: 0,
-		type: 'ORG',
-		public: data.visibility == "private" ? false : true,
-	};
-};
-
-const AccountList = () => {
-	const { config, setLoading, setConfig, installed, setInstallEnabled } = useIntegration();
-	const [accounts, setAccounts] = useState<Account[]>([]);
-
-	let auth: IAPIKeyAuth | IOAuth2Auth;
-	if (config.apikey_auth) {
-		auth = config.apikey_auth as IAPIKeyAuth;
-	} else {
-		auth = config.oauth2_auth as IOAuth2Auth;
-	}
-
-	useEffect(() => {
-
-		const fetch = async () => {
-			const data = await fetchWorkspaces(auth);
-			const orgs = config.accounts || {};
-			config.accounts = orgs;
-
-			console.log("data", JSON.stringify(data))
-			console.log("orgs", JSON.stringify(orgs))
-
-			const newaccounts = data[1].map((org: any) => gitlabTeamToAccount(org, 0));
-
-			if (!installed) {
-				newaccounts.forEach((account: Account) => (orgs[account.id] = account));
-			}
-
-			Object.keys(orgs).forEach((id: string) => {
-				const found = newaccounts.find((acct: Account) => acct.id === orgs[id].id);
-
-				if (!found) {
-					const entry = orgs[id];
-					newaccounts.push({ ...entry } as Account);
-				}
-			});
-
-			for (var i = 0; i < newaccounts.length; i++) {
-				var workspace = newaccounts[i];
-				try {
-					let res = await fetchRepoCount(workspace.id, auth);
-					if (res[0] != 200) {
-						console.error('error fetching repo count, response code', res[0]);
-					}
-					workspace.totalCount = res[1]
-				} catch (ex) {
-					console.error('error fetching repo count', ex);
-				}
-			}
-
-			setAccounts(newaccounts);
-			setInstallEnabled(installed ? true : Object.keys(config.accounts).length > 0);
-			setConfig(config);
-
-		}
-
-		// TODO: Fix this setLoading doesn't work
-		setLoading(true);
-		fetch();
-		setLoading(false);
-	}, [installed, setInstallEnabled, config, setConfig, setLoading]);
-
-
-	return (
-		<AccountsTable
-			description='For the selected accounts, all repositories, pull requests and other data will automatically be made available in Pinpoint once installed.'
-			accounts={accounts}
-			entity='repo'
-			config={config}
-		/>
-	);
-};
 
 const LocationSelector = ({ setType }: { setType: (val: IntegrationType) => void }) => {
 	return (
@@ -220,8 +98,16 @@ const AgentSelector = ({ setType }: { setType: (val: IntegrationType) => void })
 	);
 };
 
-const SelfManagedForm = () => {
-	async function verify(auth: any): Promise<void> {
+// ({session, callback, type}: {session: ISession, callback: (err: Error | undefined, url?: string) => void, type: IntegrationType}) => {
+// ({callback}: {callback: (err: Error | undefined, url?: string) => void}) => {
+// ({callback}: {callback: () => void}) => {
+// const SelfManagedForm = () => {
+const SelfManagedForm = ({callback}: {callback: () => void}) => {
+	// const state = useRef<selfManagedFormState>(selfManagedFormState.EnteringUrl);
+	async function verify(auth: IAPIKeyAuth): Promise<void> {
+		console.log("auth",JSON.stringify(auth))
+		// setState(State.Repos);
+		callback();
 		// setAuth(auth);
 		// return true;
 	}
@@ -431,7 +317,7 @@ const Integration = () => {
 	const [error, setError] = useState<Error | undefined>();
 	const currentConfig = useRef<Config>(config);
 
-	console.log(`{"epoch":1597717816191,"offset":-300,"rfc3339":"2020-08-17T21:30:16.191-05:00"}`);
+	console.log(`{"epoch":1597785742582,"offset":-300,"rfc3339":"2020-08-18T16:22:22.582-05:00"}`);
 	console.log("loading", loading);
 	console.log("installed", installed);
 	console.log("currentURL", currentURL);
@@ -701,6 +587,23 @@ const Integration = () => {
 		}
 	}, [setValidate, state, setConfig]);
 
+	// const selfManagedCallback = useCallback((err: Error | undefined, theurl?: string) => {
+	const selfManagedCallback = useCallback(() => {
+		// console.log("I was called",JSON.stringify(auth))
+		// setState(State.Validate)
+		// setError(err);
+		// if (theurl) {
+		// 	const u = new URL(theurl);
+		// 	u.pathname = '';
+		// 	let url = u.toString();
+		// 	if (/\/$/.test(url)) {
+		// 		url = url.substring(0, url.length - 1);
+		// 	}
+		// 	// window.sessionStorage.setItem(urlStorageKey, url);
+		// 	// setState(State.Link);
+		// }
+	}, [setState]);
+
 	if (loading) {
 		return <Loader screen />;
 	}
@@ -711,7 +614,7 @@ const Integration = () => {
 		if (config.integration_type === IntegrationType.CLOUD) {
 			content = <OAuthConnect name='GitLab' reauth />;
 		} else {
-			content = <SelfManagedForm />;
+			content = <SelfManagedForm callback={selfManagedCallback} />;
 		}
 	} else {
 		switch (state) {
@@ -738,7 +641,7 @@ const Integration = () => {
 			}
 			case State.SelfSetup: {
 				// console.log("check10")
-				content = <SelfManagedForm />;
+				content = <SelfManagedForm callback={selfManagedCallback} />;
 				break;
 			}
 			case State.Validate: {

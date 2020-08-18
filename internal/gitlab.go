@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
 )
 
@@ -58,35 +59,32 @@ func (g *GitlabIntegration) Validate(validate sdk.Validate) (map[string]interfac
 	// 	return nil, nil
 	case FetchAccounts:
 
-		// ge, err := g.SetQueryConfig(g.logger, config, g.manager, validate.CustomerID())
-		// if err != nil {
-		// 	return
-		// }
-
-		// groups, err := api.GroupsAll(ge.qc)
-		// for
-
-		acc := sdk.ValidatedAccount{
-			ID:          "authConfig.APIURL",
-			Name:        "name",
-			Description: "authConfig.APIURL",
-			AvatarURL:   "avatar",
-			TotalCount:  0,
-			Type:        "ORG",
-			Public:      false,
+		ge, err := g.SetQueryConfig(g.logger, config, g.manager, validate.CustomerID())
+		if err != nil {
+			return nil, err
 		}
-		acc2 := sdk.ValidatedAccount{
-			ID:          "authConfig.APIURL2",
-			Name:        "name2",
-			Description: "authConfig.APIURL2",
-			AvatarURL:   "avatar2",
-			TotalCount:  0,
-			Type:        "ORG",
-			Public:      false,
+
+		accounts := []sdk.ValidatedAccount{}
+
+		groups, err := api.GroupsAll(ge.qc)
+		for _, group := range groups {
+			reposCount, err := api.GroupProjectsCount(ge.qc, group)
+			if err != nil {
+				return nil, err
+			}
+			accounts = append(accounts, sdk.ValidatedAccount{
+				ID:          group.ID,
+				Name:        group.Name,
+				Description: group.FullPath,
+				AvatarURL:   group.AvatarURL,
+				TotalCount:  reposCount,
+				Type:        "ORG",
+				Public:      group.Visibility != "private",
+			})
 		}
-		tmp := []sdk.ValidatedAccount{acc, acc2}
+
 		return map[string]interface{}{
-			"accounts": tmp,
+			"accounts": accounts,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unknown action %s", action)
@@ -135,13 +133,6 @@ func newHTTPClient(logger sdk.Logger, config sdk.Config, manager sdk.Manager) (u
 		sdk.LogInfo(logger, "using apikey authorization", "apikey", apikey, "url", url)
 	} else if config.OAuth2Auth != nil {
 		authToken := config.OAuth2Auth.AccessToken
-		if config.OAuth2Auth.RefreshToken != nil {
-			token, err := manager.AuthManager().RefreshOAuth2Token(gitlabRefType, *config.OAuth2Auth.RefreshToken)
-			if err != nil {
-				return "", nil, fmt.Errorf("error refreshing oauth2 access token: %w", err)
-			}
-			authToken = token
-		}
 		if config.OAuth2Auth.URL != "" {
 			url = sdk.JoinURL(config.OAuth2Auth.URL, "api/v4")
 		}
