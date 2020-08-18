@@ -1,5 +1,5 @@
-import React, { useEffect, useState,useCallback, useRef, useMemo } from 'react';
-import { Icon,Button, Loader, Theme } from '@pinpt/uic.next';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { Icon, Button, Loader, Theme } from '@pinpt/uic.next';
 import {
 	useIntegration,
 	Account,
@@ -15,6 +15,7 @@ import {
 	IOAuth2Auth,
 	IAuth,
 	IInstalledLocation,
+	ConfigAccount,
 } from '@pinpt/agent.websdk';
 
 import styles from './styles.module.less';
@@ -25,11 +26,12 @@ type Maybe<T> = T | undefined | null;
 
 enum State {
 	Location = 1,
-	Setup,
+	CloudSetup,
+	SelfSetup,
 	AgentSelector,
 	Link,
 	Validate,
-	Projects,
+	Repos,
 }
 
 interface workspacesResponse {
@@ -53,8 +55,8 @@ async function fetchWorkspaces(auth: IAPIKeyAuth | IOAuth2Auth): Promise<[number
 	var res = await Http.get(url, { 'Authorization': createAuthHeader(auth) });
 	// console.log("group-res",JSON.stringify(res))
 	if (res[1] === 200) {
-		return [res[1], res[0].map((item:any) => {
-			item.id = ''+item.id;
+		return [res[1], res[0].map((item: any) => {
+			item.id = '' + item.id;
 			return item;
 		})];
 	}
@@ -62,7 +64,7 @@ async function fetchWorkspaces(auth: IAPIKeyAuth | IOAuth2Auth): Promise<[number
 }
 async function fetchRepoCount(groupid: string, auth: IAPIKeyAuth | IOAuth2Auth): Promise<[number, number]> {
 	// TODO: skip shared projects
-	var url = auth.url + '/api/v4/groups/'+groupid+'/projects?with_shared=false';
+	var url = auth.url + '/api/v4/groups/' + groupid + '/projects?with_shared=false';
 	var res = await Http.get(url, { 'Authorization': createAuthHeader(auth) });
 	// console.log("repos-count-res",JSON.stringify(res))
 	if (res[1] === 200) {
@@ -71,7 +73,7 @@ async function fetchRepoCount(groupid: string, auth: IAPIKeyAuth | IOAuth2Auth):
 	return [res[1], 0]
 }
 
-const gitlabTeamToAccount = (data: any,count:number): Account => {
+const gitlabTeamToAccount = (data: any, count: number): Account => {
 	return {
 		id: data.id,
 		name: data.name,
@@ -79,7 +81,7 @@ const gitlabTeamToAccount = (data: any,count:number): Account => {
 		avatarUrl: '',
 		totalCount: 0,
 		type: 'ORG',
-		public: data.visibility == "private" ? false:true,
+		public: data.visibility == "private" ? false : true,
 	};
 };
 
@@ -96,17 +98,15 @@ const AccountList = () => {
 
 	useEffect(() => {
 
-		console.log("config.accounts????????",JSON.stringify(config.accounts));
-		
 		const fetch = async () => {
 			const data = await fetchWorkspaces(auth);
 			const orgs = config.accounts || {};
 			config.accounts = orgs;
 
-			console.log("data",JSON.stringify(data))
-			console.log("orgs",JSON.stringify(orgs))
+			console.log("data", JSON.stringify(data))
+			console.log("orgs", JSON.stringify(orgs))
 
-			const newaccounts = data[1].map((org: any)=> gitlabTeamToAccount(org,0) );
+			const newaccounts = data[1].map((org: any) => gitlabTeamToAccount(org, 0));
 
 			if (!installed) {
 				newaccounts.forEach((account: Account) => (orgs[account.id] = account));
@@ -117,7 +117,7 @@ const AccountList = () => {
 
 				if (!found) {
 					const entry = orgs[id];
-					newaccounts.push({...entry} as Account);
+					newaccounts.push({ ...entry } as Account);
 				}
 			});
 
@@ -137,7 +137,7 @@ const AccountList = () => {
 			setAccounts(newaccounts);
 			setInstallEnabled(installed ? true : Object.keys(config.accounts).length > 0);
 			setConfig(config);
-			
+
 		}
 
 		// TODO: Fix this setLoading doesn't work
@@ -149,10 +149,10 @@ const AccountList = () => {
 
 	return (
 		<AccountsTable
-			description = 'For the selected accounts, all repositories, pull requests and other data will automatically be made available in Pinpoint once installed.'
-			accounts = {accounts}
-			entity = 'repo'
-			config = {config}
+			description='For the selected accounts, all repositories, pull requests and other data will automatically be made available in Pinpoint once installed.'
+			accounts={accounts}
+			entity='repo'
+			config={config}
 		/>
 	);
 };
@@ -198,14 +198,14 @@ const AgentSelector = ({ setType }: { setType: (val: IntegrationType) => void })
 							}}>Setup</Button>
 						</>
 					) : (
-						<>
-							<div><Icon icon="exclamation-circle" color={Theme.Red500} /> Your agent is not running</div>
-							<Button className={styles.Setup} color="Green" weight={500} onClick={(e: any) => {
-								setSelfManagedAgentRequired();
-								e.stopPropagation();
-							}}>Configure</Button>
-						</>
-					)}
+								<>
+									<div><Icon icon="exclamation-circle" color={Theme.Red500} /> Your agent is not running</div>
+									<Button className={styles.Setup} color="Green" weight={500} onClick={(e: any) => {
+										setSelfManagedAgentRequired();
+										e.stopPropagation();
+									}}>Configure</Button>
+								</>
+							)}
 				</div>
 			</div>
 
@@ -220,9 +220,9 @@ const AgentSelector = ({ setType }: { setType: (val: IntegrationType) => void })
 	);
 };
 
-const SelfManagedForm = ({ setAuth }: { setAuth: (val: IAuth) => void }) => {
+const SelfManagedForm = () => {
 	async function verify(auth: any): Promise<void> {
-		setAuth(auth);
+		// setAuth(auth);
 		// return true;
 	}
 	return <Form type={FormType.API} name='GitLab' callback={verify} />;
@@ -419,40 +419,53 @@ enum selfManagedFormState {
 // 	);
 // };
 
+const makeAccountsFromConfig = (config: Config) => {
+	return Object.keys(config.accounts ?? {}).map((key: string) => config.accounts?.[key]) as Account[];
+};
+
 const Integration = () => {
 	const [state, setState] = useState<State>(State.Location);
-	const { loading,setLoading, currentURL, config, isFromRedirect, isFromReAuth, setConfig, authorization, setInstallLocation, } = useIntegration();
+	const { loading, installed, setInstallEnabled, currentURL, config, isFromRedirect, isFromReAuth, setConfig, authorization, setValidate } = useIntegration();
 	const [type, setType] = useState<IntegrationType | undefined>(config.integration_type);
-	const [, setRerender] = useState(0);
-	const [auth, setAuth] = useState<any>(undefined);
+	const accounts = useRef<Account[]>([]);
 	const [error, setError] = useState<Error | undefined>();
-	const currentConfig = useRef(config);
+	const currentConfig = useRef<Config>(config);
+
+	console.log(`{"epoch":1597717816191,"offset":-300,"rfc3339":"2020-08-17T21:30:16.191-05:00"}`);
+	console.log("loading", loading);
+	console.log("installed", installed);
+	console.log("currentURL", currentURL);
+	console.log("isFromRedirect", isFromRedirect);
+	console.log("isFromReAuth", isFromReAuth);
+	console.log("authorization", JSON.stringify(authorization));
+	console.log("config", JSON.stringify(config));
+	console.log("currentConfig", JSON.stringify(currentConfig));
+	console.log("accounts", JSON.stringify(accounts));
 
 	useEffect(() => {
-		setRerender(Date.now());
-	},[auth, config, setConfig]);
+		console.log("useEffect-config")
+		console.log("\tconfig => ", JSON.stringify(config));
+	}, [config]);
 
 	useEffect(() => {
-		if (!loading && authorization?.oauth2_auth) {
-			config.integration_type = IntegrationType.CLOUD;
-			config.oauth2_auth = {
-				url : "https://gitlab.com",
-				access_token: authorization.oauth2_auth.access_token,
-				refresh_token: authorization.oauth2_auth.refresh_token,
-				scopes: authorization.oauth2_auth.scopes,
-				date_ts: new Date().valueOf(),
-			};
+		console.log("useEffect-currentConfig")
+		console.log("\tcurrentConfig => ", JSON.stringify(currentConfig));
+	}, [currentConfig]);
 
-			setType(IntegrationType.CLOUD);
-			setConfig(config);
-
-			currentConfig.current = config;
-		}
-	}, [loading, authorization, config, setConfig]);
-
-	// ============= OAuth 2.0 =============
 	useEffect(() => {
+		console.log("useEffect-authorization")
+		console.log("\tauthorization => ", JSON.stringify(authorization));
+	}, [authorization]);
+
+
+	useEffect(() => {
+		console.log("useEffect-isFromRedirect")
+		console.log("\tloading", loading);
+		console.log("\tcurrentURL", currentURL);
+		console.log("\isFromRedirect", isFromRedirect);
+
 		if (!loading && isFromRedirect && currentURL) {
+
 			const search = currentURL.split('?');
 			const tok = search[1].split('&');
 			tok.forEach(async token => {
@@ -463,32 +476,230 @@ const Integration = () => {
 					const profile = JSON.parse(atob(decodeURIComponent(v)));
 					config.integration_type = IntegrationType.CLOUD;
 					config.oauth2_auth = {
-						url : "https://gitlab.com",
+						url: "https://gitlab.com",
 						access_token: profile.Integration.auth.accessToken,
 						refresh_token: profile.Integration.auth.refreshToken,
 						scopes: profile.Integration.auth.scopes,
 						date_ts: new Date().valueOf(),
 					};
 
-					setType(IntegrationType.CLOUD)
+					console.log("authObj", " - ", config.oauth2_auth);
+
+					// setType(IntegrationType.CLOUD)
 					setConfig(config);
+					setState(State.Validate);
 
 					currentConfig.current = config;
+
+					// useEffect(() => {
+					// 	console.log("check5")
+					// 	if (type) {
+					// 		config.integration_type = type;
+					// 		currentConfig.current =  config;
+
+					// 		setConfig(config);
+					// 		setRerender(Date.now());
+					// 	}
+					// }, [type, config, setConfig])
+
 				}
 			});
 		}
 
-	}, [loading, isFromRedirect, currentURL,config,setRerender,setConfig]);
+	}, [loading, currentURL, isFromRedirect, setConfig])
+
+	// useEffect(() => {
+	// 	console.log("check1")
+	// 	setRerender(Date.now());
+	// },[auth, config, setConfig]);
 
 	useEffect(() => {
-		if (type) {
-			config.integration_type = type;
-			currentConfig.current =  config;
-
-			setConfig(config);
-			setRerender(Date.now());
+		console.log("useEffect-installed");
+		console.log("\tconfig => ",JSON.stringify(config));
+		console.log("\installed => ",installed);
+		if ((installed && accounts.current?.length === 0) || config?.accounts) {
+			currentConfig.current = config;
+			accounts.current = makeAccountsFromConfig(config);
+			setState(State.Repos);
+		} else if (currentConfig.current?.accounts) {
+			accounts.current = makeAccountsFromConfig(currentConfig.current);
+			setState(State.Repos);
 		}
-	}, [type, config, setConfig])
+
+	}, [installed, config]);
+	// }, [installed, config]);
+
+	// useEffect(() => {
+	// 	console.log("check2")
+	// 	// const inupgrade = window.sessionStorage.getItem(upgradeStorageKey) === 'true';
+	// 	// if (debugState) {
+	// 	// 		console.log('JIRA: state machine', JSON.stringify({
+	// 	// 		installed,
+	// 	// 		inupgrade,
+	// 	// 		upgradeRequired,
+	// 	// 		accounts: config?.accounts,
+	// 	// 		isFromReAuth,
+	// 	// 		isFromRedirect,
+	// 	// 		currentURL,
+	// 	// 		insideRedirect: insideRedirect.current,
+	// 	// 	}, null, 2));
+	// 	// }
+	// 	// if (upgradeRequired && !inupgrade) {
+	// 	// 	setState(State.UpgradeRequired);
+	// 	// } else if (inupgrade && !isFromRedirect) {
+	// 	// 	setState(State.AgentSelector);
+	// 	// } else 
+	// 	// if (isFromReAuth) {
+	// 	// 	setState(State.AgentSelector);
+	// 	// } 
+	// 	if (installed || config?.accounts) {
+	// 		setState(State.Repos);
+	// 	// 	if (installed && inupgrade) {
+	// 	// 		completeUpgrade();
+	// 		}
+	// 	// } else if (isFromRedirect && currentURL && !insideRedirect.current) {
+	// 	// 	const url = window.sessionStorage.getItem(urlStorageKey);
+	// 	// 	if (url) {
+	// 	// 		const search = currentURL.split('?');
+	// 	// 		const tok = search[1].split('&');
+	// 	// 		tok.some(token => {
+	// 	// 			const t = token.split('=');
+	// 	// 			const k = t[0];
+	// 	// 			const v = t[1];
+	// 	// 			if (k === 'result') {
+	// 	// 				const result = JSON.parse(atob(decodeURIComponent(v)));
+	// 	// 				const { success, consumer_key, oauth_token, oauth_token_secret, error } = result;
+	// 	// 				if (success) {
+	// 	// 					if (url) {
+	// 	// 						const _config = { ...config };
+	// 	// 						_config.oauth1_auth = {
+	// 	// 							date_ts: Date.now(),
+	// 	// 							url,
+	// 	// 							consumer_key,
+	// 	// 							oauth_token,
+	// 	// 							oauth_token_secret,
+	// 	// 						}
+	// 	// 						currentConfig.current = _config;
+	// 	// 						insideRedirect.current = true;
+	// 	// 						setState(State.Validate);
+	// 	// 					}
+	// 	// 				} else {
+	// 	// 					setError(new Error(error ?? 'Unknown error obtaining OAuth token'));
+	// 	// 				}
+	// 	// 				return true;
+	// 	// 			}
+	// 	// 			return false;
+	// 	// 		});
+	// 	// 	}
+	// 	// } 
+	// 	else if (accounts.current?.length > 0) {
+	// 		setState(State.Repos);
+	// 	}
+	// }, [config,installed,  isFromReAuth, currentURL, isFromRedirect]);
+
+
+
+	// useEffect(() => {
+	// 	console.log("check3")
+	// 	if (!loading && authorization?.oauth2_auth) {
+	// 		config.integration_type = IntegrationType.CLOUD;
+	// 		config.oauth2_auth = {
+	// 			url : "https://gitlab.com",
+	// 			access_token: authorization.oauth2_auth.access_token,
+	// 			refresh_token: authorization.oauth2_auth.refresh_token,
+	// 			scopes: authorization.oauth2_auth.scopes,
+	// 			date_ts: new Date().valueOf(),
+	// 		};
+
+	// 		setType(IntegrationType.CLOUD);
+	// 		setConfig(config);
+
+	// 		currentConfig.current = config;
+	// 	}
+	// }, [loading, authorization, config, setConfig]);
+
+	// // ============= OAuth 2.0 =============
+	// useEffect(() => {
+	// 	console.log("check4")
+	// 	if (!loading && isFromRedirect && currentURL) {
+	// 		const search = currentURL.split('?');
+	// 		const tok = search[1].split('&');
+	// 		tok.forEach(async token => {
+	// 			const t = token.split('=');
+	// 			const k = t[0];
+	// 			const v = t[1];
+	// 			if (k === 'profile') {
+	// 				const profile = JSON.parse(atob(decodeURIComponent(v)));
+	// 				config.integration_type = IntegrationType.CLOUD;
+	// 				config.oauth2_auth = {
+	// 					url : "https://gitlab.com",
+	// 					access_token: profile.Integration.auth.accessToken,
+	// 					refresh_token: profile.Integration.auth.refreshToken,
+	// 					scopes: profile.Integration.auth.scopes,
+	// 					date_ts: new Date().valueOf(),
+	// 				};
+
+	// 				setType(IntegrationType.CLOUD)
+	// 				setConfig(config);
+	// 				setState(State.Validate);
+
+	// 				currentConfig.current = config;
+	// 			}
+	// 		});
+	// 	}
+
+	// }, [loading, isFromRedirect, currentURL,config,setRerender,setConfig]);
+
+	// useEffect(() => {
+	// 	console.log("check5")
+	// 	if (type) {
+	// 		config.integration_type = type;
+	// 		currentConfig.current =  config;
+
+	// 		setConfig(config);
+	// 		setRerender(Date.now());
+	// 	}
+	// }, [type, config, setConfig])
+
+	useEffect(() => {
+		console.log("useEffect-state")
+		console.log("\tstate", JSON.stringify(state))
+		if (state === State.Validate && accounts.current?.length === 0) {
+			const run = async () => {
+				const _config = { ...currentConfig.current, action: 'FETCH_ACCOUNTS' };
+				try {
+					console.log("beforeSetValidate")
+					const res =  await setValidate(_config);
+					console.log("afterSetValidate")
+					console.log("res", JSON.stringify(res))
+					const newconfig = { ...currentConfig.current };
+					newconfig.accounts = {};
+					if (res?.accounts) {
+						// res.accounts.ForEach( (item) => {
+						// 	newconfig.accounts[item.id] = item;
+						// });
+						// newconfig.accounts[res.accounts.id] = res.accounts;
+						var t = res.accounts as Account[];
+						t.forEach(( item ) => {
+							console.log("item",JSON.stringify(item))
+							if ( newconfig  && newconfig.accounts){
+								newconfig.accounts[item.id] = item;
+							}
+						});
+					}
+					currentConfig.current = newconfig;
+					accounts.current = res.accounts as Account[];
+					setInstallEnabled(Object.keys(newconfig.accounts).length > 0);
+					setState(State.Repos);
+					setConfig(currentConfig.current);
+				} catch (err) {
+					console.error(err);
+					setError(err);
+				}
+			};
+			run();
+		}
+	}, [setValidate, state, setConfig]);
 
 	if (loading) {
 		return <Loader screen />;
@@ -496,37 +707,70 @@ const Integration = () => {
 
 	let content;
 
-	switch (state) {
-		case State.Location: {
-			content = <LocationSelector setType={async (intType: IntegrationType) => {
-				try {
-					if (intType === IntegrationType.CLOUD) {
+	if (isFromReAuth) {
+		if (config.integration_type === IntegrationType.CLOUD) {
+			content = <OAuthConnect name='GitLab' reauth />;
+		} else {
+			content = <SelfManagedForm />;
+		}
+	} else {
+		switch (state) {
+			case State.Location: {
+				// console.log("check8")
+				content = <LocationSelector setType={async (intType: IntegrationType) => {
+					try {
 						setType(intType);
-						setState(State.Setup);
-					} else {
-						setInstallLocation(IInstalledLocation.SELFMANAGED);
-						setState(State.AgentSelector);
+						if (intType === IntegrationType.CLOUD) {
+							setState(State.CloudSetup);
+						} else {
+							setState(State.SelfSetup);
+						}
+					} catch (err) {
+						setError(err);
 					}
-				} catch (err) {
-					setError(err);
-				}
-			}} />;
-			break;
-		}
-		case State.AgentSelector: {
-			content = <AgentSelector setType={async (type: IntegrationType) => {
-				setType(type);
-				setState(State.Setup);
-			}} />;
-			break;
-		}
-		case State.Setup: {
-			content = <SelfManagedForm setAuth={setAuth}/>;
-			break;
+				}} />;
+				break;
+			}
+			case State.CloudSetup: {
+				// console.log("check9")
+				content = <OAuthConnect name='GitLab' />;
+				break;
+			}
+			case State.SelfSetup: {
+				// console.log("check10")
+				content = <SelfManagedForm />;
+				break;
+			}
+			case State.Validate: {
+				// console.log("check11")
+				content = (
+					<Loader screen className={styles.Validate}>
+						<div>
+							<p>
+								<Icon icon="check-circle" color={Theme.Green500} /> Connected
+							</p>
+							<p>Fetching Gitlab details...</p>
+						</div>
+					</Loader>
+				);
+				break;
+			}
+			case State.Repos: {
+				// console.log("check12")
+				content = (
+					<AccountsTable
+						description='For the selected accounts, all projects, issues and other data will automatically be made available in Pinpoint once installed.'
+						accounts={accounts.current}
+						entity='project'
+						config={currentConfig.current}
+					/>
+				);
+				break;
+			}
 		}
 	}
 
-	
+
 
 	// console.log("isFromReAuth",isFromReAuth)
 	// if (isFromReAuth) {

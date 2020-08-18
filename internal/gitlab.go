@@ -27,8 +27,70 @@ func (g *GitlabIntegration) Start(logger sdk.Logger, config sdk.Config, manager 
 	return nil
 }
 
-func (g *GitlabIntegration) Validate(config sdk.Validate) (result map[string]interface{}, err error) {
-	return
+const (
+	// FetchAccounts will fetch accounts
+	FetchAccounts = "FETCH_ACCOUNTS"
+)
+
+func (g *GitlabIntegration) Validate(validate sdk.Validate) (map[string]interface{}, error) {
+	config := validate.Config()
+	sdk.LogDebug(g.logger, "Validate", "config", config)
+	found, action := config.GetString("action")
+	if !found {
+		return nil, fmt.Errorf("validation had no action")
+	}
+	switch action {
+	// case ValidateURL:
+	// 	found, url := config.GetString("url")
+	// 	if !found {
+	// 		return nil, fmt.Errorf("url validation had no url")
+	// 	}
+	// 	client := i.httpmanager.New(url, nil)
+	// 	_, err := client.Get(nil)
+	// 	if err != nil {
+	// 		if _, ok := err.(*sdk.HTTPError); ok {
+	// 			// NOTE: if we get an http response then we're good
+	// 			// TODO(robin): scrape err body for jira metas
+	// 			return nil, nil
+	// 		}
+	// 		return nil, fmt.Errorf("error reaching %s: %w", url, err)
+	// 	}
+	// 	return nil, nil
+	case FetchAccounts:
+
+		// ge, err := g.SetQueryConfig(g.logger, config, g.manager, validate.CustomerID())
+		// if err != nil {
+		// 	return
+		// }
+
+		// groups, err := api.GroupsAll(ge.qc)
+		// for
+
+		acc := sdk.ValidatedAccount{
+			ID:          "authConfig.APIURL",
+			Name:        "name",
+			Description: "authConfig.APIURL",
+			AvatarURL:   "avatar",
+			TotalCount:  0,
+			Type:        "ORG",
+			Public:      false,
+		}
+		acc2 := sdk.ValidatedAccount{
+			ID:          "authConfig.APIURL2",
+			Name:        "name2",
+			Description: "authConfig.APIURL2",
+			AvatarURL:   "avatar2",
+			TotalCount:  0,
+			Type:        "ORG",
+			Public:      false,
+		}
+		tmp := []sdk.ValidatedAccount{acc, acc2}
+		return map[string]interface{}{
+			"accounts": tmp,
+		}, nil
+	default:
+		return nil, fmt.Errorf("unknown action %s", action)
+	}
 }
 
 // Enroll is called when a new integration instance is added
