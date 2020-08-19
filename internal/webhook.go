@@ -323,7 +323,7 @@ func (g *GitlabIntegration) registerWebhooks(ge GitlabExport) error {
 	var userHasProjectWebhookAcess bool
 	for _, group := range groups {
 		if group.ValidTier {
-			user, err := api.GroupUser(ge.qc, group, user.StrID)
+			user, err := api.GroupUsers(ge.qc, group, user.StrID)
 			if err != nil {
 				group.MarkedToCreateProjectWebHooks = true
 				sdk.LogWarn(g.logger, "there was an error trying to get group user access level, will try to create project webhooks instead", "group", group.Name, "user", user.Name, "user_access_level", user.AccessLevel, "err", err)

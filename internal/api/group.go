@@ -17,6 +17,8 @@ type Group struct {
 	FullPath                      string
 	ValidTier                     bool
 	MarkedToCreateProjectWebHooks bool
+	Visibility                    string
+	AvatarURL                     string
 }
 
 // GroupsAll all groups
@@ -34,6 +36,24 @@ func GroupsAll(qc QueryContext) (allGroups []*Group, err error) {
 	return
 }
 
+type rawGroup struct {
+	ID                 int64           `json:"id"`
+	Name               string          `json:"name"`
+	FullPath           string          `json:"full_path"`
+	MarkedForDeletring json.RawMessage `json:"marked_for_deletion"`
+	Visibility         string          `json:"visibility"`
+	AvatarURL          string          `json:"avatar_url"`
+}
+
+func (g *rawGroup) reset() {
+	g.ID = 0
+	g.Name = ""
+	g.FullPath = ""
+	g.MarkedForDeletring = []byte("")
+	g.Visibility = ""
+	g.AvatarURL = ""
+}
+
 // Groups fetch groups
 func groups(qc QueryContext, params url.Values) (np NextPage, groups []*Group, err error) {
 
@@ -48,12 +68,7 @@ func groups(qc QueryContext, params url.Values) (np NextPage, groups []*Group, e
 		return
 	}
 
-	var group struct {
-		ID                 int64           `json:"id"`
-		Name               string          `json:"name"`
-		FullPath           string          `json:"full_path"`
-		MarkedForDeletring json.RawMessage `json:"marked_for_deletion"`
-	}
+	var group rawGroup
 
 	for _, g := range rawGroups {
 		err = json.Unmarshal(g, &group)
@@ -61,11 +76,14 @@ func groups(qc QueryContext, params url.Values) (np NextPage, groups []*Group, e
 			return
 		}
 		groups = append(groups, &Group{
-			ID:        strconv.FormatInt(group.ID, 10),
-			Name:      group.Name,
-			FullPath:  group.FullPath,
-			ValidTier: isValidTier(g),
+			ID:         strconv.FormatInt(group.ID, 10),
+			Name:       group.Name,
+			FullPath:   group.FullPath,
+			Visibility: group.Visibility,
+			ValidTier:  isValidTier(g),
+			AvatarURL:  group.AvatarURL,
 		})
+		group.reset()
 	}
 
 	return
@@ -75,7 +93,7 @@ func isValidTier(raw []byte) bool {
 	return bytes.Contains(raw, []byte("marked_for_deletion"))
 }
 
-func GroupUser(qc QueryContext, group *Group, userId string) (u *GitlabUser, err error) {
+func GroupUsers(qc QueryContext, group *Group, userId string) (u *GitlabUser, err error) {
 
 	sdk.LogDebug(qc.Logger, "group user access level", "group_name", group.Name, "group_id", group.ID, "user_id", userId)
 
@@ -89,4 +107,25 @@ func GroupUser(qc QueryContext, group *Group, userId string) (u *GitlabUser, err
 	u.StrID = strconv.FormatInt(u.ID, 10)
 
 	return
+}
+
+func GroupProjectsCount(qc QueryContext, group *Group) (int, error) {
+
+	sdk.LogDebug(qc.Logger, "group projects count", "group_name", group.Name, "group_id", group.ID)
+
+	params := url.Values{}
+	params.Set("with_projects", "true")
+
+	objectPath := sdk.JoinURL("groups", group.ID)
+
+	var rr struct {
+		Projects []json.RawMessage `json:"projects"`
+	}
+
+	_, err := qc.Get(objectPath, nil, &rr)
+	if err != nil {
+		return 0, err
+	}
+
+	return len(rr.Projects), nil
 }
