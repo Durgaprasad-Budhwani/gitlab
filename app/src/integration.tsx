@@ -145,7 +145,7 @@ const Integration = () => {
 						access_token: profile.Integration.auth.accessToken,
 						refresh_token: profile.Integration.auth.refreshToken,
 						scopes: profile.Integration.auth.scopes,
-						date_ts: new Date().valueOf(),
+						date_ts: Date.now(),
 					};
 
 					setConfig(config);
@@ -213,7 +213,7 @@ const Integration = () => {
 
 		setState(State.Validate);
 
-	}, [setState,config,setConfig]);
+	}, [setState, config, setConfig]);
 
 	if (loading) {
 		return <Loader screen />;
