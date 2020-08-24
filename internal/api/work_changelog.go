@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
-	"github.com/pinpt/agent/pkg/date"
 )
 
 type ResourceStateEvents struct {
@@ -159,7 +158,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.WorkProject, issueID
 			RefID:  fmt.Sprint(stateEvent.ID),
 			UserID: strconv.FormatInt(stateEvent.User.ID, 10),
 		}
-		date.ConvertToModel(stateEvent.CreatedAt, &changelog.CreatedDate)
+		sdk.ConvertTimeToDateModel(stateEvent.CreatedAt, &changelog.CreatedDate)
 
 		if stateEvent.State == "closed" || stateEvent.State == "reopened" {
 			changelog.To = stateEvent.State
