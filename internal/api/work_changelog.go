@@ -4,11 +4,19 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
 )
+
+type ResourceStateEvents struct {
+	ID        int       `json:"id"`
+	User      UserModel `json:"user"`
+	CreatedAt time.Time `json:"created_at"`
+	State     string    `json:"state"`
+}
 
 func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.WorkProject, issueID string, usermap UsernameMap, params url.Values) (pi NextPage, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
 
@@ -61,12 +69,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.WorkProject, issueID
 			}
 			sdk.ConvertTimeToDateModel(nn.CreatedAt, &changelog.CreatedDate)
 
-			if strings.HasPrefix(nn.Body, "closed") || strings.HasPrefix(nn.Body, "reopened") {
-				// IssueChangeLogFieldStatus
-				changelog.To = nn.Body
-				changelog.ToString = nn.Body
-				changelog.Field = sdk.WorkIssueChangeLogFieldStatus
-			} else if strings.HasPrefix(nn.Body, "assigned to ") {
+			if strings.HasPrefix(nn.Body, "assigned to ") {
 				// IssueChangeLogFieldAssigneeRefID
 				reg := regexp.MustCompile(`@(\w)+`)
 				all := reg.FindAllString(nn.Body, 2)
@@ -140,5 +143,30 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.WorkProject, issueID
 
 		}
 	}
+
+	sdk.LogDebug(qc.Logger, "work issues changelog resource_state_events", "project", project.RefID)
+
+	objectPath = sdk.JoinURL("projects", url.QueryEscape(project.RefID), "issues", issueID, "resource_state_events")
+
+	var stateEvents []ResourceStateEvents
+	pi, err = qc.Get(objectPath, params, &stateEvents)
+	if err != nil {
+		return
+	}
+	for _, stateEvent := range stateEvents {
+		changelog := &sdk.WorkIssueChangeLog{
+			RefID:  fmt.Sprint(stateEvent.ID),
+			UserID: strconv.FormatInt(stateEvent.User.ID, 10),
+		}
+		sdk.ConvertTimeToDateModel(stateEvent.CreatedAt, &changelog.CreatedDate)
+
+		if stateEvent.State == "closed" || stateEvent.State == "reopened" {
+			changelog.To = stateEvent.State
+			changelog.ToString = stateEvent.State
+			changelog.Field = sdk.WorkIssueChangeLogFieldStatus
+		}
+		changelogs = append(changelogs, changelog)
+	}
+
 	return
 }
