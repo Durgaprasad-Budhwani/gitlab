@@ -93,7 +93,7 @@ func isValidTier(raw []byte) bool {
 	return bytes.Contains(raw, []byte("marked_for_deletion"))
 }
 
-func GroupUsers(qc QueryContext, group *Group, userId string) (u *GitlabUser, err error) {
+func GroupUser(qc QueryContext, group *Group, userId string) (u *GitlabUser, err error) {
 
 	sdk.LogDebug(qc.Logger, "group user access level", "group_name", group.Name, "group_id", group.ID, "user_id", userId)
 
@@ -109,9 +109,32 @@ func GroupUsers(qc QueryContext, group *Group, userId string) (u *GitlabUser, er
 	return
 }
 
+// GroupProjectsCount get group projects count
 func GroupProjectsCount(qc QueryContext, group *Group) (int, error) {
 
 	sdk.LogDebug(qc.Logger, "group projects count", "group_name", group.Name, "group_id", group.ID)
+
+	params := url.Values{}
+	params.Set("with_projects", "true")
+
+	objectPath := sdk.JoinURL("groups", group.ID)
+
+	var rr struct {
+		Projects []json.RawMessage `json:"projects"`
+	}
+
+	_, err := qc.Get(objectPath, nil, &rr)
+	if err != nil {
+		return 0, err
+	}
+
+	return len(rr.Projects), nil
+}
+
+// GroupProjects get group projects
+func GroupProjects(qc QueryContext, group *Group) (int, error) {
+
+	sdk.LogDebug(qc.Logger, "group projects", "group_name", group.Name, "group_id", group.ID)
 
 	params := url.Values{}
 	params.Set("with_projects", "true")

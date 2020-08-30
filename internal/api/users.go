@@ -145,7 +145,7 @@ func LoginUser(qc QueryContext) (u *GitlabUser, err error) {
 
 	_, err = qc.Get(objectPath, nil, &u)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	u.StrID = strconv.FormatInt(u.ID, 10)

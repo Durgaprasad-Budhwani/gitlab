@@ -62,6 +62,7 @@ func CreateWebHook(whType sdk.WebHookScope, qc QueryContext, eventAPIWebhookURL,
 
 // GitlabWebhook webhook object
 type GitlabWebhook struct {
+	ID  int64  `json:"id"`
 	URL string `json:"url"`
 }
 
@@ -88,6 +89,39 @@ func buildPath(whType sdk.WebHookScope, entityID string) string {
 		path = sdk.JoinURL("groups", entityID, "hooks")
 	case sdk.WebHookScopeRepo:
 		path = sdk.JoinURL("projects", entityID, "hooks")
+	}
+
+	return path
+}
+
+// DeleteWebHook delete webhook
+func DeleteWebHook(whType sdk.WebHookScope, qc QueryContext, entityID, entityName, whID string) error {
+
+	sdk.LogInfo(qc.Logger, fmt.Sprintf("delete %s webhook", whType), "entityID", entityID, "entityName", entityName, "webhookID", whID)
+
+	objectPath := buildDeletePath(whType, entityID, whID)
+
+	var resp interface{}
+
+	_, err := qc.Delete(objectPath, nil, &resp)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func buildDeletePath(whType sdk.WebHookScope, entityID string, whID string) string {
+
+	var path string
+
+	switch whType {
+	case sdk.WebHookScopeSystem:
+		path = "hooks/" + whID
+	case sdk.WebHookScopeOrg:
+		path = sdk.JoinURL("groups", entityID, "hooks", whID)
+	case sdk.WebHookScopeRepo:
+		path = sdk.JoinURL("projects", entityID, "hooks", whID)
 	}
 
 	return path

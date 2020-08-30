@@ -23,6 +23,7 @@ type QueryContext struct {
 	Logger  sdk.Logger
 	Get     func(url string, params url.Values, response interface{}) (NextPage, error)
 	Post    func(url string, params url.Values, data io.Reader, response interface{}) (NextPage, error)
+	Delete  func(url string, params url.Values, response interface{}) (NextPage, error)
 
 	CustomerID string
 	RefType    string

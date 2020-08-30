@@ -31,6 +31,7 @@ type requestType int
 const (
 	Get requestType = iota
 	Post
+	Delete
 )
 
 type internalRequest struct {
@@ -53,6 +54,24 @@ func (e *Requester) Get(endpoint string, params url.Values, response interface{}
 		Params:      params,
 		Response:    &response,
 		RequestType: Get,
+	}
+
+	return e.makeRequestRetry(&ir, 0)
+
+}
+
+// Delete request
+func (e *Requester) Delete(endpoint string, params url.Values, response interface{}) (np NextPage, err error) {
+	e.concurrency <- true
+	defer func() {
+		<-e.concurrency
+	}()
+
+	ir := internalRequest{
+		EndPoint:    endpoint,
+		Params:      params,
+		Response:    &response,
+		RequestType: Delete,
 	}
 
 	return e.makeRequestRetry(&ir, 0)
@@ -117,6 +136,11 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 		if rerr != nil {
 			return true, np, fmt.Errorf("error: %s %s", rerr, string(resp.Body))
 		}
+	case Delete:
+		resp, rerr = e.client.Delete(&r.Response, headers, endpoint, parameters)
+		if rerr != nil {
+			return true, np, fmt.Errorf("error: %s %s", rerr, string(resp.Body))
+		}
 	}
 
 	rateLimited := func() (isErrorRetryable bool, NextPage NextPage, rerr error) {
@@ -137,7 +161,9 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 
 	}
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusOK &&
+		resp.StatusCode != http.StatusCreated &&
+		resp.StatusCode != http.StatusNoContent {
 
 		if resp.StatusCode == http.StatusTooManyRequests {
 			return rateLimited()
