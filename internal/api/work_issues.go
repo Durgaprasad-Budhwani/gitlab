@@ -38,6 +38,7 @@ func WorkIssuesPage(
 			identifier = idparts[1] + "-" + fmt.Sprint(rawissue.Iid)
 		}
 		item := sdk.WorkIssue{}
+		item.Active = true
 		item.CustomerID = qc.CustomerID
 		item.RefType = qc.RefType
 		item.RefID = fmt.Sprint(rawissue.Iid)

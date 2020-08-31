@@ -52,6 +52,8 @@ func PullRequestReviewsPage(
 		item.RefID = fmt.Sprint(rreview.ID)
 		item.RepoID = repoID
 		item.PullRequestID = pullRequestID
+		item.Active = true
+
 		item.State = sdk.SourceCodePullRequestReviewStateApproved
 
 		sdk.ConvertTimeToDateModel(rreview.CreatedAt, &item.CreatedDate)
@@ -68,6 +70,8 @@ func PullRequestReviewsPage(
 		item.RefID = fmt.Sprint(rreview.ID)
 		item.RepoID = repoID
 		item.PullRequestID = pullRequestID
+		item.Active = true
+
 		item.State = sdk.SourceCodePullRequestReviewStatePending
 
 		sdk.ConvertTimeToDateModel(rreview.CreatedAt, &item.CreatedDate)

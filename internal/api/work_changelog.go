@@ -48,6 +48,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.WorkProject, issueID
 		for _, nn := range n.Notes {
 			if !nn.System {
 				comment := &sdk.WorkIssueComment{
+					Active:    true,
 					RefID:     fmt.Sprint(nn.ID),
 					RefType:   qc.RefType,
 					UserRefID: usermap[nn.Author.Username],
