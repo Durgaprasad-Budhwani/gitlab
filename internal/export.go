@@ -13,7 +13,6 @@ type GitlabExport struct {
 	logger                     sdk.Logger
 	qc                         api.QueryContext
 	pipe                       sdk.Pipe
-	pullrequestsFutures        []PullRequestFuture
 	isssueFutures              []IssueFuture
 	historical                 bool
 	state                      sdk.State
@@ -40,9 +39,11 @@ func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config,
 	r := api.NewRequester(logger, client, concurrentAPICalls)
 	ge.qc.Get = r.Get
 	ge.qc.Post = r.Post
+	ge.qc.Delete = r.Delete
 	ge.qc.Logger = logger
 	ge.qc.RefType = gitlabRefType
 	ge.qc.CustomerID = customerID
+	ge.logger = logger
 
 	u, err := url.Parse(apiURL)
 	if err != nil {
@@ -59,13 +60,11 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 	// TODO: Add logic for incrementals
 	// to get users and repos details
 	// if there is not system hook available
-
 	ge, rerr = i.SetQueryConfig(logger, export.Config(), i.manager, export.CustomerID())
 	if rerr != nil {
 		return
 	}
 
-	ge.logger = logger
 	ge.pipe = export.Pipe()
 	ge.historical = export.Historical()
 	ge.state = export.State()
@@ -255,7 +254,9 @@ func (ge *GitlabExport) exportCommonRepos(repos []*sdk.SourceCodeRepo) error {
 		return err
 	}
 
-	ge.exportPullRequestsFutures()
+	for _, repo := range repos {
+		ge.exportRemainingRepoPullRequests(repo)
+	}
 
 	return nil
 }
@@ -289,18 +290,6 @@ func (ge *GitlabExport) exportProjectAndWrite(project *sdk.WorkProject, projectU
 		return err
 	}
 	return nil
-}
-
-func (ge *GitlabExport) exportPullRequestsFutures() {
-
-	sdk.LogDebug(ge.logger, "remaining pull requests", "futures count", len(ge.pullrequestsFutures))
-
-	// TODO: delete this array and just process from page two to the end
-	// just iterate over the repos we already process in the initial export and that's it
-	for _, f := range ge.pullrequestsFutures {
-		ge.exportRemainingRepoPullRequests(f.Repo)
-	}
-
 }
 
 func (ge *GitlabExport) exportIssuesFutures(projectUsersMap map[string]api.UsernameMap) {

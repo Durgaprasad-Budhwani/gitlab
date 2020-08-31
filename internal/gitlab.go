@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
@@ -89,7 +90,75 @@ func (g *GitlabIntegration) Enroll(instance sdk.Instance) error {
 
 // Dismiss is called when an existing integration instance is removed
 func (g *GitlabIntegration) Dismiss(instance sdk.Instance) error {
-	// TODO: Add logic for Dismiss
+
+	logger := sdk.LogWith(g.logger, "customer_id", instance.CustomerID(), "integration_instance_id", instance.IntegrationInstanceID())
+	started := time.Now()
+	state := instance.State()
+	config := instance.Config()
+
+	sdk.LogInfo(logger, "dismiss started")
+
+	ge, err := g.SetQueryConfig(logger, config, g.manager, instance.CustomerID())
+	if err != nil {
+		return fmt.Errorf("error creating http client: %w", err)
+	}
+
+	wr := webHookRegistration{
+		customerID:            instance.CustomerID(),
+		integrationInstanceID: instance.IntegrationInstanceID(),
+		manager:               g.manager.WebHookManager(),
+		ge:                    &ge,
+	}
+
+	loginUser, err := api.LoginUser(ge.qc)
+	if err != nil {
+		return fmt.Errorf("error getting user info %w", err)
+	}
+
+	if !ge.isGitlabCloud && loginUser.IsAdmin {
+		err := wr.unregisterWebhook(sdk.WebHookScopeSystem, "", "")
+		if err != nil {
+			sdk.LogInfo(logger, "error unregistering system webhook", "err", err)
+		} else {
+			sdk.LogInfo(logger, "deleted system webhook")
+		}
+	}
+
+	for _, acct := range *config.Accounts {
+		if acct.Type == sdk.ConfigAccountTypeOrg {
+			err := wr.unregisterWebhook(sdk.WebHookScopeOrg, acct.ID, acct.ID)
+			if err != nil {
+				sdk.LogInfo(logger, "error unregistering group webhook", "err", err)
+			} else {
+				sdk.LogInfo(logger, "deleted group webhook", "id", acct.ID)
+			}
+		}
+		group := &api.Group{
+			ID:   acct.ID,
+			Name: acct.ID,
+		}
+		var repos []*sdk.SourceCodeRepo
+		err = ge.exportGroupProjectsRepos(group, func(repo *sdk.SourceCodeRepo) {
+			repos = append(repos, repo)
+		})
+		if err != nil {
+			return err
+		}
+		for _, repo := range repos {
+			err := wr.unregisterWebhook(sdk.WebHookScopeRepo, repo.RefID, repo.Name)
+			if err != nil {
+				sdk.LogInfo(logger, "error unregistering repo webhook", "err", err)
+			} else {
+				sdk.LogInfo(logger, "deleted repo webhook", "id", acct.ID)
+			}
+		}
+
+	}
+
+	state.Delete(ge.lastExportKey)
+
+	sdk.LogInfo(logger, "dismiss completed", "duration", time.Since(started))
+
 	return nil
 }
 

@@ -301,12 +301,12 @@ func (g *GitlabIntegration) registerWebhooks(ge GitlabExport) error {
 		ge:                    &ge,
 	}
 
-	user, err := api.LoginUser(ge.qc)
+	loginUser, err := api.LoginUser(ge.qc)
 	if err != nil {
 		return err
 	}
 
-	if !ge.isGitlabCloud && user.IsAdmin {
+	if !ge.isGitlabCloud && loginUser.IsAdmin {
 		err = wr.registerWebhook(sdk.WebHookScopeSystem, "", "")
 		if err != nil {
 			sdk.LogDebug(ge.logger, "error registering sytem webhooks", "err", err)
@@ -323,27 +323,43 @@ func (g *GitlabIntegration) registerWebhooks(ge GitlabExport) error {
 	var userHasProjectWebhookAcess bool
 	for _, group := range groups {
 		if group.ValidTier {
-			user, err := api.GroupUsers(ge.qc, group, user.StrID)
-			if err != nil {
-				group.MarkedToCreateProjectWebHooks = true
-				sdk.LogWarn(g.logger, "there was an error trying to get group user access level, will try to create project webhooks instead", "group", group.Name, "user", user.Name, "user_access_level", user.AccessLevel, "err", err)
-				return err
-			}
-			sdk.LogDebug(ge.logger, "user", "access_level", user.AccessLevel)
-			if user.AccessLevel >= api.Owner {
-				userHasProjectWebhookAcess = true
+			if loginUser.IsAdmin {
 				err = wr.registerWebhook(sdk.WebHookScopeOrg, group.ID, group.Name)
 				if err != nil {
 					group.MarkedToCreateProjectWebHooks = true
-					sdk.LogWarn(g.logger, "there was an error trying to create group webhooks, will try to create project webhooks instead", "group", group.Name, "user", user.Name, "user_access_level", user.AccessLevel, "err", err)
+					sdk.LogWarn(g.logger, "there was an error trying to create group webhooks, will try to create project webhooks instead", "group", group.Name, "user", loginUser.Name, "user_access_level", loginUser.AccessLevel, "err", err)
 				}
 			} else {
-				group.MarkedToCreateProjectWebHooks = true
-				sdk.LogWarn(g.logger, "at least Onwner level access is needed to create webhooks for this group will try to create project webhooks instead", "group", group.Name, "user", user.Name, "user_access_level", user.AccessLevel)
+				user, err := api.GroupUser(ge.qc, group, loginUser.StrID)
+				if strings.Contains(err.Error(), "Not found") {
+					group.MarkedToCreateProjectWebHooks = true
+					sdk.LogWarn(ge.logger, "use is not member of this group, will try to create project webhooks", "group", group.Name, "user_id", loginUser.ID, "user_name", loginUser.Name, "err", err)
+					continue
+				}
+				if err != nil {
+					group.MarkedToCreateProjectWebHooks = true
+					sdk.LogWarn(ge.logger, "there was an error trying to get group user access level, will try to create project webhooks instead", "group", group.Name, "user", user.Name, "user_access_level", user.AccessLevel, "err", err)
+					continue
+				}
+				sdk.LogDebug(ge.logger, "user", "access_level", user.AccessLevel)
+
+				if user.AccessLevel >= api.Owner {
+					userHasProjectWebhookAcess = true
+					err = wr.registerWebhook(sdk.WebHookScopeOrg, group.ID, group.Name)
+					if err != nil {
+						group.MarkedToCreateProjectWebHooks = true
+						sdk.LogWarn(ge.logger, "there was an error trying to create group webhooks, will try to create project webhooks instead", "group", group.Name, "user", user.Name, "user_access_level", user.AccessLevel, "err", err)
+					}
+				} else {
+					group.MarkedToCreateProjectWebHooks = true
+					sdk.LogWarn(ge.logger, "at least Onwner level access is needed to create webhooks for this group will try to create project webhooks instead", "group", group.Name, "user", user.Name, "user_access_level", user.AccessLevel)
+				}
 			}
+
 		}
 	}
 
+	sdk.LogDebug(ge.logger, "creating project webhooks")
 	for _, group := range groups {
 		if group.MarkedToCreateProjectWebHooks {
 			projects, err := ge.exportGroupRepos(group)
@@ -353,14 +369,15 @@ func (g *GitlabIntegration) registerWebhooks(ge GitlabExport) error {
 				return err
 			}
 			for _, project := range projects {
-				user, err := api.ProjectUser(ge.qc, project, user.StrID)
+				user, err := api.ProjectUser(ge.qc, project, loginUser.StrID)
 				if err != nil {
 					err = fmt.Errorf("error trying to get project user user => %s err => %s", user.Name, err)
 					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 					return err
 				}
-				if user.AccessLevel >= api.Owner || userHasProjectWebhookAcess {
-					err = wr.registerWebhook(sdk.WebHookScopeRepo, project.ID, project.Name)
+				sdk.LogDebug(ge.logger, "user project level", "level", user.AccessLevel)
+				if user.AccessLevel >= api.Maintainer || userHasProjectWebhookAcess {
+					err = wr.registerWebhook(sdk.WebHookScopeRepo, project.RefID, project.Name)
 					if err != nil {
 						err := fmt.Errorf("error trying to register project webhooks err => %s", err)
 						webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
@@ -388,6 +405,7 @@ type webHookRegistration struct {
 
 func (wr *webHookRegistration) registerWebhook(whType sdk.WebHookScope, entityID, entityName string) error {
 	if wr.ge.isWebHookInstalled(whType, wr.manager, wr.customerID, wr.integrationInstanceID, entityID) {
+		sdk.LogDebug(wr.ge.logger, "webhook already installed", "webhook_id", entityID, "type", whType)
 		return nil
 	}
 
@@ -411,6 +429,30 @@ func (wr *webHookRegistration) registerWebhook(whType sdk.WebHookScope, entityID
 			return err
 		}
 		err = api.CreateWebHook(whType, wr.ge.qc, url, entityID, entityName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (wr *webHookRegistration) unregisterWebhook(whType sdk.WebHookScope, entityID, entityName string) error {
+
+	webHooks, err := wr.ge.getHooks(whType, entityID, entityName)
+	if err != nil {
+		return err
+	}
+
+	for _, wh := range webHooks {
+		if strings.Contains(wh.URL, wr.integrationInstanceID) {
+			sdk.LogInfo(wr.ge.logger, "deleting webhook", "url", wh.URL)
+			err = api.DeleteWebHook(whType, wr.ge.qc, entityID, entityName, strconv.FormatInt(wh.ID, 10))
+			if err != nil {
+				return err
+			}
+		}
+		err := wr.manager.Delete(wr.customerID, wr.integrationInstanceID, gitlabRefType, entityID, whType)
 		if err != nil {
 			return err
 		}

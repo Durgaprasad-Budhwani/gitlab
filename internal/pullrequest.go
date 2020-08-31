@@ -26,11 +26,10 @@ func (ge *GitlabExport) exportRepoPullRequests(repo *sdk.SourceCodeRepo) {
 		done <- true
 	}()
 
-	var np api.NextPage
 	go func() {
 		defer close(prsChan)
 		var err error
-		np, err = ge.fetchInitialRepoPullRequests(repo, prsChan)
+		_, err = ge.fetchInitialRepoPullRequests(repo, prsChan)
 		if err != nil {
 			sdk.LogError(ge.logger, "error initial pull requests", "repo", repo.Name, "err", err)
 			done <- true
@@ -38,7 +37,6 @@ func (ge *GitlabExport) exportRepoPullRequests(repo *sdk.SourceCodeRepo) {
 	}()
 
 	<-done
-	ge.addPullRequestFuture(repo, np)
 }
 
 func (ge *GitlabExport) exportRemainingRepoPullRequests(repo *sdk.SourceCodeRepo) {
@@ -70,6 +68,7 @@ func (ge *GitlabExport) exportPullRequestEntitiesAndWrite(repo *sdk.SourceCodeRe
 
 	var wg sync.WaitGroup
 
+	sdk.LogDebug(ge.logger, "exporting pull requests details", "count", len(prs))
 	for pr := range prs {
 		wg.Add(1)
 		go func(pr api.PullRequest) {
@@ -90,22 +89,16 @@ func (ge *GitlabExport) exportPullRequestEntitiesAndWrite(repo *sdk.SourceCodeRe
 				sdk.LogError(ge.logger, "error on pull request commits", "err", err)
 			}
 
-			sdk.LogDebug(ge.logger, "pull request done", "identifier", pr.Identifier, "title", pr.Title)
 			pr.IntegrationInstanceID = ge.integrationInstanceID
 			if err := ge.pipe.Write(pr.SourceCodePullRequest); err != nil {
 				sdk.LogError(ge.logger, "error writting pr", "err", err)
 			}
+			sdk.LogDebug(ge.logger, "pull request done", "identifier", pr.Identifier, "title", pr.Title)
 		}(pr)
 	}
+	sdk.LogDebug(ge.logger, "exporting pull requests details done")
 
 	wg.Wait()
-
-}
-
-func (ge *GitlabExport) addPullRequestFuture(repo *sdk.SourceCodeRepo, np api.NextPage) {
-	if string(np) != "" {
-		ge.pullrequestsFutures = append(ge.pullrequestsFutures, PullRequestFuture{repo})
-	}
 }
 
 func (ge *GitlabExport) fetchInitialRepoPullRequests(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) (pi api.NextPage, rerr error) {
