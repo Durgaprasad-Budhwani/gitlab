@@ -48,6 +48,7 @@ func PullRequestCommentsPage(
 			continue
 		}
 		item := &sdk.SourceCodePullRequestComment{}
+		item.Active = true
 		item.CustomerID = qc.CustomerID
 		item.RefType = qc.RefType
 		item.RefID = fmt.Sprint(rcomment.ID)

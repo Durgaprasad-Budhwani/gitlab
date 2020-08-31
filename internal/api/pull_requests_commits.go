@@ -21,6 +21,7 @@ func (cc *CommonCommitFields) commonToSourceCodeCommit(customerID, refType, repo
 	scc.RefID = cc.ID
 	scc.RepoID = repoID
 	scc.PullRequestID = pullRequestID
+	scc.Active = true
 	scc.Sha = cc.ID
 	scc.Message = cc.Message
 

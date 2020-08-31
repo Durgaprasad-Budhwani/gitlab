@@ -33,6 +33,7 @@ func WorkSprintPage(qc QueryContext, project *sdk.WorkProject, params url.Values
 	for _, rawsprint := range rawsprints {
 
 		item := &sdk.AgileSprint{}
+		item.Active = true
 		item.CustomerID = qc.CustomerID
 		item.RefType = qc.RefType
 		item.RefID = fmt.Sprint(rawsprint.Iid)

@@ -37,6 +37,7 @@ func (c *CommonPullRequestFields) commonToSourceCodePullRequest(logger sdk.Logge
 	pr.RefType = refType
 	pr.RefID = prRefID
 	pr.RepoID = repoID
+	pr.Active = true
 
 	pr.Title = c.Title
 	pr.BranchName = c.SourceBranch
