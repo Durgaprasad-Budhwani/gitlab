@@ -30,6 +30,25 @@ func PullRequestPage(
 	repoID := sdk.NewSourceCodeRepoID(qc.CustomerID, repo.RefID, qc.RefType)
 
 	for _, rpr := range rprs {
+
+		err = qc.UserManager.EmitGitUser(qc.Logger, &rpr.Author)
+		if err != nil {
+			return
+		}
+
+		switch rpr.State {
+		case "closed":
+			err = qc.UserManager.EmitGitUser(qc.Logger, &rpr.ClosedBy)
+			if err != nil {
+				return
+			}
+		case "merged":
+			err = qc.UserManager.EmitGitUser(qc.Logger, &rpr.MergedBy)
+			if err != nil {
+				return
+			}
+		}
+
 		pr := rpr.toSourceCodePullRequest(qc.Logger, qc.CustomerID, repoID, qc.RefType)
 
 		spr := PullRequest{}

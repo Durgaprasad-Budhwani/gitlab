@@ -33,7 +33,9 @@ type PrCommit struct {
 	*CommonCommitFields
 	CreatedAt      time.Time `json:"created_at"`
 	AuthorEmail    string    `json:"author_email"`
+	AuthorName     string    `json:"author_name"`
 	CommitterEmail string    `json:"committer_email"`
+	CommitterName  string    `json:"committer_name"`
 	WebURL         string    `json:"web_url"`
 }
 
@@ -98,6 +100,19 @@ func PullRequestCommitsPage(
 		if !after.IsZero() && rcommit.CreatedAt.Before(after) {
 			return
 		}
+
+		author := commitAuthorUserToAuthor(&rcommit)
+		err = qc.UserManager.EmitGitUser(qc.Logger, author)
+		if err != nil {
+			return
+		}
+
+		author = commitCommiterUserToAuthor(&rcommit)
+		err = qc.UserManager.EmitGitUser(qc.Logger, author)
+		if err != nil {
+			return
+		}
+
 		item := rcommit.ToSourceCodePullRequestCommit(qc.CustomerID, qc.RefType, repoID, pullRequestID)
 		res = append(res, item)
 	}
@@ -107,6 +122,19 @@ func PullRequestCommitsPage(
 
 // CodeCommitEmail identifier for users using email
 func CodeCommitEmail(customerID string, email string) string {
-	sdk.Hash()
 	return sdk.Hash(customerID, email)
+}
+
+func commitAuthorUserToAuthor(commit *PrCommit) *GitUser {
+	author := &GitUser{}
+	author.Email = commit.AuthorEmail
+	author.Name = commit.AuthorName
+	return author
+}
+
+func commitCommiterUserToAuthor(commit *PrCommit) *GitUser {
+	author := &GitUser{}
+	author.Email = commit.CommitterEmail
+	author.Name = commit.CommitterName
+	return author
 }
