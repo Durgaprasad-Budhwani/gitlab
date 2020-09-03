@@ -2,6 +2,7 @@ package internal
 
 import (
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
@@ -41,7 +42,6 @@ func toWorkUser(user *sdk.SourceCodeUser) *sdk.WorkUser {
 		CustomerID:      user.CustomerID,
 		Email:           user.Email,
 		ID:              user.ID,
-		Member:          user.Member,
 		Name:            user.Name,
 		RefID:           user.RefID,
 		RefType:         user.RefType,
@@ -89,4 +89,63 @@ func (ge *GitlabExport) fetchEnterpriseUsers(callback callBackSourceUser) (rerr 
 		}
 		return
 	})
+}
+
+// UserManager is a manager for users
+// easyjson:skip
+type UserManager struct {
+	customerID  string
+	users       map[string]bool
+	control     sdk.Control
+	pipe        sdk.Pipe
+	integration *GitlabIntegration
+	mu          sync.Mutex
+	instanceid  string
+	state       sdk.State
+	historical  bool
+}
+
+const userStatecacheKey = "user_"
+
+func (u *UserManager) EmitGitUser(logger sdk.Logger, author api.GitUser2) error {
+	refID := author.RefID(u.customerID)
+	if refID == "" {
+		return nil
+	}
+	// hold lock while we determine if this is a user we need to lookup
+	u.mu.Lock()
+	if u.users[refID] {
+		u.mu.Unlock()
+		return nil
+	}
+	user := author.ToModel(u.customerID, u.instanceid)
+	hash := user.Hash()
+	cachekey := userStatecacheKey + refID
+	u.users[refID] = true
+	if !u.historical {
+		var cacheValue string
+		found, _ := u.state.Get(cachekey, &cacheValue)
+		if found && cacheValue == hash {
+			// already cached with the same hashcode so we can skip emit
+			u.mu.Unlock()
+			return nil
+		}
+	}
+	u.mu.Unlock()
+	if err := u.pipe.Write(user); err != nil {
+		return err
+	}
+	return u.state.SetWithExpires(cachekey, hash, time.Hour)
+}
+
+// NewUserManager returns a new instance
+func NewUserManager(customerID string, control sdk.Control, state sdk.State, pipe sdk.Pipe, instanceid string) *UserManager {
+	return &UserManager{
+		customerID: customerID,
+		users:      make(map[string]bool),
+		control:    control,
+		pipe:       pipe,
+		state:      state,
+		instanceid: instanceid,
+	}
 }

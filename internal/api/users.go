@@ -3,6 +3,7 @@ package api
 import (
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/pinpt/agent.next/sdk"
 )
@@ -77,32 +78,19 @@ func UsersPage(qc QueryContext, params url.Values) (page NextPage, users []*sdk.
 		return
 	}
 
-	for _, user := range rawUsers {
-		refID := strconv.FormatInt(user.ID, 10)
-		users = append(users, &sdk.SourceCodeUser{
-			ID:         sdk.NewSourceCodeUserID(qc.CustomerID, qc.RefType, refID),
-			Email:      sdk.StringPointer(user.Email),
-			Username:   sdk.StringPointer(user.Username),
-			Name:       user.Name,
-			RefID:      refID,
-			AvatarURL:  sdk.StringPointer(user.AvatarURL),
-			URL:        sdk.StringPointer(user.WebURL),
-			Type:       sdk.SourceCodeUserTypeHuman,
-			Member:     true,
-			CustomerID: qc.CustomerID,
-			RefType:    qc.RefType,
-		})
-
+	for _, ruser := range rawUsers {
+		user := ruser.ToSourceCodeUser(qc.CustomerID)
+		users = append(users, user)
 	}
 
 	return
 }
 
-func UserByID(qc QueryContext, userID string) (user *sdk.SourceCodeUser, err error) {
+func UserByID(qc QueryContext, userID int64) (user *sdk.SourceCodeUser, err error) {
 
 	sdk.LogDebug(qc.Logger, "users request")
 
-	objectPath := sdk.JoinURL("/users", userID)
+	objectPath := sdk.JoinURL("/users", strconv.FormatInt(userID, 10))
 
 	var rawUser UserModel
 
@@ -111,20 +99,7 @@ func UserByID(qc QueryContext, userID string) (user *sdk.SourceCodeUser, err err
 		return
 	}
 
-	refID := strconv.FormatInt(rawUser.ID, 10)
-	user = &sdk.SourceCodeUser{
-		ID:         sdk.NewSourceCodeUserID(qc.CustomerID, qc.RefType, refID),
-		Email:      sdk.StringPointer(rawUser.Email),
-		Username:   sdk.StringPointer(rawUser.Username),
-		Name:       rawUser.Name,
-		RefID:      refID,
-		AvatarURL:  sdk.StringPointer(rawUser.AvatarURL),
-		URL:        sdk.StringPointer(rawUser.WebURL),
-		Type:       sdk.SourceCodeUserTypeHuman,
-		Member:     true,
-		CustomerID: qc.CustomerID,
-		RefType:    qc.RefType,
-	}
+	user = rawUser.ToSourceCodeUser(qc.CustomerID)
 
 	return
 }
@@ -151,4 +126,47 @@ func LoginUser(qc QueryContext) (u *GitlabUser, err error) {
 	u.StrID = strconv.FormatInt(u.ID, 10)
 
 	return
+}
+
+type GitUser struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Avatar   string `json:"avatarUrl"`
+	Username string `json:"username"`
+}
+
+func (a *GitUser) ToModel(customerID string, integrationInstanceID string) *sdk.SourceCodeUser {
+	user := &sdk.SourceCodeUser{}
+	user.CustomerID = customerID
+	user.RefID = a.RefID(customerID)
+	user.RefType = "gitlab"
+	if a.Email != "" {
+		id := sdk.Hash(customerID, a.Email)
+		if id != user.RefID {
+			user.AssociatedRefID = sdk.StringPointer(id)
+		}
+	}
+	user.IntegrationInstanceID = sdk.StringPointer(integrationInstanceID)
+	user.URL = sdk.StringPointer("")
+	user.AvatarURL = sdk.StringPointer(a.Avatar)
+	user.Email = sdk.StringPointer(a.Email)
+	user.Name = a.Name
+	var userType sdk.SourceCodeUserType
+	if strings.Contains(a.Name, "Bot") {
+		userType = sdk.SourceCodeUserTypeBot
+	} else {
+		userType = sdk.SourceCodeUserTypeHuman
+	}
+
+	user.Type = userType
+	user.Username = sdk.StringPointer("")
+
+	return user
+}
+
+func (a *GitUser) RefID(customerID string) string {
+	if a.Email != "" {
+		return sdk.Hash(customerID, a.Email)
+	}
+	return ""
 }

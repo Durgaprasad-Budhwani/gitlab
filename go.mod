@@ -8,3 +8,9 @@ require (
 )
 
 replace github.com/pinpt/agent.next => ../agent.next
+
+replace github.com/pinpt/agent.next => ../agent.next
+
+replace github.com/pinpt/agent.next => ../agent.next
+
+replace github.com/pinpt/agent.next => ../agent.next

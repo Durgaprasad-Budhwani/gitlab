@@ -113,9 +113,9 @@ func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Ti
 	return
 }
 
-func ProjectByID(qc QueryContext, projectID string) (repo *sdk.SourceCodeRepo, err error) {
+func ProjectByID(qc QueryContext, projectID int64) (repo *sdk.SourceCodeRepo, err error) {
 
-	objectPath := sdk.JoinURL("projects", projectID)
+	objectPath := sdk.JoinURL("projects", strconv.FormatInt(projectID, 10))
 
 	var r struct {
 		CreatedAt         time.Time       `json:"created_at"`

@@ -14,9 +14,37 @@ import (
 const hookVersion = "1" // change this to upgrade the hook in case the events change
 
 type user struct {
-	Name     string `json:"name"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
+	Name      string `json:"name"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	AvatarURL string `json:"avatar_url"`
+}
+
+func (u *user) RefID(customerID string) string {
+	return sdk.Hash(customerID, u.Email)
+}
+
+func (a *user) ToModel(customerID string, integrationInstanceID string) *sdk.SourceCodeUser {
+	user := &sdk.SourceCodeUser{}
+	user.CustomerID = customerID
+	user.RefID = a.RefID(customerID)
+	user.RefType = "gitlab"
+	user.IntegrationInstanceID = sdk.StringPointer(integrationInstanceID)
+	user.URL = sdk.StringPointer("")
+	user.AvatarURL = sdk.StringPointer(a.AvatarURL)
+	user.Email = sdk.StringPointer(a.Email)
+	user.Name = a.Name
+	var userType sdk.SourceCodeUserType
+	if strings.Contains(a.Name, "Bot") {
+		userType = sdk.SourceCodeUserTypeBot
+	} else {
+		userType = sdk.SourceCodeUserTypeHuman
+	}
+
+	user.Type = userType
+	user.Username = sdk.StringPointer(a.Username)
+
+	return user
 }
 
 type webHookRootPayload struct {
@@ -25,15 +53,13 @@ type webHookRootPayload struct {
 		Name string `json:"name"`
 		ID   int64  `json:"id"`
 	} `json:"project"`
-	User         user                       `json:"user"`
-	Changes      map[string]json.RawMessage `json:"changes"`
-	MergeRequest api.WebhookPullRequest     `json:"merge_request"`
-	EventName    string                     `json:"event_name"`
-	ProjectID    string                     `json:"project_id"`
-	UserID       string                     `json:"user_id"`
-	// push events
-	// TotalCommitsCount int64           `json:"total_commits_count"`
-	// Commits           []*api.WhCommit `json:"commits"`
+	User         user                   `json:"user"`
+	Changes      json.RawMessage        `json:"changes"`
+	MergeRequest api.WebhookPullRequest `json:"merge_request"`
+	EventName    string                 `json:"event_name"`
+	ProjectID    int64                  `json:"project_id"`
+	UserID       int64                  `json:"user_id"`
+	Assignees    []user                 `json:"assignees"`
 }
 
 // WebHook is called when a webhook is received on behalf of the integration
@@ -42,16 +68,45 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 	customerID := webhook.CustomerID()
 	integrationInstanceID := webhook.IntegrationInstanceID()
 
-	logger := sdk.LogWith(i.logger, "customer_id", customerID)
+	logger := sdk.LogWith(i.logger, "entity", "webhook", "customer_id", customerID)
 
 	pipe := webhook.Pipe()
 
-	event := webhook.Headers()["X-Gitlab-Event"]
+	event := webhook.Headers()["x-gitlab-event"]
+
+	userManager := NewUserManager(customerID, webhook, webhook.State(), pipe, integrationInstanceID)
+
+	ge, err := i.SetQueryConfig(logger, webhook.Config(), i.manager, customerID)
+	if err != nil {
+		rerr = err
+		return
+	}
+
+	ge.qc.UserManager = userManager
+
+	sdk.LogInfo(logger, "event", "event", event)
+
+	sdk.LogDebug(logger, "webhook-body", "body", string(webhook.Bytes()))
 
 	var rootWebHookObject webHookRootPayload
 	rerr = json.Unmarshal(webhook.Bytes(), &rootWebHookObject)
 	if rerr != nil {
+		sdk.LogError(logger, "err", rerr)
 		return
+	}
+
+	rerr = userManager.EmitGitUser(logger, &rootWebHookObject.User)
+	if rerr != nil {
+		sdk.LogError(logger, "err", rerr)
+		return
+	}
+
+	for _, user := range rootWebHookObject.Assignees {
+		rerr = userManager.EmitGitUser(logger, &user)
+		if rerr != nil {
+			sdk.LogError(logger, "err", rerr)
+			return
+		}
 	}
 
 	projectRefID := strconv.FormatInt(rootWebHookObject.Project.ID, 10)
@@ -61,14 +116,27 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 	switch event {
 	case "Merge Request Hook":
 
-		var pr *api.WebhookPullRequest
+		pr := &api.WebhookPullRequest{}
 		rerr = json.Unmarshal(rootWebHookObject.WebHookMainObject, pr)
 		if rerr != nil {
 			return
 		}
 
-		scPr := pr.ToSourceCodePullRequest(logger, customerID, projectID, gitlabRefType)
+		var scPr = &sdk.SourceCodePullRequest{}
+		scPr, rerr = pr.ToSourceCodePullRequest(logger, customerID, projectID, gitlabRefType)
+		if rerr != nil {
+			return
+		}
 		scPr.IntegrationInstanceID = &integrationInstanceID
+
+		switch scPr.Status {
+		case sdk.SourceCodePullRequestStatusClosed:
+			scPr.ClosedByRefID = rootWebHookObject.User.RefID(customerID)
+		case sdk.SourceCodePullRequestStatusMerged:
+			scPr.MergedByRefID = rootWebHookObject.User.RefID(customerID)
+		}
+
+		sdk.LogDebug(logger, "source code pull request", "body", scPr.Stringify())
 
 		rerr = pipe.Write(scPr)
 		if rerr != nil {
@@ -76,12 +144,6 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 		}
 
 		pullRequestID := sdk.NewSourceCodePullRequestID(customerID, scPr.RefID, gitlabRefType, projectID)
-
-		ge, err := i.SetQueryConfig(logger, webhook.Config(), i.manager, customerID)
-		if err != nil {
-			rerr = err
-			return
-		}
 
 		switch pr.Action {
 		case "approved", "unapproved":
@@ -112,30 +174,66 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 		case "update":
 			var keyCount int
 			var updateKeyExist bool
-			for range rootWebHookObject.Changes {
-				_, updateKeyExist = rootWebHookObject.Changes["updated_at"]
-				keyCount++
-				if keyCount > 1 {
-					return
-				}
+
+			var changes map[string]json.RawMessage
+
+			rerr = json.Unmarshal(rootWebHookObject.Changes, &changes)
+			if rerr != nil {
+				return
+			}
+
+			_, updateKeyExist = changes["updated_at"]
+			keyCount++
+			if keyCount > 1 {
+				return
 			}
 			if !updateKeyExist {
 				return
 			}
-			fallthrough
-		case "open":
-			// TODO: implement commits from push events instead
-			var repo *sdk.SourceCodeRepo
+			var updateat time.Time
+			updateat, rerr = time.Parse("2006-01-02 15:04:05 MST", pr.UpdatedAt)
+			if rerr != nil {
+				return
+			}
+
+			repo := &sdk.SourceCodeRepo{}
 			repo.Name = rootWebHookObject.Project.Name
 			repo.RefID = projectRefID
-			var pr2 *api.PullRequest
+
+			var pr2 = &api.PullRequest{SourceCodePullRequest: &sdk.SourceCodePullRequest{}}
 			pr2.IID = strconv.FormatInt(pr.IID, 10)
 			pr2.RefID = scPr.RefID
 
-			commits, err := ge.FetchPullRequestsCommitsAfter(repo, *pr2, pr.CommonPullRequestFields.UpdatedAt)
+			commits, err := ge.FetchPullRequestsCommitsAfter(repo, *pr2, updateat)
 			if err != nil {
 				return fmt.Errorf("error fetching pull requests commits on webhook, err %d", err)
 			}
+
+			sdk.LogDebug(logger, "commits found", "len", len(commits))
+
+			for _, c := range commits {
+				c.IntegrationInstanceID = &integrationInstanceID
+				rerr = pipe.Write(c)
+				if rerr != nil {
+					return
+				}
+			}
+		case "open", "reopen":
+
+			repo := &sdk.SourceCodeRepo{}
+			repo.Name = rootWebHookObject.Project.Name
+			repo.RefID = projectRefID
+			var pr2 = &api.PullRequest{SourceCodePullRequest: &sdk.SourceCodePullRequest{}}
+			pr2.IID = strconv.FormatInt(pr.IID, 10)
+			pr2.RefID = scPr.RefID
+
+			commits, err := ge.fetchPullRequestsCommits(repo, *pr2)
+			if err != nil {
+				return fmt.Errorf("error fetching pull requests commits on webhook, err %d", err)
+			}
+
+			sdk.LogDebug(logger, "commits found", "len", len(commits))
+
 			for _, c := range commits {
 				c.IntegrationInstanceID = &integrationInstanceID
 				rerr = pipe.Write(c)
@@ -156,7 +254,11 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 		}
 
 		if note.System == false {
-			scPr := rootWebHookObject.MergeRequest.ToSourceCodePullRequest(logger, customerID, projectID, gitlabRefType)
+			var scPr = &sdk.SourceCodePullRequest{}
+			scPr, rerr = rootWebHookObject.MergeRequest.ToSourceCodePullRequest(logger, customerID, projectID, gitlabRefType)
+			if rerr != nil {
+				return
+			}
 
 			if note.NoteType == "DiffNote" {
 				review := note.ToSourceCodePullRequestReview()
@@ -219,7 +321,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 				return
 			}
 
-			user, err := api.UserByID(ge.qc, rootWebHookObject.ProjectID)
+			user, err := api.UserByID(ge.qc, rootWebHookObject.UserID)
 			if err != nil {
 				rerr = err
 				return
@@ -258,7 +360,7 @@ func (i *GitlabIntegration) GetReviewFromAction(
 	prID string,
 	prRefID string,
 	prIID int64,
-	prUpdatedAt time.Time,
+	prUpdatedAt string,
 	username string,
 	action string) (review *sdk.SourceCodePullRequestReview, rerr error) {
 
@@ -331,7 +433,7 @@ func (g *GitlabIntegration) registerWebhooks(ge GitlabExport) error {
 				}
 			} else {
 				user, err := api.GroupUser(ge.qc, group, loginUser.StrID)
-				if strings.Contains(err.Error(), "Not found") {
+				if err != nil && strings.Contains(err.Error(), "Not found") {
 					group.MarkedToCreateProjectWebHooks = true
 					sdk.LogWarn(ge.logger, "use is not member of this group, will try to create project webhooks", "group", group.Name, "user_id", loginUser.ID, "user_name", loginUser.Name, "err", err)
 					continue

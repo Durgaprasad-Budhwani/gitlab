@@ -7,15 +7,14 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-// ServerType server type
-type ServerType string
+type GitUser2 interface {
+	RefID(customerID string) string
+	ToModel(customerID string, integrationInstanceID string) *sdk.SourceCodeUser
+}
 
-const (
-	// CLOUD server type
-	CLOUD ServerType = "cloud"
-	// ON_PREMISE server type
-	ON_PREMISE ServerType = "on-premise"
-)
+type UserManager2 interface {
+	EmitGitUser(sdk.Logger, GitUser2) error
+}
 
 // QueryContext query context
 type QueryContext struct {
@@ -28,18 +27,10 @@ type QueryContext struct {
 	CustomerID string
 	RefType    string
 
-	UserEmailMap map[string]string
-	// IDs          ids2.Gen
-	// Re *RequesterOpts
+	UserEmailMap          map[string]string
+	IntegrationInstanceID string
+	Pipe                  sdk.Pipe
+	UserManager           UserManager2
 }
 
 type NextPage string
-
-// NextPage page info
-// type NextPage struct {
-// 	PageSize   int
-// 	NextPage   string
-// 	Page       string
-// 	TotalPages string
-// 	Total      int
-// }

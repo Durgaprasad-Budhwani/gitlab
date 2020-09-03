@@ -70,6 +70,9 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 	ge.state = export.State()
 	ge.config = export.Config()
 	ge.integrationInstanceID = sdk.StringPointer(export.IntegrationInstanceID())
+	ge.qc.IntegrationInstanceID = *ge.integrationInstanceID
+	ge.qc.UserManager = NewUserManager(ge.qc.CustomerID, export, ge.state, ge.pipe, ge.qc.IntegrationInstanceID)
+	ge.qc.Pipe = ge.pipe
 
 	// TODO: call WORK export
 	ge.integrationType = IntegrationSourceCodeType

@@ -56,7 +56,7 @@ func GetGetSinglePullRequestNote(
 	prRefID string,
 	prIID int64,
 	username string,
-	prUpdatedAt time.Time,
+	prUpdatedAt string,
 	action string) (pi NextPage, rnote *Note, err error) {
 
 	sdk.LogDebug(qc.Logger, "pull request reviews", "project", projectName, "repo_ref_id", projectRefID, "pr_id", prRefID, "pr_iid", prIID, "params", params)
@@ -70,9 +70,14 @@ func GetGetSinglePullRequestNote(
 		return
 	}
 
+	r, err := time.Parse("2006-01-02 15:04:05 MST", prUpdatedAt)
+	if err != nil {
+		return
+	}
+
 	for _, note := range rnotes {
-		diff1 := note.CreatedAt.Sub(prUpdatedAt)
-		diff2 := prUpdatedAt.Sub(note.CreatedAt)
+		diff1 := note.CreatedAt.Sub(r)
+		diff2 := r.Sub(note.CreatedAt)
 		if note.System == false &&
 			note.Author.Username == username &&
 			bytes.Index(note.Body, []byte(action)) == 0 &&

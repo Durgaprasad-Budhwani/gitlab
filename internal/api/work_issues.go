@@ -149,3 +149,29 @@ type UserModel struct {
 	AvatarURL string `json:"avatar_url"`
 	WebURL    string `json:"web_url"`
 }
+
+func (u *UserModel) ToSourceCodeUser(customerID string) *sdk.SourceCodeUser {
+
+	var userType sdk.SourceCodeUserType
+	if strings.Contains(u.Name, "Bot") {
+		userType = sdk.SourceCodeUserTypeBot
+	} else {
+		userType = sdk.SourceCodeUserTypeHuman
+	}
+
+	refID := strconv.FormatInt(u.ID, 10)
+
+	user := &sdk.SourceCodeUser{
+		Email:      sdk.StringPointer(u.Email),
+		Username:   sdk.StringPointer(u.Username),
+		Name:       u.Name,
+		RefID:      refID,
+		AvatarURL:  sdk.StringPointer(u.AvatarURL),
+		URL:        sdk.StringPointer(u.WebURL),
+		Type:       userType,
+		CustomerID: customerID,
+		RefType:    "gitlab",
+	}
+
+	return user
+}
