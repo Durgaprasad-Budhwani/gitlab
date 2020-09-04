@@ -27,7 +27,7 @@ enum State {
 	Repos,
 }
 
-const IntegrationTypeSelector = ({ isSourceCodeChecked, setIsSourceCodeChecked, isWorkChecked, setIsWorkChecked, setState }: { isSourceCodeChecked: boolean, setIsSourceCodeChecked: (val: boolean) => void, isWorkChecked: boolean, setIsWorkChecked: (val: boolean) => void, state: State,setState: (state: State)=> void}) => {
+const IntegrationTypeSelector = ({ isSourceCodeChecked, setIsSourceCodeChecked, isWorkChecked, setIsWorkChecked, setState }: { isSourceCodeChecked: boolean, setIsSourceCodeChecked: (val: boolean) => void, isWorkChecked: boolean, setIsWorkChecked: (val: boolean) => void, setState: (state: State)=> void}) => {
 	return (
 		<div>
 			<div className="checkbox">
@@ -200,7 +200,6 @@ const Integration = () => {
 					setIsSourceCodeChecked={setIsSourceCodeChecked} 
 					isWorkChecked={isWorkChecked} 
 					setIsWorkChecked={setIsWorkChecked}
-					state={state}
 					setState={setState}/>
 				break
 			}
