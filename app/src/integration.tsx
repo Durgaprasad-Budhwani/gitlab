@@ -17,7 +17,8 @@ import styles from './styles.module.less';
 type Maybe<T> = T | undefined | null;
 
 enum State {
-	Location = 1,
+	IntegrationType = 1,
+	Location,
 	CloudSetup,
 	SelfSetup,
 	AgentSelector,
@@ -25,6 +26,35 @@ enum State {
 	Validate,
 	Repos,
 }
+
+const IntegrationTypeSelector = ({ isSourceCodeChecked, setIsSourceCodeChecked, isWorkChecked, setIsWorkChecked, setState }: { isSourceCodeChecked: boolean, setIsSourceCodeChecked: (val: boolean) => void, isWorkChecked: boolean, setIsWorkChecked: (val: boolean) => void, state: State,setState: (state: State)=> void}) => {
+	return (
+		<div>
+			<div className="checkbox">
+				<label>
+					<input type="checkbox" value="SourceCode" checked={isSourceCodeChecked} onChange={()=>{
+						setIsSourceCodeChecked(!isSourceCodeChecked)}
+					} />SourceCode
+				</label>
+			</div>
+			<div className="checkbox">
+				<label>
+					<input type="checkbox" value="Work" checked={isWorkChecked} onChange={()=>{
+						setIsWorkChecked(!isWorkChecked)}
+					} />Work
+				</label>
+			</div>
+			<div>
+			<Button className={styles.Setup} color="Green" weight={500} onClick={(e: any) => {
+				// TODO: add validation to at least select either SouceCode or Work
+				// TODO: persist selection into DB
+				setState(State.Location)
+				e.stopPropagation();
+			}}>Next</Button>
+			</div>
+		</div>
+	);
+};
 
 const LocationSelector = ({ setType }: { setType: (val: IntegrationType) => void }) => {
 	return (
@@ -42,91 +72,26 @@ const LocationSelector = ({ setType }: { setType: (val: IntegrationType) => void
 	);
 };
 
-const AgentSelector = ({ setType }: { setType: (val: IntegrationType) => void }) => {
-	const { selfManagedAgent, setSelfManagedAgentRequired } = useIntegration();
-	const agentEnabled = selfManagedAgent?.enrollment_id;
-	const agentRunning = selfManagedAgent?.running;
-	const enabled = agentEnabled && agentRunning;
-	return (
-		<div className={styles.Location}>
-			<div className={[styles.Button, enabled ? '' : styles.Disabled].join(' ')} onClick={() => enabled ? setType(IntegrationType.SELFMANAGED) : null}>
-				<Icon icon={['fas', 'lock']} className={styles.Icon} />
-				I'm using the <strong>Atlassian Jira Server</strong> behind a firewall which is not publically accessible
-				<div>
-					{agentEnabled && agentRunning ? (
-						<>
-							<Icon icon="info-circle" color={Theme.Mono300} />
-							Your self-managed cloud agent will be used
-						</>
-					) : !agentEnabled ? (
-						<>
-							<div><Icon icon="exclamation-circle" color={Theme.Red500} /> You must first setup a self-managed cloud agent</div>
-							<Button className={styles.Setup} color="Green" weight={500} onClick={(e: any) => {
-								setSelfManagedAgentRequired();
-								e.stopPropagation();
-							}}>Setup</Button>
-						</>
-					) : (
-								<>
-									<div><Icon icon="exclamation-circle" color={Theme.Red500} /> Your agent is not running</div>
-									<Button className={styles.Setup} color="Green" weight={500} onClick={(e: any) => {
-										setSelfManagedAgentRequired();
-										e.stopPropagation();
-									}}>Configure</Button>
-								</>
-							)}
-				</div>
-			</div>
-
-			<div className={styles.Button} onClick={() => setType(IntegrationType.CLOUD)}>
-				<Icon icon={['fas', 'cloud']} className={styles.Icon} />
-				I'm using the <strong>Atlassian Jira Server</strong> and it is publically accessible or whitelisted for Pinpoint
-				<div>
-					<Icon icon="check-circle" color={Theme.Mono300} /> Pinpoint will directly connect to your server
-				</div>
-			</div>
-		</div>
-	);
-};
-
-// ({session, callback, type}: {session: ISession, callback: (err: Error | undefined, url?: string) => void, type: IntegrationType}) => {
-// ({callback}: {callback: (err: Error | undefined, url?: string) => void}) => {
-// ({callback}: {callback: () => void}) => {
-// const SelfManagedForm = () => {
 const SelfManagedForm = ({callback}: {callback: (auth : IAPIKeyAuth) => void}) => {
-	// const state = useRef<selfManagedFormState>(selfManagedFormState.EnteringUrl);
 	async function verify(auth: IAPIKeyAuth): Promise<void> {
-		// console.log("auth",JSON.stringify(auth))
-		// setState(State.Repos);
 		callback(auth);
-		// setAuth(auth);
-		// return true;
 	}
 	return <Form type={FormType.API} name='GitLab' callback={verify} />;
 };
-
-enum selfManagedFormState {
-	EnteringUrl,
-	Validating,
-	Validated,
-	Setup,
-}
-
-
 
 const makeAccountsFromConfig = (config: Config) => {
 	return Object.keys(config.accounts ?? {}).map((key: string) => config.accounts?.[key]) as Account[];
 };
 
 const Integration = () => {
-	const [state, setState] = useState<State>(State.Location);
+	const [state, setState] = useState<State>(State.IntegrationType);
+	const [isSourceCodeChecked, setIsSourceCodeChecked ] = useState<boolean>(false);
+	const [isWorkChecked, setIsWorkChecked ] = useState<boolean>(false);
 	const { loading, installed, setInstallEnabled, currentURL, config, isFromRedirect, isFromReAuth, setConfig, authorization, setValidate } = useIntegration();
 	const [type, setType] = useState<IntegrationType | undefined>(config.integration_type);
 	const accounts = useRef<Account[]>([]);
 	const [error, setError] = useState<Error | undefined>();
 	const currentConfig = useRef<Config>(config);
-
-
 
 	useEffect(() => {
 		if (!loading && isFromRedirect && currentURL) {
@@ -229,6 +194,16 @@ const Integration = () => {
 		}
 	} else {
 		switch (state) {
+			case State.IntegrationType: {
+				content = <IntegrationTypeSelector 
+					isSourceCodeChecked={isSourceCodeChecked}  
+					setIsSourceCodeChecked={setIsSourceCodeChecked} 
+					isWorkChecked={isWorkChecked} 
+					setIsWorkChecked={setIsWorkChecked}
+					state={state}
+					setState={setState}/>
+				break
+			}
 			case State.Location: {
 				content = <LocationSelector setType={async (intType: IntegrationType) => {
 					try {
