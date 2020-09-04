@@ -9,12 +9,7 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-// IssueFuture issues will process later
-type IssueFuture struct {
-	Project *sdk.WorkProject
-}
-
-func (ge *GitlabExport) exportProjectIssues(project *sdk.WorkProject, users api.UsernameMap) {
+func (ge *GitlabExport) exportProjectIssues(project *sdk.SourceCodeRepo, users api.UsernameMap) {
 
 	sdk.LogDebug(ge.logger, "issues", "project", project.Name)
 
@@ -26,11 +21,10 @@ func (ge *GitlabExport) exportProjectIssues(project *sdk.WorkProject, users api.
 		done <- true
 	}()
 
-	var np api.NextPage
 	go func() {
 		defer close(issuesC)
 		var err error
-		np, err = ge.fetchInitialProjectIssues(project, issuesC)
+		_, err = ge.fetchInitialProjectIssues(project, issuesC)
 		if err != nil {
 			sdk.LogError(ge.logger, "error initial issues", "project", project.Name, "err", err)
 			done <- true
@@ -38,10 +32,9 @@ func (ge *GitlabExport) exportProjectIssues(project *sdk.WorkProject, users api.
 	}()
 
 	<-done
-	ge.addIssueFuture(project, np)
 }
 
-func (ge *GitlabExport) fetchInitialProjectIssues(project *sdk.WorkProject, issues chan sdk.WorkIssue) (pi api.NextPage, rerr error) {
+func (ge *GitlabExport) fetchInitialProjectIssues(project *sdk.SourceCodeRepo, issues chan sdk.WorkIssue) (pi api.NextPage, rerr error) {
 	params := url.Values{}
 
 	if ge.lastExportDateGitlabFormat != "" {
@@ -51,13 +44,7 @@ func (ge *GitlabExport) fetchInitialProjectIssues(project *sdk.WorkProject, issu
 	return api.WorkIssuesPage(ge.qc, project, params, issues)
 }
 
-func (ge *GitlabExport) addIssueFuture(project *sdk.WorkProject, np api.NextPage) {
-	if string(np) != "" {
-		ge.isssueFutures = append(ge.isssueFutures, IssueFuture{project})
-	}
-}
-
-func (ge *GitlabExport) exportIssueEntitiesAndWrite(project *sdk.WorkProject, issues chan sdk.WorkIssue, users api.UsernameMap) {
+func (ge *GitlabExport) exportIssueEntitiesAndWrite(project *sdk.SourceCodeRepo, issues chan sdk.WorkIssue, users api.UsernameMap) {
 
 	var wg sync.WaitGroup
 
@@ -71,7 +58,7 @@ func (ge *GitlabExport) exportIssueEntitiesAndWrite(project *sdk.WorkProject, is
 			}
 			issue.IntegrationInstanceID = ge.integrationInstanceID
 			if err = ge.pipe.Write(&issue); err != nil {
-				sdk.LogError(ge.logger, "error writting pr", "err", err)
+				sdk.LogError(ge.logger, "error writting issue", "err", err)
 			}
 		}(issue)
 	}
@@ -81,7 +68,7 @@ func (ge *GitlabExport) exportIssueEntitiesAndWrite(project *sdk.WorkProject, is
 	return
 }
 
-func (ge *GitlabExport) exportRemainingProjectIssues(project *sdk.WorkProject, users api.UsernameMap) {
+func (ge *GitlabExport) exportRemainingProjectIssues(project *sdk.SourceCodeRepo, users api.UsernameMap) {
 
 	sdk.LogDebug(ge.logger, "remaining issues", "project", project.Name)
 
@@ -106,7 +93,7 @@ func (ge *GitlabExport) exportRemainingProjectIssues(project *sdk.WorkProject, u
 	<-done
 }
 
-func (ge *GitlabExport) fetchRemainingProjectIssues(project *sdk.WorkProject, pissues chan sdk.WorkIssue) (rerr error) {
+func (ge *GitlabExport) fetchRemainingProjectIssues(project *sdk.SourceCodeRepo, pissues chan sdk.WorkIssue) (rerr error) {
 	return api.Paginate(ge.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.NextPage, rerr error) {
 		if ge.lastExportDateGitlabFormat != "" {
 			params.Set("updated_after", ge.lastExportDateGitlabFormat)

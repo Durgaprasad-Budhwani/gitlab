@@ -8,7 +8,7 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-func WorkSprintPage(qc QueryContext, project *sdk.WorkProject, params url.Values) (pi NextPage, res []*sdk.AgileSprint, err error) {
+func WorkSprintPage(qc QueryContext, project *sdk.SourceCodeRepo, params url.Values) (pi NextPage, res []*sdk.AgileSprint, err error) {
 
 	sdk.LogDebug(qc.Logger, "work sprints", "project", project.Name, "project_ref_id", project.RefID, "params", params)
 

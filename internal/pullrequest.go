@@ -9,11 +9,6 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-// PullRequestFuture pull requests will process later
-type PullRequestFuture struct {
-	Repo *sdk.SourceCodeRepo
-}
-
 func (ge *GitlabExport) exportRepoPullRequests(repo *sdk.SourceCodeRepo) {
 
 	sdk.LogDebug(ge.logger, "pull requests", "repo", repo.Name)

@@ -18,7 +18,7 @@ type ResourceStateEvents struct {
 	State     string    `json:"state"`
 }
 
-func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.WorkProject, issueID string, usermap UsernameMap, params url.Values) (pi NextPage, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
+func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issueID string, usermap UsernameMap, params url.Values) (pi NextPage, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
 
 	params.Set("notes_filter", "0")
 	params.Set("persist_filter", "true")
