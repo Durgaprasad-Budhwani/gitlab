@@ -12,7 +12,7 @@ import (
 
 func WorkIssuesPage(
 	qc QueryContext,
-	project *sdk.WorkProject,
+	project *sdk.SourceCodeRepo,
 	params url.Values,
 	issues chan sdk.WorkIssue) (pi NextPage, err error) {
 
@@ -28,6 +28,9 @@ func WorkIssuesPage(
 	if err != nil {
 		return
 	}
+
+	sdk.LogDebug(qc.Logger, "issues found", "len", len(rawissues))
+
 	for _, rawissue := range rawissues {
 
 		idparts := strings.Split(project.RefID, "/")

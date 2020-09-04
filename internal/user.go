@@ -9,23 +9,13 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-func (ge *GitlabExport) exportRepoUsers(repo *sdk.SourceCodeRepo) error {
-
-	return ge.exportUsers(repo, func(user *sdk.SourceCodeUser) error {
-		user.IntegrationInstanceID = ge.integrationInstanceID
-		return ge.pipe.Write(user)
-	})
-
-}
-
-func (ge *GitlabExport) exportProjectUsers(project *sdk.WorkProject) (usermap api.UsernameMap, rerr error) {
+func (ge *GitlabExport) exportRepoUsers(repo *sdk.SourceCodeRepo) (usermap api.UsernameMap, rerr error) {
 
 	usermap = make(api.UsernameMap)
 
-	rerr = ge.exportUsers(ToRepo(project), func(user *sdk.SourceCodeUser) error {
-		usermap[*user.Username] = user.RefID
+	rerr = ge.exportUsers(repo, func(user *sdk.SourceCodeUser) error {
 		user.IntegrationInstanceID = ge.integrationInstanceID
-		return ge.pipe.Write(toWorkUser(user))
+		return ge.pipe.Write(user)
 	})
 
 	return

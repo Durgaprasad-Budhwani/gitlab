@@ -48,6 +48,7 @@ func ToProject(repo *sdk.SourceCodeRepo) *sdk.WorkProject {
 		UpdatedAt:   repo.UpdatedAt,
 		URL:         repo.URL,
 		Hashcode:    repo.Hashcode,
+		Identifier:  repo.Name,
 	}
 }
 

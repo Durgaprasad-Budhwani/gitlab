@@ -17,11 +17,11 @@ func (ge *GitlabExport) exportGroupProjects(group *api.Group) (projects []*sdk.W
 	return
 }
 
-func (ge *GitlabExport) exportUserProjects(user *api.GitlabUser) (projects []*sdk.WorkProject, rerr error) {
+func (ge *GitlabExport) exportUserProjects(user *api.GitlabUser) (projects []*sdk.SourceCodeRepo, rerr error) {
 
 	rerr = ge.exportUserProjectsRepos(user, func(repo *sdk.SourceCodeRepo) {
 		if ge.IncludeRepo(user.Name, repo.Name, !repo.Active) {
-			projects = append(projects, ToProject(repo))
+			projects = append(projects, repo)
 		}
 	})
 
