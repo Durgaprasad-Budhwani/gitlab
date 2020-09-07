@@ -9,9 +9,9 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-// PullRequestReviewsPage get reviews page
+// PullRequestReviews get pr reviews
 // TODO: Fix this with updated notion docs
-func PullRequestReviewsPage(
+func PullRequestReviews(
 	qc QueryContext,
 	repo *sdk.SourceCodeRepo,
 	pr PullRequest,
@@ -29,9 +29,7 @@ func PullRequestReviewsPage(
 			} `json:"user"`
 		} `json:"approved_by"`
 		SuggestedApprovers []struct {
-			User struct {
-				ID int64 `json:"id"`
-			} `json:"user"`
+			UserID int64 `json:"id"`
 		} `json:"suggested_approvers"`
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
@@ -43,7 +41,7 @@ func PullRequestReviewsPage(
 	}
 
 	repoID := sdk.NewSourceCodeRepoID(qc.CustomerID, repo.RefID, qc.RefType)
-	pullRequestID := sdk.NewSourceCodePullRequestID(qc.CustomerID, pr.RefID, qc.RefType, repoID)
+	pr.ID = sdk.NewSourceCodePullRequestID(qc.CustomerID, pr.RefID, qc.RefType, repoID)
 
 	for _, a := range rreview.ApprovedBy {
 		item := &sdk.SourceCodePullRequestReview{}
@@ -51,14 +49,20 @@ func PullRequestReviewsPage(
 		item.RefType = qc.RefType
 		item.RefID = fmt.Sprint(rreview.ID)
 		item.RepoID = repoID
-		item.PullRequestID = pullRequestID
+		item.PullRequestID = pr.ID
 		item.Active = true
-
 		item.State = sdk.SourceCodePullRequestReviewStateApproved
 
 		sdk.ConvertTimeToDateModel(rreview.CreatedAt, &item.CreatedDate)
 
 		item.UserRefID = strconv.FormatInt(a.User.ID, 10)
+
+		reviewRequest := reviewRequest(qc, pr.SourceCodePullRequest, item.UserRefID)
+		reviewRequest.Active = false
+		err = qc.Pipe.Write(&reviewRequest)
+		if err != nil {
+			return
+		}
 
 		res = append(res, item)
 	}
@@ -69,17 +73,37 @@ func PullRequestReviewsPage(
 		item.RefType = qc.RefType
 		item.RefID = fmt.Sprint(rreview.ID)
 		item.RepoID = repoID
-		item.PullRequestID = pullRequestID
+		item.PullRequestID = pr.ID
 		item.Active = true
-
-		item.State = sdk.SourceCodePullRequestReviewStatePending
+		item.State = sdk.SourceCodePullRequestReviewStateRequested
 
 		sdk.ConvertTimeToDateModel(rreview.CreatedAt, &item.CreatedDate)
 
-		item.UserRefID = strconv.FormatInt(a.User.ID, 10)
+		item.UserRefID = strconv.FormatInt(a.UserID, 10)
+
+		reviewRequest := reviewRequest(qc, pr.SourceCodePullRequest, item.UserRefID)
+		err = qc.Pipe.Write(&reviewRequest)
+		if err != nil {
+			return
+		}
 
 		res = append(res, item)
 	}
 
 	return
+}
+
+func reviewRequest(qc QueryContext, pr *sdk.SourceCodePullRequest, requestedReviewerID string) sdk.SourceCodePullRequestReviewRequest {
+	return sdk.SourceCodePullRequestReviewRequest{
+		CustomerID:             qc.CustomerID,
+		ID:                     sdk.NewSourceCodePullRequestReviewRequestID(qc.CustomerID, "gitlab", pr.ID, requestedReviewerID),
+		RefType:                "gitlab",
+		RepoID:                 pr.RepoID,
+		PullRequestID:          pr.ID,
+		Active:                 true,
+		CreatedDate:            sdk.SourceCodePullRequestReviewRequestCreatedDate(pr.UpdatedDate),
+		IntegrationInstanceID:  sdk.StringPointer(qc.IntegrationInstanceID),
+		RequestedReviewerRefID: requestedReviewerID,
+		SenderRefID:            pr.CreatedByRefID,
+	}
 }
