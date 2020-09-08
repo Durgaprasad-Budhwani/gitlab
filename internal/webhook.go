@@ -82,6 +82,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 		return
 	}
 
+	ge.qc.Pipe = pipe
 	ge.qc.UserManager = userManager
 
 	sdk.LogInfo(logger, "event", "event", event)
@@ -134,6 +135,18 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 			scPr.ClosedByRefID = rootWebHookObject.User.RefID(customerID)
 		case sdk.SourceCodePullRequestStatusMerged:
 			scPr.MergedByRefID = rootWebHookObject.User.RefID(customerID)
+		}
+
+		repo := &sdk.SourceCodeRepo{}
+		repo.Name = rootWebHookObject.Project.Name
+		repo.RefID = projectRefID
+
+		prr := api.PullRequest{}
+		prr.SourceCodePullRequest = scPr
+		prr.IID = strconv.FormatInt(pr.IID, 10)
+		_, _, rerr = api.PullRequestReviews(ge.qc, repo, prr, nil)
+		if rerr != nil {
+			return
 		}
 
 		sdk.LogDebug(logger, "source code pull request", "body", scPr.Stringify())
