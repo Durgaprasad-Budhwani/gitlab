@@ -22,6 +22,7 @@ type GitlabExport struct {
 	integrationInstanceID      *string
 	lastExportKey              string
 	systemWebHooksEnabled      bool
+	namespaceManager           *NamespaceManager
 }
 
 const concurrentAPICalls = 10
@@ -66,6 +67,8 @@ func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config,
 		rerr = fmt.Errorf("url is not valid: %v", err)
 		return
 	}
+	ge.qc.BaseURL = u.Scheme + "://" + u.Hostname()
+	sdk.LogDebug(logger, "base url", "base-url", ge.qc.BaseURL)
 	ge.isGitlabCloud = u.Hostname() == "gitlab.com"
 
 	return ge, nil
@@ -88,6 +91,7 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 	ge.integrationInstanceID = sdk.StringPointer(export.IntegrationInstanceID())
 	ge.qc.IntegrationInstanceID = *ge.integrationInstanceID
 	ge.qc.UserManager = NewUserManager(ge.qc.CustomerID, export, ge.state, ge.pipe, ge.qc.IntegrationInstanceID)
+	ge.namespaceManager = NewNamespaceManager(logger, ge.state)
 	ge.qc.Pipe = ge.pipe
 
 	ge.lastExportKey = "last_export_date"
@@ -173,58 +177,49 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		return err
 	}
 
-	orgs := make([]*api.Group, 0)
-	users := make([]*api.GitlabUser, 0)
-	if config.Accounts == nil {
-		groups, err := api.GroupsAll(gexport.qc)
-		if err != nil {
-			return err
-		}
-		orgs = append(orgs, groups...)
+	sdk.LogDebug(logger, "accounts", "accounts", config.Accounts)
 
-		user, err := api.LoginUser(gexport.qc)
+	allnamespaces := make([]*api.Namespace, 0)
+	if config.Accounts == nil {
+		namespaces, err := api.AllNamespaces(gexport.qc)
 		if err != nil {
 			return err
 		}
-		users = append(users, user)
+		allnamespaces = append(allnamespaces, namespaces...)
 	} else {
 		for _, acct := range *config.Accounts {
+			var acctType string
 			if acct.Type == sdk.ConfigAccountTypeOrg {
-				orgs = append(orgs, &api.Group{ID: acct.ID})
+				acctType = "group"
 			} else {
-				users = append(users, &api.GitlabUser{StrID: acct.ID})
+				acctType = "user"
 			}
+			customData, err := gexport.namespaceManager.GetNamespaceData(acct.ID)
+			if err != nil {
+				return err
+			}
+
+			allnamespaces = append(allnamespaces, &api.Namespace{ID: acct.ID, Name: *acct.Name, Path: customData.Path, Kind: acctType, ValidTier: customData.ValidTier})
 		}
 	}
 
-	for _, group := range orgs {
-		sdk.LogDebug(logger, "group", "name", group.Name)
+	for _, namespace := range allnamespaces {
+		sdk.LogDebug(logger, "namespace", "name", namespace.Name)
 		projectUsersMap := make(map[string]api.UsernameMap)
-		repos, err := gexport.exportGroupSourceCode(group, projectUsersMap)
+		repos, err := gexport.exportNamespaceSourceCode(namespace, projectUsersMap)
 		if err != nil {
-			sdk.LogWarn(logger, "error exporting sourcecode group", "group_id", group.ID, "group_name", group.Name, "err", err)
+			sdk.LogWarn(logger, "error exporting sourcecode namespace", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
 		}
-		err = gexport.exportGroupWork(group, repos, projectUsersMap)
+		err = gexport.exportReposWork(repos, projectUsersMap)
 		if err != nil {
-			sdk.LogWarn(logger, "error exporting sourcecode group", "group_id", group.ID, "group_name", group.Name, "err", err)
-		}
-	}
-
-	for _, user := range users {
-		sdk.LogDebug(logger, "user", "name", user.Name)
-		projectUsersMap := make(map[string]api.UsernameMap)
-		if err := gexport.exportUserSourceCode(user, projectUsersMap); err != nil {
-			sdk.LogWarn(logger, "error exporting work user", "user_id", user.ID, "user_name", user.Name, "err", err)
-		}
-		if err := gexport.exportUserWork(user, projectUsersMap); err != nil {
-			sdk.LogWarn(logger, "error exporting work user", "user_id", user.ID, "user_name", user.Name, "err", err)
+			sdk.LogWarn(logger, "error exporting work repos", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
 		}
 	}
 
 	return gexport.state.Set(gexport.lastExportKey, exportStartDate.Format(time.RFC3339))
 }
 
-func (ge *GitlabExport) exportGroupSourceCode(group *api.Group, projectUsersMap map[string]api.UsernameMap) ([]*sdk.SourceCodeRepo, error) {
+func (ge *GitlabExport) exportNamespaceSourceCode(namespace *api.Namespace, projectUsersMap map[string]api.UsernameMap) ([]*sdk.SourceCodeRepo, error) {
 
 	if !ge.isGitlabCloud {
 		if err := ge.exportEnterpriseUsers(); err != nil {
@@ -232,22 +227,12 @@ func (ge *GitlabExport) exportGroupSourceCode(group *api.Group, projectUsersMap 
 		}
 	}
 
-	repos, err := ge.exportGroupRepos(group)
+	repos, err := ge.exportNamespaceRepos(namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	return repos, ge.exportCommonRepos(repos, projectUsersMap)
-}
-
-func (ge *GitlabExport) exportUserSourceCode(user *api.GitlabUser, projectUsersMap map[string]api.UsernameMap) error {
-
-	repos, err := ge.exportUserRepos(user)
-	if err != nil {
-		return err
-	}
-
-	return ge.exportCommonRepos(repos, projectUsersMap)
 }
 
 func (ge *GitlabExport) exportCommonRepos(repos []*sdk.SourceCodeRepo, projectUsersMap map[string]api.UsernameMap) error {
@@ -297,7 +282,7 @@ func (ge *GitlabExport) exportProjectAndWrite(project *sdk.SourceCodeRepo, users
 	return nil
 }
 
-func (ge *GitlabExport) exportGroupWork(group *api.Group, projects []*sdk.SourceCodeRepo, projectUsersMap map[string]api.UsernameMap) (rerr error) {
+func (ge *GitlabExport) exportReposWork(projects []*sdk.SourceCodeRepo, projectUsersMap map[string]api.UsernameMap) (rerr error) {
 
 	for _, project := range projects {
 		err := ge.exportProjectAndWrite(project, projectUsersMap[project.RefID])
@@ -317,26 +302,6 @@ func (ge *GitlabExport) exportGroupWork(group *api.Group, projects []*sdk.Source
 	}
 
 	return
-}
-
-func (ge *GitlabExport) exportUserWork(user *api.GitlabUser, projectUsersMap map[string]api.UsernameMap) error {
-
-	projects, err := ge.exportUserProjects(user)
-	if err != nil {
-		return err
-	}
-	for _, project := range projects {
-		err := ge.exportProjectAndWrite(project, projectUsersMap[project.RefID])
-		if err != nil {
-			sdk.LogError(ge.logger, "error exporting project", "project", project.Name, "project_refid", project.RefID, "err", err)
-		}
-	}
-	err = ge.pipe.Flush()
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (ge *GitlabExport) IncludeRepo(login string, name string, isArchived bool) bool {

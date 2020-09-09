@@ -9,48 +9,25 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-func GroupReposPage(qc QueryContext, group *Group, params url.Values, stopOnUpdatedAt time.Time) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
+func GroupNamespaceReposPage(qc QueryContext, namespace *Namespace, params url.Values, stopOnUpdatedAt time.Time) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
 
 	params.Set("with_shared", "false")
 	params.Set("include_subgroups", "true")
 
-	sdk.LogDebug(qc.Logger, "group repos request", "group_id", group.ID, "group", group.FullPath, "params", sdk.Stringify(params))
+	sdk.LogDebug(qc.Logger, "group repos request", "namespace_id", namespace.ID, "namespace", namespace.FullPath, "params", sdk.Stringify(params))
 
-	objectPath := sdk.JoinURL("groups", group.ID, "projects")
+	objectPath := sdk.JoinURL("groups", namespace.ID, "projects")
 
 	return reposCommonPage(qc, params, stopOnUpdatedAt, objectPath, sdk.SourceCodeRepoAffiliationOrganization)
 }
 
-func UserReposPage(qc QueryContext, user *GitlabUser, params url.Values, stopOnUpdatedAt time.Time) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
+func UserReposPage(qc QueryContext, namespace *Namespace, params url.Values, stopOnUpdatedAt time.Time) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
 
-	sdk.LogDebug(qc.Logger, "user repos request", "user_id", user.ID, "username", user.Name, "params", sdk.Stringify(params))
+	sdk.LogDebug(qc.Logger, "user repos request", "namespace_id", namespace.ID, "username", namespace.Name, "params", sdk.Stringify(params))
 
-	objectPath := sdk.JoinURL("users", user.StrID, "projects")
+	objectPath := sdk.JoinURL("users", namespace.Path, "projects")
 
 	return reposCommonPage(qc, params, stopOnUpdatedAt, objectPath, sdk.SourceCodeRepoAffiliationUser)
-}
-
-func repoLanguage(qc QueryContext, repoID string) (maxLanguage string, err error) {
-
-	// sdk.LogDebug(qc.Logger, "language request", "repo", repoID)
-
-	objectPath := sdk.JoinURL("projects", repoID, "languages")
-
-	var languages map[string]float32
-
-	if _, err = qc.Get(objectPath, nil, &languages); err != nil {
-		return "", err
-	}
-
-	var maxValue float32
-	for language, percentage := range languages {
-		if percentage > maxValue {
-			maxValue = percentage
-			maxLanguage = language
-		}
-	}
-
-	return maxLanguage, nil
 }
 
 func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Time, objectPath string, afiliation sdk.SourceCodeRepoAffiliation) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
@@ -89,11 +66,6 @@ func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Ti
 			Description:   r.Description,
 			UpdatedAt:     sdk.TimeToEpoch(r.UpdatedAt),
 			Active:        !r.Archived,
-		}
-
-		repo.Language, err = repoLanguage(qc, refID)
-		if err != nil {
-			return
 		}
 
 		if r.Visibility == "private" {
@@ -147,11 +119,6 @@ func ProjectByID(qc QueryContext, projectID int64) (repo *sdk.SourceCodeRepo, er
 		Description:   r.Description,
 		UpdatedAt:     sdk.TimeToEpoch(r.UpdatedAt),
 		Active:        !r.Archived,
-	}
-
-	repo.Language, err = repoLanguage(qc, refID)
-	if err != nil {
-		return
 	}
 
 	if r.Visibility == "private" {

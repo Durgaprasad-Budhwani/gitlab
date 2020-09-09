@@ -7,18 +7,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestisValidTier(t *testing.T) {
+func TestIsValidTier(t *testing.T) {
 
 	assert := assert.New(t)
 
-	type group struct {
+	type namespace struct {
 		json.RawMessage
-		MarkedForDeletring string `json:"marked_for_deletion"`
+		MembersCountWithDescendants string `json:"members_count_with_descendants"`
 	}
 
-	body := `{"marked_for_deletion":true}`
+	body := `{"members_count_with_descendants":1}`
 
-	var g group
+	var g namespace
 
 	err := json.Unmarshal([]byte(body), &g)
 	assert.NoError(err)

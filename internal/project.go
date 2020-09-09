@@ -5,23 +5,10 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-func (ge *GitlabExport) exportGroupProjects(group *api.Group) (projects []*sdk.WorkProject, rerr error) {
-
-	rerr = ge.exportGroupProjectsRepos(group, func(repo *sdk.SourceCodeRepo) {
-		if ge.IncludeRepo(group.Name, repo.Name, !repo.Active) {
+func (ge *GitlabExport) exportNamespaceProjects(namespace *api.Namespace) (projects []*sdk.WorkProject, rerr error) {
+	rerr = ge.fetchNamespaceProjectsRepos(namespace, func(repo *sdk.SourceCodeRepo) {
+		if ge.IncludeRepo(namespace.Name, repo.Name, !repo.Active) {
 			projects = append(projects, ToProject(repo))
-		}
-
-	})
-
-	return
-}
-
-func (ge *GitlabExport) exportUserProjects(user *api.GitlabUser) (projects []*sdk.SourceCodeRepo, rerr error) {
-
-	rerr = ge.exportUserProjectsRepos(user, func(repo *sdk.SourceCodeRepo) {
-		if ge.IncludeRepo(user.Name, repo.Name, !repo.Active) {
-			projects = append(projects, repo)
 		}
 	})
 

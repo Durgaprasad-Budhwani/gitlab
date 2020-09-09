@@ -5,99 +5,119 @@ import (
 	"encoding/json"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
 )
 
-// Group internal group
-type Group struct {
+// Namespace internal namespace
+type Namespace struct {
 	ID                            string
 	Name                          string
+	Path                          string `json:"path"`
 	FullPath                      string
-	ValidTier                     bool
+	ValidTier                     bool `json:"valid_tier"`
 	MarkedToCreateProjectWebHooks bool
 	Visibility                    string
 	AvatarURL                     string
+	Kind                          string
 }
 
-// GroupsAll all groups
-func GroupsAll(qc QueryContext) (allGroups []*Group, err error) {
+// AllNamespaces all namespaces
+func AllNamespaces(qc QueryContext) (allnamespaces []*Namespace, err error) {
 	err = Paginate(qc.Logger, "", time.Time{}, func(log sdk.Logger, paginationParams url.Values, t time.Time) (np NextPage, _ error) {
 		paginationParams.Set("top_level_only", "true")
 
-		pi, groups, err := groups(qc, paginationParams)
+		pi, namespaces, err := namespaces(qc, paginationParams)
 		if err != nil {
 			return pi, err
 		}
-		allGroups = append(allGroups, groups...)
+		allnamespaces = append(allnamespaces, namespaces...)
 		return pi, nil
 	})
 	return
 }
 
-type rawGroup struct {
-	ID                 int64           `json:"id"`
-	Name               string          `json:"name"`
-	FullPath           string          `json:"full_path"`
-	MarkedForDeletring json.RawMessage `json:"marked_for_deletion"`
-	Visibility         string          `json:"visibility"`
-	AvatarURL          string          `json:"avatar_url"`
+type rawNamespace struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	FullPath string `json:"full_path"`
+	Path     string `json:"path"`
+	ParentID int64  `json:"parent_id"`
+	// If we have this field it means there is a valid tier
+	MembersCountWithDescendants json.RawMessage `json:"members_count_with_descendants"`
+	AvatarURL                   string          `json:"avatar_url"`
+	Kind                        string          `json:"kind"`
 }
 
-func (g *rawGroup) reset() {
+func (g *rawNamespace) reset() {
 	g.ID = 0
 	g.Name = ""
 	g.FullPath = ""
-	g.MarkedForDeletring = []byte("")
-	g.Visibility = ""
+	g.MembersCountWithDescendants = []byte("")
 	g.AvatarURL = ""
+	g.Kind = ""
+	g.Path = ""
+	g.ParentID = 0
 }
 
-// Groups fetch groups
-func groups(qc QueryContext, params url.Values) (np NextPage, groups []*Group, err error) {
+// Namespaces fetch namespaces
+func namespaces(qc QueryContext, params url.Values) (np NextPage, namespaces []*Namespace, err error) {
 
-	sdk.LogDebug(qc.Logger, "groups request", "params", sdk.Stringify(params))
+	sdk.LogDebug(qc.Logger, "namespaces request", "params", sdk.Stringify(params))
 
-	objectPath := "groups"
+	objectPath := "namespaces"
 
-	var rawGroups []json.RawMessage
+	var rawNamespaces []json.RawMessage
 
-	np, err = qc.Get(objectPath, params, &rawGroups)
+	np, err = qc.Get(objectPath, params, &rawNamespaces)
 	if err != nil {
 		return
 	}
 
-	var group rawGroup
+	var namespace rawNamespace
 
-	for _, g := range rawGroups {
-		err = json.Unmarshal(g, &group)
+	for _, n := range rawNamespaces {
+		err = json.Unmarshal(n, &namespace)
 		if err != nil {
 			return
 		}
-		groups = append(groups, &Group{
-			ID:         strconv.FormatInt(group.ID, 10),
-			Name:       group.Name,
-			FullPath:   group.FullPath,
-			Visibility: group.Visibility,
-			ValidTier:  isValidTier(g),
-			AvatarURL:  group.AvatarURL,
+
+		// Skip subgroups
+		if namespace.ParentID != 0 {
+			namespace.reset()
+			continue
+		}
+
+		if !strings.Contains(namespace.AvatarURL, "https") && namespace.AvatarURL != "" {
+			namespace.AvatarURL = qc.BaseURL + namespace.AvatarURL
+		}
+
+		namespaces = append(namespaces, &Namespace{
+			ID:        strconv.FormatInt(namespace.ID, 10),
+			Name:      namespace.Name,
+			FullPath:  namespace.FullPath,
+			ValidTier: isValidTier(n),
+			AvatarURL: namespace.AvatarURL,
+			Kind:      namespace.Kind,
+			Path:      namespace.Path,
 		})
-		group.reset()
+		namespace.reset()
 	}
 
 	return
 }
 
 func isValidTier(raw []byte) bool {
-	return bytes.Contains(raw, []byte("marked_for_deletion"))
+	return bytes.Contains(raw, []byte("members_count_with_descendants"))
 }
 
-func GroupUser(qc QueryContext, group *Group, userId string) (u *GitlabUser, err error) {
+func GroupUser(qc QueryContext, namespace *Namespace, userId string) (u *GitlabUser, err error) {
 
-	sdk.LogDebug(qc.Logger, "group user access level", "group_name", group.Name, "group_id", group.ID, "user_id", userId)
+	sdk.LogDebug(qc.Logger, "group user access level", "namespace_name", namespace.Name, "namespace_id", namespace.ID, "user_id", userId)
 
-	objectPath := sdk.JoinURL("groups", group.ID, "members", userId)
+	objectPath := sdk.JoinURL("groups", namespace.ID, "members", userId)
 
 	_, err = qc.Get(objectPath, nil, &u)
 	if err != nil {
@@ -109,30 +129,8 @@ func GroupUser(qc QueryContext, group *Group, userId string) (u *GitlabUser, err
 	return
 }
 
-// GroupProjectsCount get group projects count
-func GroupProjectsCount(qc QueryContext, group *Group) (int, error) {
-
-	sdk.LogDebug(qc.Logger, "group projects count", "group_name", group.Name, "group_id", group.ID)
-
-	params := url.Values{}
-	params.Set("with_projects", "true")
-
-	objectPath := sdk.JoinURL("groups", group.ID)
-
-	var rr struct {
-		Projects []json.RawMessage `json:"projects"`
-	}
-
-	_, err := qc.Get(objectPath, nil, &rr)
-	if err != nil {
-		return 0, err
-	}
-
-	return len(rr.Projects), nil
-}
-
 // GroupProjects get group projects
-func GroupProjects(qc QueryContext, group *Group) (int, error) {
+func GroupProjects(qc QueryContext, group *Namespace) (int, error) {
 
 	sdk.LogDebug(qc.Logger, "group projects", "group_name", group.Name, "group_id", group.ID)
 
