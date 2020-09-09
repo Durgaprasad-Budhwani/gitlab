@@ -194,7 +194,7 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 			} else {
 				acctType = "user"
 			}
-			customData, err := gexport.namespaceManager.GetNamespaceData(acct.ID)
+			customData, err := gexport.namespaceManager.GetNamespace(acct.ID)
 			if err != nil {
 				return err
 			}

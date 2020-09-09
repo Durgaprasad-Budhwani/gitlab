@@ -79,7 +79,7 @@ func (g *GitlabIntegration) Validate(validate sdk.Validate) (map[string]interfac
 			}
 
 			// TODO: Check if Description and Visibility are strictly necessary
-			err = ge.namespaceManager.SaveNamespaceToState(*namespace)
+			err = ge.namespaceManager.SaveNamespace(*namespace)
 			if err != nil {
 				return nil, err
 			}
@@ -155,7 +155,7 @@ func (g *GitlabIntegration) Dismiss(instance sdk.Instance) error {
 				sdk.LogInfo(logger, "deleted namespace webhook", "id", acct.ID)
 			}
 		}
-		customData, err := ge.namespaceManager.GetNamespaceData(acct.ID)
+		customData, err := ge.namespaceManager.GetNamespace(acct.ID)
 		if err != nil {
 			return err
 		}
