@@ -10,29 +10,26 @@ import (
 
 type callback func(item *sdk.SourceCodeRepo)
 
-func (ge *GitlabExport) exportGroupProjectsRepos(group *api.Group, appendItem callback) (rerr error) {
-	return api.Paginate(ge.logger, "", ge.lastExportDate, func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (pi api.NextPage, err error) {
-		pi, arr, err := api.GroupReposPage(ge.qc, group, params, stopOnUpdatedAt)
-		if err != nil {
-			return
+func (ge *GitlabExport) fetchNamespaceProjectsRepos(namespace *api.Namespace, appendItem callback) (rerr error) {
+	return api.Paginate(ge.logger, "", ge.lastExportDate, func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (api.NextPage, error) {
+		var arr []*sdk.SourceCodeRepo
+		var np api.NextPage
+		var err error
+		if namespace.Kind == "group" {
+			np, arr, err = api.GroupNamespaceReposPage(ge.qc, namespace, params, stopOnUpdatedAt)
+			if err != nil {
+				return np, err
+			}
+		} else {
+			np, arr, err = api.UserReposPage(ge.qc, namespace, params, stopOnUpdatedAt)
+			if err != nil {
+				return np, err
+			}
 		}
 		for _, item := range arr {
 			appendItem(item)
 		}
-		return
-	})
-}
-
-func (ge *GitlabExport) exportUserProjectsRepos(user *api.GitlabUser, appendItem callback) (rerr error) {
-	return api.Paginate(ge.logger, "", ge.lastExportDate, func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (pi api.NextPage, err error) {
-		pi, arr, err := api.UserReposPage(ge.qc, user, params, stopOnUpdatedAt)
-		if err != nil {
-			return
-		}
-		for _, item := range arr {
-			appendItem(item)
-		}
-		return
+		return np, nil
 	})
 }
 

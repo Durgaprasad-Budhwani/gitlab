@@ -37,7 +37,9 @@ const (
 // Validate validate
 func (g *GitlabIntegration) Validate(validate sdk.Validate) (map[string]interface{}, error) {
 	config := validate.Config()
-	sdk.LogDebug(g.logger, "Validate", "config", config)
+
+	logger := sdk.LogWith(g.logger, "customer_id", validate.CustomerID(), "integration_instance_id", validate.IntegrationInstanceID())
+
 	found, action := config.GetString("action")
 	if !found {
 		return nil, fmt.Errorf("validation had no action")
@@ -45,30 +47,49 @@ func (g *GitlabIntegration) Validate(validate sdk.Validate) (map[string]interfac
 	switch action {
 	case FetchAccounts:
 
-		ge, err := g.SetQueryConfig(g.logger, config, g.manager, validate.CustomerID())
+		ge, err := g.SetQueryConfig(logger, config, g.manager, validate.CustomerID())
 		if err != nil {
 			return nil, err
 		}
+		ge.namespaceManager = NewNamespaceManager(logger, validate.State())
 
 		accounts := []sdk.ValidatedAccount{}
 
-		groups, err := api.GroupsAll(ge.qc)
+		namespaces, err := api.AllNamespaces(ge.qc)
 		if err != nil {
 			return nil, err
 		}
-		for _, group := range groups {
-			reposCount, err := api.GroupProjectsCount(ge.qc, group)
+
+		sdk.LogDebug(ge.logger, "namespaces list", "namespaces", namespaces)
+
+		for _, namespace := range namespaces {
+			var repos []*sdk.SourceCodeRepo
+			err = ge.fetchNamespaceProjectsRepos(namespace, func(repo *sdk.SourceCodeRepo) {
+				repos = append(repos, repo)
+			})
 			if err != nil {
 				return nil, err
 			}
+
+			var accountType sdk.ConfigAccountType
+			if namespace.Kind == "group" {
+				accountType = sdk.ConfigAccountTypeOrg
+			} else {
+				accountType = sdk.ConfigAccountTypeUser
+			}
+
+			// TODO: Check if Description and Visibility are strictly necessary
+			err = ge.namespaceManager.SaveNamespaceToState(*namespace)
+			if err != nil {
+				return nil, err
+			}
+
 			accounts = append(accounts, sdk.ValidatedAccount{
-				ID:          group.ID,
-				Name:        group.Name,
-				Description: group.FullPath,
-				AvatarURL:   group.AvatarURL,
-				TotalCount:  reposCount,
-				Type:        "ORG",
-				Public:      group.Visibility != "private",
+				ID:         namespace.ID,
+				Name:       namespace.Name,
+				AvatarURL:  namespace.AvatarURL,
+				TotalCount: len(repos),
+				Type:       string(accountType),
 			})
 		}
 
@@ -91,6 +112,7 @@ func (g *GitlabIntegration) Enroll(instance sdk.Instance) error {
 // Dismiss is called when an existing integration instance is removed
 func (g *GitlabIntegration) Dismiss(instance sdk.Instance) error {
 
+	// TODO: Change repos to active false
 	logger := sdk.LogWith(g.logger, "customer_id", instance.CustomerID(), "integration_instance_id", instance.IntegrationInstanceID())
 	started := time.Now()
 	state := instance.State()
@@ -128,17 +150,28 @@ func (g *GitlabIntegration) Dismiss(instance sdk.Instance) error {
 		if acct.Type == sdk.ConfigAccountTypeOrg {
 			err := wr.unregisterWebhook(sdk.WebHookScopeOrg, acct.ID, acct.ID)
 			if err != nil {
-				sdk.LogInfo(logger, "error unregistering group webhook", "err", err)
+				sdk.LogInfo(logger, "error unregistering namespace webhook", "err", err)
 			} else {
-				sdk.LogInfo(logger, "deleted group webhook", "id", acct.ID)
+				sdk.LogInfo(logger, "deleted namespace webhook", "id", acct.ID)
 			}
 		}
-		group := &api.Group{
-			ID:   acct.ID,
-			Name: acct.ID,
+		customData, err := ge.namespaceManager.GetNamespaceData(acct.ID)
+		if err != nil {
+			return err
+		}
+		namespace := &api.Namespace{
+			ID:        acct.ID,
+			Name:      acct.ID,
+			Path:      customData.Path,
+			ValidTier: customData.ValidTier,
+		}
+		if acct.Type == sdk.ConfigAccountTypeOrg {
+			namespace.Kind = "group"
+		} else {
+			namespace.Kind = "user"
 		}
 		var repos []*sdk.SourceCodeRepo
-		err = ge.exportGroupProjectsRepos(group, func(repo *sdk.SourceCodeRepo) {
+		err = ge.fetchNamespaceProjectsRepos(namespace, func(repo *sdk.SourceCodeRepo) {
 			repos = append(repos, repo)
 		})
 		if err != nil {

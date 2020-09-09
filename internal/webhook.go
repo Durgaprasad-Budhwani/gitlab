@@ -417,44 +417,49 @@ func (g *GitlabIntegration) registerWebhooks(ge GitlabExport) error {
 		}
 	}
 
-	groups, err := api.GroupsAll(ge.qc)
+	namespaces, err := api.AllNamespaces(ge.qc)
 	if err != nil {
 		return err
 	}
-	sdk.LogDebug(ge.logger, "groups", "groups", sdk.Stringify(groups))
+	sdk.LogDebug(ge.logger, "namespaces", "namespaces", sdk.Stringify(namespaces))
 	var userHasProjectWebhookAcess bool
-	for _, group := range groups {
-		if group.ValidTier {
+	for _, namespace := range namespaces {
+		if namespace.Kind == "user" {
+			sdk.LogDebug(ge.logger, "user namespace marked to create project webhooks", "user", namespace.Name)
+			namespace.MarkedToCreateProjectWebHooks = true
+			continue
+		}
+		if namespace.ValidTier {
 			if loginUser.IsAdmin {
-				err = wr.registerWebhook(sdk.WebHookScopeOrg, group.ID, group.Name)
+				err = wr.registerWebhook(sdk.WebHookScopeOrg, namespace.ID, namespace.Name)
 				if err != nil {
-					group.MarkedToCreateProjectWebHooks = true
-					sdk.LogWarn(g.logger, "there was an error trying to create group webhooks, will try to create project webhooks instead", "group", group.Name, "user", loginUser.Name, "user_access_level", loginUser.AccessLevel, "err", err)
+					namespace.MarkedToCreateProjectWebHooks = true
+					sdk.LogWarn(g.logger, "there was an error trying to create namespace webhooks, will try to create project webhooks instead", "namespace", namespace.Name, "user", loginUser.Name, "user_access_level", loginUser.AccessLevel, "err", err)
 				}
 			} else {
-				user, err := api.GroupUser(ge.qc, group, loginUser.StrID)
+				user, err := api.GroupUser(ge.qc, namespace, loginUser.StrID)
 				if err != nil && strings.Contains(err.Error(), "Not found") {
-					group.MarkedToCreateProjectWebHooks = true
-					sdk.LogWarn(ge.logger, "use is not member of this group, will try to create project webhooks", "group", group.Name, "user_id", loginUser.ID, "user_name", loginUser.Name, "err", err)
+					namespace.MarkedToCreateProjectWebHooks = true
+					sdk.LogWarn(ge.logger, "use is not member of this namespace, will try to create project webhooks", "namespace", namespace.Name, "user_id", loginUser.ID, "user_name", loginUser.Name, "err", err)
 					continue
 				}
 				if err != nil {
-					group.MarkedToCreateProjectWebHooks = true
-					sdk.LogWarn(ge.logger, "there was an error trying to get group user access level, will try to create project webhooks instead", "group", group.Name, "user", user.Name, "user_access_level", user.AccessLevel, "err", err)
+					namespace.MarkedToCreateProjectWebHooks = true
+					sdk.LogWarn(ge.logger, "there was an error trying to get namespace user access level, will try to create project webhooks instead", "namespace", namespace.Name, "user", user.Name, "user_access_level", user.AccessLevel, "err", err)
 					continue
 				}
 				sdk.LogDebug(ge.logger, "user", "access_level", user.AccessLevel)
 
 				if user.AccessLevel >= api.Owner {
 					userHasProjectWebhookAcess = true
-					err = wr.registerWebhook(sdk.WebHookScopeOrg, group.ID, group.Name)
+					err = wr.registerWebhook(sdk.WebHookScopeOrg, namespace.ID, namespace.Name)
 					if err != nil {
-						group.MarkedToCreateProjectWebHooks = true
-						sdk.LogWarn(ge.logger, "there was an error trying to create group webhooks, will try to create project webhooks instead", "group", group.Name, "user", user.Name, "user_access_level", user.AccessLevel, "err", err)
+						namespace.MarkedToCreateProjectWebHooks = true
+						sdk.LogWarn(ge.logger, "there was an error trying to create namespace webhooks, will try to create project webhooks instead", "namespace", namespace.Name, "user", user.Name, "user_access_level", user.AccessLevel, "err", err)
 					}
 				} else {
-					group.MarkedToCreateProjectWebHooks = true
-					sdk.LogWarn(ge.logger, "at least Onwner level access is needed to create webhooks for this group will try to create project webhooks instead", "group", group.Name, "user", user.Name, "user_access_level", user.AccessLevel)
+					namespace.MarkedToCreateProjectWebHooks = true
+					sdk.LogWarn(ge.logger, "at least Onwner level access is needed to create webhooks for this namespace will try to create project webhooks instead", "namespace", namespace.Name, "user", user.Name, "user_access_level", user.AccessLevel)
 				}
 			}
 
@@ -462,12 +467,12 @@ func (g *GitlabIntegration) registerWebhooks(ge GitlabExport) error {
 	}
 
 	sdk.LogDebug(ge.logger, "creating project webhooks")
-	for _, group := range groups {
-		if group.MarkedToCreateProjectWebHooks {
-			projects, err := ge.exportGroupRepos(group)
+	for _, namespace := range namespaces {
+		if namespace.MarkedToCreateProjectWebHooks {
+			projects, err := ge.exportNamespaceRepos(namespace)
 			if err != nil {
-				err = fmt.Errorf("error trying to get group projects err => %s", err)
-				webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, group.ID, sdk.WebHookScopeOrg, err)
+				err = fmt.Errorf("error trying to get namespace projects err => %s", err)
+				webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, namespace.ID, sdk.WebHookScopeOrg, err)
 				return err
 			}
 			for _, project := range projects {
