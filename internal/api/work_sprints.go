@@ -1,21 +1,20 @@
 package api
 
 import (
-	"fmt"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/pinpt/agent.next/sdk"
 )
 
-func WorkSprintPage(qc QueryContext, project *sdk.SourceCodeRepo, params url.Values) (pi NextPage, res []*sdk.AgileSprint, err error) {
+func SprintsPage(qc QueryContext, project *sdk.SourceCodeRepo, params url.Values) (pi NextPage, res []*sdk.AgileSprint, err error) {
 
 	sdk.LogDebug(qc.Logger, "work sprints", "project", project.Name, "project_ref_id", project.RefID, "params", params)
 
 	objectPath := sdk.JoinURL("projects", url.QueryEscape(project.RefID), "milestones")
 	var rawsprints []struct {
-		ID          int       `json:"id"`
-		Iid         int       `json:"iid"`
+		ID          int64     `json:"id"`
 		ProjectID   int       `json:"project_id"`
 		Title       string    `json:"title"`
 		Description string    `json:"description"`
@@ -32,15 +31,19 @@ func WorkSprintPage(qc QueryContext, project *sdk.SourceCodeRepo, params url.Val
 	}
 	for _, rawsprint := range rawsprints {
 
-		item := &sdk.AgileSprint{}
-		item.Active = true
-		item.CustomerID = qc.CustomerID
-		item.RefType = qc.RefType
-		item.RefID = fmt.Sprint(rawsprint.Iid)
+		sprintRefID := strconv.FormatInt(rawsprint.ID, 10)
+
+		sprint := &sdk.AgileSprint{}
+		sprint.ID = sdk.NewAgileSprintID(qc.CustomerID, sprintRefID, qc.RefType)
+		sprint.Active = true
+		sprint.CustomerID = qc.CustomerID
+		sprint.RefType = qc.RefType
+		sprint.RefID = sprintRefID
+		sprint.BoardID = sdk.StringPointer(qc.SprintManager.GetBoardID(rawsprint.ID))
 
 		start, err := time.Parse("2006-01-02", rawsprint.StartDate)
 		if err == nil {
-			sdk.ConvertTimeToDateModel(start, &item.StartedDate)
+			sdk.ConvertTimeToDateModel(start, &sprint.StartedDate)
 		} else {
 			if rawsprint.StartDate != "" {
 				sdk.LogError(qc.Logger, "could not figure out start date, skipping sprint object", "err", err, "start_date", rawsprint.StartDate)
@@ -49,7 +52,7 @@ func WorkSprintPage(qc QueryContext, project *sdk.SourceCodeRepo, params url.Val
 		}
 		end, err := time.Parse("2006-01-02", rawsprint.DueDate)
 		if err == nil {
-			sdk.ConvertTimeToDateModel(end, &item.EndedDate)
+			sdk.ConvertTimeToDateModel(end, &sprint.EndedDate)
 		} else {
 			if rawsprint.DueDate != "" {
 				sdk.LogError(qc.Logger, "could not figure out due date, skipping sprint object", "err", err, "due_date", rawsprint.DueDate)
@@ -58,21 +61,25 @@ func WorkSprintPage(qc QueryContext, project *sdk.SourceCodeRepo, params url.Val
 		}
 
 		if rawsprint.State == "closed" {
-			sdk.ConvertTimeToDateModel(rawsprint.UpdatedAt, &item.CompletedDate)
-			item.Status = sdk.AgileSprintStatusClosed
+			sdk.ConvertTimeToDateModel(rawsprint.UpdatedAt, &sprint.CompletedDate)
+			sprint.Status = sdk.AgileSprintStatusClosed
 		} else {
 			if !start.IsZero() && start.After(time.Now()) {
-				item.Status = sdk.AgileSprintStatusFuture
+				sprint.Status = sdk.AgileSprintStatusFuture
 			} else {
-				item.Status = sdk.AgileSprintStatusActive
+				sprint.Status = sdk.AgileSprintStatusActive
 			}
 		}
-		item.Goal = rawsprint.Description
-		item.Name = rawsprint.Title
-		item.RefID = fmt.Sprint(rawsprint.ID)
-		item.RefType = qc.RefType
 
-		res = append(res, item)
+		sprint.ProjectIds = []string{sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)}
+		sprint.IssueIds = qc.IssueManager.GetProjectIssuesIDs(project.ID)
+		sprint.Columns = qc.SprintManager.GetSprintColumnsIssuesIDs(sprintRefID)
+
+		sprint.Goal = rawsprint.Description
+		sprint.Name = rawsprint.Title
+		sprint.URL = sdk.StringPointer(rawsprint.WebURL)
+
+		res = append(res, sprint)
 	}
 
 	return

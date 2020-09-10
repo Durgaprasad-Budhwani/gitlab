@@ -89,6 +89,8 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 	ge.state = export.State()
 	ge.config = export.Config()
 	ge.integrationInstanceID = sdk.StringPointer(export.IntegrationInstanceID())
+	ge.qc.IssueManager = NewIssueManager(logger)
+	ge.qc.SprintManager = NewSprintManager(logger)
 	ge.qc.IntegrationInstanceID = *ge.integrationInstanceID
 	ge.qc.UserManager = NewUserManager(ge.qc.CustomerID, export, ge.state, ge.pipe, ge.qc.IntegrationInstanceID)
 	ge.namespaceManager = NewNamespaceManager(logger, ge.state)
@@ -214,6 +216,17 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		if err != nil {
 			sdk.LogWarn(logger, "error exporting work repos", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
 		}
+		err = gexport.exportGroupBoards(namespace)
+		if err != nil {
+			return err
+		}
+		err = gexport.exportReposBoards(repos)
+		if err != nil {
+			return err
+		}
+		if err := gexport.exportReposSprints(repos); err != nil {
+			return err
+		}
 	}
 
 	return gexport.state.Set(gexport.lastExportKey, exportStartDate.Format(time.RFC3339))
@@ -276,9 +289,6 @@ func (ge *GitlabExport) exportRepoAndWrite(repo *sdk.SourceCodeRepo, projectUser
 
 func (ge *GitlabExport) exportProjectAndWrite(project *sdk.SourceCodeRepo, users api.UsernameMap) error {
 	ge.exportProjectIssues(project, users)
-	if err := ge.exportProjectSprints(project); err != nil {
-		return err
-	}
 	return nil
 }
 

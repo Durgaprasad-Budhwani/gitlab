@@ -10,6 +10,10 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
+const (
+	Backlog int64 = iota
+)
+
 func WorkIssuesPage(
 	qc QueryContext,
 	project *sdk.SourceCodeRepo,
@@ -17,6 +21,7 @@ func WorkIssuesPage(
 	issues chan sdk.WorkIssue) (pi NextPage, err error) {
 
 	params.Set("scope", "all")
+	params.Set("with_labels_details", "true")
 
 	sdk.LogDebug(qc.Logger, "work issues", "project", project.Name, "project_ref_id", project.RefID, "params", params)
 
@@ -33,18 +38,14 @@ func WorkIssuesPage(
 
 	for _, rawissue := range rawissues {
 
-		idparts := strings.Split(project.RefID, "/")
-		var identifier string
-		if len(idparts) == 1 {
-			identifier = idparts[0] + "-" + fmt.Sprint(rawissue.Iid)
-		} else {
-			identifier = idparts[1] + "-" + fmt.Sprint(rawissue.Iid)
-		}
+		issueRefID := strconv.FormatInt(rawissue.ID, 10)
+		issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
+
 		item := sdk.WorkIssue{}
 		item.Active = true
 		item.CustomerID = qc.CustomerID
 		item.RefType = qc.RefType
-		item.RefID = fmt.Sprint(rawissue.Iid)
+		item.RefID = issueRefID
 
 		item.AssigneeRefID = fmt.Sprint(rawissue.Assignee.ID)
 		item.ReporterRefID = fmt.Sprint(rawissue.Author.ID)
@@ -53,11 +54,20 @@ func WorkIssuesPage(
 		if rawissue.EpicIid != 0 {
 			item.EpicID = sdk.StringPointer(fmt.Sprint(rawissue.EpicIid))
 		}
-		item.Identifier = identifier
+		item.Identifier = rawissue.References.Full
 		item.ProjectID = sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)
 		item.Title = rawissue.Title
 		item.Status = rawissue.State
-		item.Tags = rawissue.Labels
+		tags := make([]string, 0)
+		if len(rawissue.Labels) == 0 {
+			qc.IssueManager.AddIssueID(Backlog, issueID, project.ID)
+		} else {
+			for _, label := range rawissue.Labels {
+				qc.IssueManager.AddIssueID(label.ID, issueID, project.ID)
+				tags = append(tags, label.Name)
+			}
+		}
+		item.Tags = tags
 		item.Type = "Issue"
 		item.URL = rawissue.WebURL
 
@@ -84,14 +94,14 @@ func WorkIssuesPage(
 }
 
 type IssueModel struct {
-	ID          int       `json:"id"`
+	ID          int64     `json:"id"`
 	Iid         int       `json:"iid"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
 	State       string    `json:"state"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
-	Labels      []string  `json:"labels"`
+	Labels      []Label   `json:"labels"`
 	Milestone   struct {
 		ID          int       `json:"id"`
 		Iid         int       `json:"iid"`

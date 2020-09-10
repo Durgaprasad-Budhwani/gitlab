@@ -16,6 +16,20 @@ type UserManager2 interface {
 	EmitGitUser(sdk.Logger, GitUser2) error
 }
 
+type IssueManager2 interface {
+	AddIssueID(labelID int64, issueID string, projectID string)
+	GetIssuesIDs(labelID int64) []string
+	GetProjectIDs(labelID int64) map[int64]bool
+	GetProjectIssuesIDs(projectID string) []string
+}
+
+type SprintManager2 interface {
+	AddBoardID(sprintID int64, boardID string)
+	GetBoardID(sprintID int64) string
+	AddColumnWithIssuesIDs(sprintID string, issuesIDs []string)
+	GetSprintColumnsIssuesIDs(sprintID string) []sdk.AgileSprintColumns
+}
+
 // QueryContext query context
 type QueryContext struct {
 	BaseURL string
@@ -31,6 +45,8 @@ type QueryContext struct {
 	IntegrationInstanceID string
 	Pipe                  sdk.Pipe
 	UserManager           UserManager2
+	IssueManager          IssueManager2
+	SprintManager         SprintManager2
 }
 
 type NextPage string
