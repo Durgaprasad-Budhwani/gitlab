@@ -444,7 +444,7 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 				err = wr.registerWebhook(sdk.WebHookScopeOrg, namespace.ID, namespace.Name)
 				if err != nil {
 					namespace.MarkedToCreateProjectWebHooks = true
-					sdk.LogWarn(g.logger, "there was an error trying to create namespace webhooks, will try to create project webhooks instead", "namespace", namespace.Name, "user", loginUser.Name, "user_access_level", loginUser.AccessLevel, "err", err)
+					sdk.LogWarn(ge.logger, "there was an error trying to create namespace webhooks, will try to create project webhooks instead", "namespace", namespace.Name, "user", loginUser.Name, "user_access_level", loginUser.AccessLevel, "err", err)
 				}
 			} else {
 				user, err := api.GroupUser(ge.qc, namespace, loginUser.StrID)

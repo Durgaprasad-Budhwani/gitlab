@@ -16,8 +16,12 @@ func getNamespacesSelectedAccounts(qc api.QueryContext, accounts *sdk.ConfigAcco
 
 	for _, namespace := range allNamespaces {
 		r := *accounts
-		nsSelected := r[namespace.ID].Selected
-		if nsSelected != nil && *nsSelected {
+		account, ok := r[namespace.ID]
+		if !ok {
+			continue
+		}
+
+		if account.Selected != nil && *account.Selected {
 			filteredNamespaces = append(filteredNamespaces, namespace)
 		}
 	}
