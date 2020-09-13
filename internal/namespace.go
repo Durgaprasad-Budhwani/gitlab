@@ -1,54 +1,26 @@
 package internal
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
 )
 
-// NamespaceManager namespace manager
-type NamespaceManager struct {
-	state  sdk.State
-	logger sdk.Logger
-}
+func getNamespacesSelectedAccounts(qc api.QueryContext, accounts *sdk.ConfigAccounts) ([]*api.Namespace, error) {
 
-const namespaceStatecacheKey = "namespace_"
+	filteredNamespaces := make([]*api.Namespace, 0)
 
-// SaveNamespace save namespace into state
-func (u *NamespaceManager) SaveNamespace(namespace api.Namespace) error {
-	cachekey := namespaceStatecacheKey + namespace.ID
-
-	bts, err := json.Marshal(namespace)
+	allNamespaces, err := api.AllNamespaces(qc)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return u.state.Set(cachekey, string(bts))
-}
-
-// GetNamespace get namespace custom data
-func (u *NamespaceManager) GetNamespace(namespaceID string) (ns api.Namespace, err error) {
-	cachekey := namespaceStatecacheKey + namespaceID
-
-	ok, err := u.state.Get(cachekey, &ns)
-	if err != nil {
-		return
+	for _, namespace := range allNamespaces {
+		r := *accounts
+		nsSelected := r[namespace.ID].Selected
+		if nsSelected != nil && *nsSelected {
+			filteredNamespaces = append(filteredNamespaces, namespace)
+		}
 	}
 
-	if !ok {
-		sdk.LogDebug(u.logger, "key not found", "key", cachekey)
-		return ns, fmt.Errorf("key not found, key = %s", cachekey)
-	}
-
-	return
-}
-
-// NewNamespaceManager returns a new instance
-func NewNamespaceManager(logger sdk.Logger, state sdk.State) *NamespaceManager {
-	return &NamespaceManager{
-		state:  state,
-		logger: logger,
-	}
+	return filteredNamespaces, nil
 }
