@@ -182,7 +182,6 @@ const Integration = () => {
 					if (res?.accounts) {
 						var t = res.accounts as Account[];
 						t.forEach(( item ) => {
-							console.log("item",JSON.stringify(item))
 							if ( newconfig  && newconfig.accounts){
 								newconfig.accounts[item.id] = item;
 							}
