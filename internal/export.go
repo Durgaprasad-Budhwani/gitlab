@@ -22,7 +22,6 @@ type GitlabExport struct {
 	integrationInstanceID      *string
 	lastExportKey              string
 	systemWebHooksEnabled      bool
-	namespaceManager           *NamespaceManager
 }
 
 const concurrentAPICalls = 10
@@ -91,7 +90,6 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 	ge.integrationInstanceID = sdk.StringPointer(export.IntegrationInstanceID())
 	ge.qc.IntegrationInstanceID = *ge.integrationInstanceID
 	ge.qc.UserManager = NewUserManager(ge.qc.CustomerID, export, ge.state, ge.pipe, ge.qc.IntegrationInstanceID)
-	ge.namespaceManager = NewNamespaceManager(logger, ge.state)
 	ge.qc.Pipe = ge.pipe
 
 	ge.lastExportKey = "last_export_date"
@@ -161,15 +159,6 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		return err
 	}
 
-	sdk.LogInfo(logger, "registering webhooks")
-
-	err = i.registerWebhooks(gexport)
-	if err != nil {
-		return err
-	}
-
-	sdk.LogInfo(logger, "registering webhooks done")
-
 	exportStartDate := time.Now()
 
 	err = gexport.workConfig()
@@ -187,21 +176,23 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		}
 		allnamespaces = append(allnamespaces, namespaces...)
 	} else {
-		for _, acct := range *config.Accounts {
-			var acctType string
-			if acct.Type == sdk.ConfigAccountTypeOrg {
-				acctType = "group"
-			} else {
-				acctType = "user"
-			}
-			customData, err := gexport.namespaceManager.GetNamespace(acct.ID)
-			if err != nil {
-				return err
-			}
 
-			allnamespaces = append(allnamespaces, &api.Namespace{ID: acct.ID, Name: *acct.Name, Path: customData.Path, Kind: acctType, ValidTier: customData.ValidTier})
+		namespaces, err := getNamespacesSelectedAccounts(gexport.qc, config.Accounts)
+		if err != nil {
+			sdk.LogError(logger, "error getting data accounts", "err", err)
 		}
+
+		allnamespaces = append(allnamespaces, namespaces...)
 	}
+
+	sdk.LogInfo(logger, "registering webhooks")
+
+	err = i.registerWebhooks(gexport, allnamespaces)
+	if err != nil {
+		return err
+	}
+
+	sdk.LogInfo(logger, "registering webhooks done")
 
 	for _, namespace := range allnamespaces {
 		sdk.LogDebug(logger, "namespace", "name", namespace.Name)
@@ -223,13 +214,13 @@ func (ge *GitlabExport) exportNamespaceSourceCode(namespace *api.Namespace, proj
 
 	if !ge.isGitlabCloud {
 		if err := ge.exportEnterpriseUsers(); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error on export enterprise users %s", err)
 		}
 	}
 
 	repos, err := ge.exportNamespaceRepos(namespace)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error on export namespace repos %s", err)
 	}
 
 	return repos, ge.exportCommonRepos(repos, projectUsersMap)

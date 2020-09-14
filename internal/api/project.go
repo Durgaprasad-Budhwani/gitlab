@@ -23,7 +23,7 @@ func GroupNamespaceReposPage(qc QueryContext, namespace *Namespace, params url.V
 
 func UserReposPage(qc QueryContext, namespace *Namespace, params url.Values, stopOnUpdatedAt time.Time) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
 
-	sdk.LogDebug(qc.Logger, "user repos request", "namespace_id", namespace.ID, "username", namespace.Name, "params", sdk.Stringify(params))
+	sdk.LogDebug(qc.Logger, "user repos request", "namespace_path", namespace.Path, "username", namespace.Name, "params", sdk.Stringify(params))
 
 	objectPath := sdk.JoinURL("users", namespace.Path, "projects")
 
