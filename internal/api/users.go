@@ -107,6 +107,7 @@ func UserByID(qc QueryContext, userID int64) (user *sdk.SourceCodeUser, err erro
 type GitlabUser struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
+	Username    string `json:"username"`
 	IsAdmin     bool   `json:"is_admin"`
 	AccessLevel int64  `json:"access_level"`
 	StrID       string
