@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/pinpt/agent.next.gitlab/internal/api"
 	"github.com/pinpt/agent.next/sdk"
@@ -51,7 +50,6 @@ func (g *GitlabIntegration) Validate(validate sdk.Validate) (map[string]interfac
 		if err != nil {
 			return nil, err
 		}
-		ge.namespaceManager = NewNamespaceManager(logger, validate.State())
 
 		accounts := []sdk.ValidatedAccount{}
 
@@ -78,18 +76,13 @@ func (g *GitlabIntegration) Validate(validate sdk.Validate) (map[string]interfac
 				accountType = sdk.ConfigAccountTypeUser
 			}
 
-			// TODO: Check if Description and Visibility are strictly necessary
-			err = ge.namespaceManager.SaveNamespace(*namespace)
-			if err != nil {
-				return nil, err
-			}
-
 			accounts = append(accounts, sdk.ValidatedAccount{
 				ID:         namespace.ID,
 				Name:       namespace.Name,
 				AvatarURL:  namespace.AvatarURL,
 				TotalCount: len(repos),
 				Type:       string(accountType),
+				Selected:   true,
 			})
 		}
 
@@ -106,92 +99,6 @@ func (g *GitlabIntegration) Enroll(instance sdk.Instance) error {
 	// attempt to add an org level web hook
 	// started := time.Now()
 	// sdk.LogInfo(g.logger, "enroll finished", "duration", time.Since(started), "customer_id", instance.CustomerID(), "integration_instance_id", instance.IntegrationInstanceID())
-	return nil
-}
-
-// Dismiss is called when an existing integration instance is removed
-func (g *GitlabIntegration) Dismiss(instance sdk.Instance) error {
-
-	// TODO: Change repos to active false
-	logger := sdk.LogWith(g.logger, "customer_id", instance.CustomerID(), "integration_instance_id", instance.IntegrationInstanceID())
-	started := time.Now()
-	state := instance.State()
-	config := instance.Config()
-
-	sdk.LogInfo(logger, "dismiss started")
-
-	ge, err := g.SetQueryConfig(logger, config, g.manager, instance.CustomerID())
-	if err != nil {
-		return fmt.Errorf("error creating http client: %w", err)
-	}
-
-	wr := webHookRegistration{
-		customerID:            instance.CustomerID(),
-		integrationInstanceID: instance.IntegrationInstanceID(),
-		manager:               g.manager.WebHookManager(),
-		ge:                    &ge,
-	}
-
-	loginUser, err := api.LoginUser(ge.qc)
-	if err != nil {
-		return fmt.Errorf("error getting user info %w", err)
-	}
-
-	if !ge.isGitlabCloud && loginUser.IsAdmin {
-		err := wr.unregisterWebhook(sdk.WebHookScopeSystem, "", "")
-		if err != nil {
-			sdk.LogInfo(logger, "error unregistering system webhook", "err", err)
-		} else {
-			sdk.LogInfo(logger, "deleted system webhook")
-		}
-	}
-
-	for _, acct := range *config.Accounts {
-		if acct.Type == sdk.ConfigAccountTypeOrg {
-			err := wr.unregisterWebhook(sdk.WebHookScopeOrg, acct.ID, acct.ID)
-			if err != nil {
-				sdk.LogInfo(logger, "error unregistering namespace webhook", "err", err)
-			} else {
-				sdk.LogInfo(logger, "deleted namespace webhook", "id", acct.ID)
-			}
-		}
-		customData, err := ge.namespaceManager.GetNamespace(acct.ID)
-		if err != nil {
-			return err
-		}
-		namespace := &api.Namespace{
-			ID:        acct.ID,
-			Name:      acct.ID,
-			Path:      customData.Path,
-			ValidTier: customData.ValidTier,
-		}
-		if acct.Type == sdk.ConfigAccountTypeOrg {
-			namespace.Kind = "group"
-		} else {
-			namespace.Kind = "user"
-		}
-		var repos []*sdk.SourceCodeRepo
-		err = ge.fetchNamespaceProjectsRepos(namespace, func(repo *sdk.SourceCodeRepo) {
-			repos = append(repos, repo)
-		})
-		if err != nil {
-			return err
-		}
-		for _, repo := range repos {
-			err := wr.unregisterWebhook(sdk.WebHookScopeRepo, repo.RefID, repo.Name)
-			if err != nil {
-				sdk.LogInfo(logger, "error unregistering repo webhook", "err", err)
-			} else {
-				sdk.LogInfo(logger, "deleted repo webhook", "id", acct.ID)
-			}
-		}
-
-	}
-
-	state.Delete(ge.lastExportKey)
-
-	sdk.LogInfo(logger, "dismiss completed", "duration", time.Since(started))
-
 	return nil
 }
 
