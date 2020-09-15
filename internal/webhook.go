@@ -495,7 +495,7 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 					return err
 				}
-				sdk.LogDebug(ge.logger, "user project level", "level", user.AccessLevel)
+				sdk.LogDebug(ge.logger, "user project level", "user_level", user.AccessLevel)
 				if user.AccessLevel >= api.Maintainer || userHasProjectWebhookAcess {
 					sdk.LogDebug(ge.logger, "registering webhook for project", "project_name", project.Name)
 					err = wr.registerWebhook(sdk.WebHookScopeRepo, project.RefID, project.Name)

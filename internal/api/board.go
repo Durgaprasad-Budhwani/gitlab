@@ -7,10 +7,6 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-type milestone struct {
-	ID int64 `json:"id"`
-}
-
 // Label gitlab label
 type Label struct {
 	ID   int64  `json:"id"`
@@ -28,7 +24,7 @@ type Board struct {
 	Name      string      `json:"name"`
 	Project   struct{}    `json:"project"`
 	Lists     []BoardList `json:"lists"`
-	Milestone *milestone  `json:"milestone"`
+	Milestone *Milestone  `json:"milestone"`
 }
 
 func RepoBoardsPage(
@@ -42,7 +38,7 @@ func RepoBoardsPage(
 
 	initialKanbanURL := sdk.JoinURL(qc.BaseURL, "projects", repo.Name, "-", "boards", repo.RefID)
 
-	return boardsCommonPage(qc, objectPath, initialKanbanURL, params)
+	return boardsCommonPage(qc, repo.ID, objectPath, initialKanbanURL, params)
 }
 
 func GroupBoardsPage(
@@ -56,12 +52,13 @@ func GroupBoardsPage(
 
 	initialKanbanURL := sdk.JoinURL(qc.BaseURL, "groups", namespace.Path, "-", "boards", namespace.ID)
 
-	return boardsCommonPage(qc, objectPath, initialKanbanURL, params)
+	return boardsCommonPage(qc, namespace.ID, objectPath, initialKanbanURL, params)
 }
 
 // BoardsPage boards page
 func boardsCommonPage(
 	qc QueryContext,
+	entityID string,
 	objectPath string,
 	initialKanbanURL string,
 	params url.Values) (np NextPage, err error) {
@@ -86,6 +83,18 @@ func boardsCommonPage(
 		theboard.IntegrationInstanceID = sdk.StringPointer(qc.IntegrationInstanceID)
 		theboard.Name = board.Name
 
+		board.Lists = append(board.Lists, BoardList{
+			Label: Label{
+				Name: "Open",
+				ID:   OpenColumn,
+			},
+		}, BoardList{
+			Label: Label{
+				Name: "Closed",
+				ID:   ClosedColumn,
+			},
+		})
+
 		columns := make([]sdk.AgileBoardColumns, 0)
 		for _, col := range board.Lists {
 			columns = append(columns, sdk.AgileBoardColumns{
@@ -94,11 +103,13 @@ func boardsCommonPage(
 		}
 		theboard.Columns = columns
 
-		theboard.BacklogIssueIds = qc.IssueManager.GetIssuesIDs(Backlog)
-
 		// Scrum Board
 		if board.Milestone != nil {
 			qc.SprintManager.AddBoardID(board.Milestone.ID, sdk.NewAgileBoardID(qc.CustomerID, boardRefID, qc.RefType))
+			for _, column := range board.Lists {
+				columnIssues := qc.IssueManager.GetIssuesIDsByLabelID(column.Label.ID)
+				qc.SprintManager.AddColumnWithIssuesIDs(strconv.FormatInt(board.Milestone.ID, 10), columnIssues)
+			}
 			theboard.Type = sdk.AgileBoardTypeScrum
 		} else { // Kanban board
 			theboard.Type = sdk.AgileBoardTypeKanban
@@ -112,33 +123,32 @@ func boardsCommonPage(
 			kanban.IssueIds = make([]string, 0)
 			kanban.Columns = make([]sdk.AgileKanbanColumns, 0)
 
-			projectids := make(map[int64]bool)
-
 			for _, column := range board.Lists {
-				columnIssues := qc.IssueManager.GetIssuesIDs(column.Label.ID)
-				qc.SprintManager.AddColumnWithIssuesIDs(strconv.FormatInt(board.Milestone.ID, 10), columnIssues)
+				var columnIssues []string
+				if column.Label.ID == OpenColumn {
+					columnIssues = qc.IssueManager.GetOpenIssuesIDsByProject(entityID)
+				} else if column.Label.ID == ClosedColumn {
+					columnIssues = qc.IssueManager.GetCloseIssuesIDsByProject(entityID)
+				} else {
+					columnIssues = qc.IssueManager.GetIssuesIDsByLabelID(column.Label.ID)
+				}
+				sdk.LogDebug(qc.Logger, "debug-column-issuess-check", "issues", columnIssues, "label", column.Label.Name)
 				bc := sdk.AgileKanbanColumns{
 					IssueIds: columnIssues,
 					Name:     column.Label.Name,
 				}
 				kanban.Columns = append(kanban.Columns, bc)
-				kanban.IssueIds = append(kanban.IssueIds, columnIssues...)
-
-				labelProjectIDs := qc.IssueManager.GetProjectIDs(column.Label.ID)
-				for projectID := range labelProjectIDs {
-					projectids[projectID] = true
-				}
 			}
+
+			kanban.IssueIds = qc.IssueManager.GetIssuesIDsByProject(entityID)
+
 			kanban.URL = sdk.StringPointer(initialKanbanURL)
 			kanban.ID = sdk.NewAgileKanbanID(qc.CustomerID, boardRefID, qc.RefType)
 			kanban.BoardID = theboard.ID
 
-			projectIDsArray := make([]string, 0)
-			for projectID := range projectids {
-				projectIDsArray = append(projectIDsArray, strconv.FormatInt(projectID, 10))
-			}
+			kanban.ProjectIds = []string{entityID}
 
-			kanban.ProjectIds = projectIDsArray
+			sdk.LogDebug(qc.Logger, "debug-column-issues-ids", "boardID", theboard.ID, kanban.Name, kanban.IssueIds, "columns", kanban.Columns)
 
 			if err := qc.Pipe.Write(&kanban); err != nil {
 				return np, err

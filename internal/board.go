@@ -66,7 +66,7 @@ func (i *SprintManager) GetBoardID(sprintID int64) string {
 func (i *SprintManager) AddColumnWithIssuesIDs(sprintID string, issuesIDs []string) {
 	agileSprintColumn, ok := i.refBoardColumnsIssues.Load(sprintID)
 	if !ok {
-		i.refBoardColumnsIssues.Store(sprintID, make([]*sdk.AgileSprintColumns, 0))
+		i.refBoardColumnsIssues.Store(sprintID, []sdk.AgileSprintColumns{{IssueIds: issuesIDs}})
 		return
 	}
 
@@ -80,7 +80,10 @@ func (i *SprintManager) AddColumnWithIssuesIDs(sprintID string, issuesIDs []stri
 }
 
 func (i *SprintManager) GetSprintColumnsIssuesIDs(sprintID string) []sdk.AgileSprintColumns {
-	columns, _ := i.refSprintBoard.Load(sprintID)
+	columns, ok := i.refSprintBoard.Load(sprintID)
+	if !ok {
+		return []sdk.AgileSprintColumns{}
+	}
 	return columns.([]sdk.AgileSprintColumns)
 }
 

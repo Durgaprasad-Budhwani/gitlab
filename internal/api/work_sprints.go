@@ -72,7 +72,7 @@ func SprintsPage(qc QueryContext, project *sdk.SourceCodeRepo, params url.Values
 		}
 
 		sprint.ProjectIds = []string{sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)}
-		sprint.IssueIds = qc.IssueManager.GetProjectIssuesIDs(project.ID)
+		sprint.IssueIds = qc.IssueManager.GetIssuesIDsByMilestone(rawsprint.ID)
 		sprint.Columns = qc.SprintManager.GetSprintColumnsIssuesIDs(sprintRefID)
 
 		sprint.Goal = rawsprint.Description

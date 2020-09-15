@@ -207,10 +207,10 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		if err != nil {
 			sdk.LogWarn(logger, "error exporting work repos", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
 		}
-		err = gexport.exportGroupBoards(namespace)
-		if err != nil {
-			return err
-		}
+		// err = gexport.exportGroupBoards(namespace)
+		// if err != nil {
+		// 	return err
+		// }
 		err = gexport.exportReposBoards(repos)
 		if err != nil {
 			return err

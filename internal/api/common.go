@@ -17,10 +17,13 @@ type UserManager2 interface {
 }
 
 type IssueManager2 interface {
-	AddIssueID(labelID int64, issueID string, projectID string)
-	GetIssuesIDs(labelID int64) []string
-	GetProjectIDs(labelID int64) map[int64]bool
-	GetProjectIssuesIDs(projectID string) []string
+	AddIssueID(labelID int64, issueID string, projectID string, milestoneID int64)
+	GetIssuesIDsByLabelID(labelID int64) []string
+	GetProjectIDsByLabel(labelID int64) map[int64]bool
+	GetIssuesIDsByProject(projectID string) []string
+	GetIssuesIDsByMilestone(milestoneID int64) []string
+	GetOpenIssuesIDsByProject(projectID string) []string
+	GetCloseIssuesIDsByProject(projectID string) []string
 }
 
 type SprintManager2 interface {

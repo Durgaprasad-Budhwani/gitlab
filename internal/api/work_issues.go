@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	Backlog int64 = iota
+	OpenColumn int64 = iota
+	ClosedColumn
 )
 
 func WorkIssuesPage(
@@ -59,11 +60,23 @@ func WorkIssuesPage(
 		item.Title = rawissue.Title
 		item.Status = rawissue.State
 		tags := make([]string, 0)
+		sdk.LogDebug(qc.Logger, "debug-project-id", "projectID", project.ID, "issueID", issueID)
 		if len(rawissue.Labels) == 0 {
-			qc.IssueManager.AddIssueID(Backlog, issueID, project.ID)
+
+			issueColumn := OpenColumn
+			if rawissue.State == "closed" {
+				issueColumn = ClosedColumn
+			}
+
+			if rawissue.Milestone == nil {
+				qc.IssueManager.AddIssueID(issueColumn, issueID, project.ID, 0)
+			} else {
+				sdk.LogDebug(qc.Logger, "debug-issues", "issueID", issueID, "milestoneID", rawissue.Milestone.ID)
+				qc.IssueManager.AddIssueID(issueColumn, issueID, project.ID, rawissue.Milestone.ID)
+			}
 		} else {
 			for _, label := range rawissue.Labels {
-				qc.IssueManager.AddIssueID(label.ID, issueID, project.ID)
+				qc.IssueManager.AddIssueID(label.ID, issueID, project.ID, 0)
 				tags = append(tags, label.Name)
 			}
 		}
@@ -74,18 +87,21 @@ func WorkIssuesPage(
 		sdk.ConvertTimeToDateModel(rawissue.CreatedAt, &item.CreatedDate)
 		sdk.ConvertTimeToDateModel(rawissue.UpdatedAt, &item.UpdatedDate)
 
-		item.SprintIds = []string{sdk.NewAgileSprintID(qc.CustomerID, strconv.FormatInt(int64(rawissue.Milestone.Iid), 10), qc.RefType)}
-		duedate, err := time.Parse("2006-01-02", rawissue.Milestone.DueDate)
-		if err != nil {
-			duedate = time.Time{}
-		}
-		sdk.ConvertTimeToDateModel(duedate, &item.PlannedEndDate)
+		if rawissue.Milestone != nil {
+			item.SprintIds = []string{sdk.NewAgileSprintID(qc.CustomerID, strconv.FormatInt(int64(rawissue.Milestone.ID), 10), qc.RefType)}
 
-		startdate, err := time.Parse("2006-01-02", rawissue.Milestone.StartDate)
-		if err != nil {
-			startdate = time.Time{}
+			duedate, err := time.Parse("2006-01-02", rawissue.Milestone.DueDate)
+			if err != nil {
+				duedate = time.Time{}
+			}
+			sdk.ConvertTimeToDateModel(duedate, &item.PlannedEndDate)
+
+			startdate, err := time.Parse("2006-01-02", rawissue.Milestone.StartDate)
+			if err != nil {
+				startdate = time.Time{}
+			}
+			sdk.ConvertTimeToDateModel(startdate, &item.PlannedStartDate)
 		}
-		sdk.ConvertTimeToDateModel(startdate, &item.PlannedStartDate)
 
 		issues <- item
 	}
@@ -93,28 +109,31 @@ func WorkIssuesPage(
 	return
 }
 
-type IssueModel struct {
+type Milestone struct {
 	ID          int64     `json:"id"`
+	ProjectID   int       `json:"project_id"`
 	Iid         int       `json:"iid"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
 	State       string    `json:"state"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
-	Labels      []Label   `json:"labels"`
-	Milestone   struct {
-		ID          int       `json:"id"`
-		Iid         int       `json:"iid"`
-		GroupID     int       `json:"group_id"`
-		Title       string    `json:"title"`
-		Description string    `json:"description"`
-		State       string    `json:"state"`
-		CreatedAt   time.Time `json:"created_at"`
-		UpdatedAt   time.Time `json:"updated_at"`
-		DueDate     string    `json:"due_date"`
-		StartDate   string    `json:"start_date"`
-		WebURL      string    `json:"web_url"`
-	} `json:"milestone"`
+	DueDate     string    `json:"due_date"`
+	StartDate   string    `json:"start_date"`
+	WebURL      string    `json:"web_url"`
+	GroupID     int       `json:"group_id"`
+}
+
+type IssueModel struct {
+	ID                 int64     `json:"id"`
+	Iid                int       `json:"iid"`
+	Title              string    `json:"title"`
+	Description        string    `json:"description"`
+	State              string    `json:"state"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+	Labels             []Label   `json:"labels"`
+	Milestone          *Milestone
 	Assignees          []UserModel `json:"assignees"`
 	Author             UserModel   `json:"author"`
 	Assignee           UserModel   `json:"assignee"`
