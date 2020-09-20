@@ -17,19 +17,20 @@ type UserManager2 interface {
 }
 
 type IssueManager2 interface {
-	AddIssueID(labelID int64, issueID string, projectID string, milestoneID int64)
-	GetIssuesIDsByLabelID(labelID int64) []string
-	GetProjectIDsByLabel(labelID int64) map[int64]bool
+	AddIssueID(issueID string, issueState string, projectID string, milestoneRefID int64, labels []int64)
+	GetIssuesIDsByLabelRefIDMilestonRefID(labelRefID int64, milestoneRefID int64) []string
 	GetIssuesIDsByProject(projectID string) []string
 	GetIssuesIDsByMilestone(milestoneID int64) []string
-	GetOpenIssuesIDsByProject(projectID string) []string
-	GetCloseIssuesIDsByProject(projectID string) []string
+	GetOpenIssuesIDsByProject(projectLabels []int64, projectID string) []string
+	GetCloseIssuesIDsByProject2(projectLabels []int64, projectID string) []string
+	GetOpenIssuesIDsByGroupBoardLabels(boardLabels []int64, projectIDs []string) []string
+	GetClosedIssuesIDsByGroupBoardLabels(boardLabels []int64, projectIDs []string) []string
 }
 
 type SprintManager2 interface {
 	AddBoardID(sprintID int64, boardID string)
 	GetBoardID(sprintID int64) string
-	AddColumnWithIssuesIDs(sprintID string, issuesIDs []string)
+	AddColumnWithIssuesIDs(sprintID string, columnName string, issuesIDs []string)
 	GetSprintColumnsIssuesIDs(sprintID string) []sdk.AgileSprintColumns
 }
 
@@ -48,8 +49,29 @@ type QueryContext struct {
 	IntegrationInstanceID string
 	Pipe                  sdk.Pipe
 	UserManager           UserManager2
-	IssueManager          IssueManager2
+	WorkManager           WorkManagerI
 	SprintManager         SprintManager2
 }
 
 type NextPage string
+
+type Assignee struct{}
+
+// WorkManagerI interface to manage issues, boards, milestones, labels, columns
+type WorkManagerI interface {
+	// add issues with all it's details
+	AddIssue(issueID string, issueState bool, projectRefID int64, labels []*Label, milestone *Milestone, assignees *UserModel, weight *int)
+	// get issues for specific column using those filters
+	// GetBoardColumnIssues(projectsIDs []string, milestoneRefID int64, boardLabels *[]api.Label, columnLabel *api.Label, assignee *api.UserModel) []string
+	GetBoardColumnIssues(projectsRefIDs []string, milestone *Milestone, boardLabels []*Label, columnsLabels []BoardList, columnLabel *Label, assignee *UserModel, weight *int) []string
+	// add milestone details by its ref id
+	AddMilestoneDetails(milestoneRefID int64, milestone Milestone)
+	// add a label to a board with milestone associated
+	AddBoardColumnLabelToMilestone(milestoneRefID int64, boardID string, label *Label)
+	// get sprint columns for sdk.WorkSprint
+	GetSprintColumns(milestoneRefID string) []sdk.AgileSprintColumns
+	// get sprint issues for sdk.WorkSprint
+	GetSprintIssues(milestoneRefID string) []string
+	// get sprint board ids for sdk.WorkSprint
+	GetSprintBoardsIDs(milestoneRefID string) []string
+}

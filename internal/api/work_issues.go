@@ -48,7 +48,10 @@ func WorkIssuesPage(
 		item.RefType = qc.RefType
 		item.RefID = issueRefID
 
-		item.AssigneeRefID = fmt.Sprint(rawissue.Assignee.ID)
+		if rawissue.Assignee != nil {
+			item.AssigneeRefID = fmt.Sprint(rawissue.Assignee.ID)
+		}
+
 		item.ReporterRefID = fmt.Sprint(rawissue.Author.ID)
 		item.CreatorRefID = fmt.Sprint(rawissue.Author.ID)
 		item.Description = rawissue.Description
@@ -59,27 +62,15 @@ func WorkIssuesPage(
 		item.ProjectID = sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)
 		item.Title = rawissue.Title
 		item.Status = rawissue.State
+
 		tags := make([]string, 0)
-		sdk.LogDebug(qc.Logger, "debug-project-id", "projectID", project.ID, "issueID", issueID)
-		if len(rawissue.Labels) == 0 {
-
-			issueColumn := OpenColumn
-			if rawissue.State == "closed" {
-				issueColumn = ClosedColumn
-			}
-
-			if rawissue.Milestone == nil {
-				qc.IssueManager.AddIssueID(issueColumn, issueID, project.ID, 0)
-			} else {
-				sdk.LogDebug(qc.Logger, "debug-issues", "issueID", issueID, "milestoneID", rawissue.Milestone.ID)
-				qc.IssueManager.AddIssueID(issueColumn, issueID, project.ID, rawissue.Milestone.ID)
-			}
-		} else {
-			for _, label := range rawissue.Labels {
-				qc.IssueManager.AddIssueID(label.ID, issueID, project.ID, 0)
-				tags = append(tags, label.Name)
-			}
+		for _, label := range rawissue.Labels {
+			tags = append(tags, label.Name)
 		}
+
+		sdk.LogDebug(qc.Logger, "debug-debug3 issue - refID - ID", "ref-id", rawissue.ID, "issue", issueID, "identifier", rawissue.References.Full)
+		qc.WorkManager.AddIssue(issueID, rawissue.State == "opened", rawissue.ProjectRefID, rawissue.Labels, rawissue.Milestone, rawissue.Assignee, rawissue.Weight)
+
 		item.Tags = tags
 		item.Type = "Issue"
 		item.URL = rawissue.WebURL
@@ -88,7 +79,7 @@ func WorkIssuesPage(
 		sdk.ConvertTimeToDateModel(rawissue.UpdatedAt, &item.UpdatedDate)
 
 		if rawissue.Milestone != nil {
-			item.SprintIds = []string{sdk.NewAgileSprintID(qc.CustomerID, strconv.FormatInt(int64(rawissue.Milestone.ID), 10), qc.RefType)}
+			item.SprintIds = []string{sdk.NewAgileSprintID(qc.CustomerID, strconv.FormatInt(int64(rawissue.Milestone.RefID), 10), qc.RefType)}
 
 			duedate, err := time.Parse("2006-01-02", rawissue.Milestone.DueDate)
 			if err != nil {
@@ -109,21 +100,6 @@ func WorkIssuesPage(
 	return
 }
 
-type Milestone struct {
-	ID          int64     `json:"id"`
-	ProjectID   int       `json:"project_id"`
-	Iid         int       `json:"iid"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	State       string    `json:"state"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	DueDate     string    `json:"due_date"`
-	StartDate   string    `json:"start_date"`
-	WebURL      string    `json:"web_url"`
-	GroupID     int       `json:"group_id"`
-}
-
 type IssueModel struct {
 	ID                 int64     `json:"id"`
 	Iid                int       `json:"iid"`
@@ -132,11 +108,10 @@ type IssueModel struct {
 	State              string    `json:"state"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
-	Labels             []Label   `json:"labels"`
+	Labels             []*Label  `json:"labels"`
 	Milestone          *Milestone
-	Assignees          []UserModel `json:"assignees"`
 	Author             UserModel   `json:"author"`
-	Assignee           UserModel   `json:"assignee"`
+	Assignee           *UserModel  `json:"assignee"`
 	UserNotesCount     int         `json:"user_notes_count"`
 	MergeRequestsCount int         `json:"merge_requests_count"`
 	Upvotes            int         `json:"upvotes"`
@@ -155,8 +130,7 @@ type IssueModel struct {
 		Count          int `json:"count"`
 		CompletedCount int `json:"completed_count"`
 	} `json:"task_completion_status"`
-	Weight   interface{} `json:"weight"`
-	HasTasks bool        `json:"has_tasks"`
+	HasTasks bool `json:"has_tasks"`
 	Links    struct {
 		Self       string `json:"self"`
 		Notes      string `json:"notes"`
@@ -168,9 +142,11 @@ type IssueModel struct {
 		Relative string `json:"relative"`
 		Full     string `json:"full"`
 	} `json:"references"`
-	MovedToID interface{} `json:"moved_to_id"`
-	EpicIid   int         `json:"epic_iid"`
-	Epic      interface{} `json:"epic"`
+	MovedToID    interface{} `json:"moved_to_id"`
+	EpicIid      int         `json:"epic_iid"`
+	Epic         interface{} `json:"epic"`
+	Weight       *int        `json:"weight"`
+	ProjectRefID int64       `json:"project_id"`
 }
 
 type UserModel struct {

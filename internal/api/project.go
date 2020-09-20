@@ -142,7 +142,7 @@ func ProjectUser(qc QueryContext, repo *sdk.SourceCodeRepo, userId string) (u *G
 		return
 	}
 
-	u.StrID = strconv.FormatInt(u.ID, 10)
+	u.StrID = strconv.FormatInt(u.RefID, 10)
 
 	return
 }

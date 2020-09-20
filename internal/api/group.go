@@ -124,7 +124,7 @@ func GroupUser(qc QueryContext, namespace *Namespace, userId string) (u *GitlabU
 		return
 	}
 
-	u.StrID = strconv.FormatInt(u.ID, 10)
+	u.StrID = strconv.FormatInt(u.RefID, 10)
 
 	return
 }

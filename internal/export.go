@@ -88,7 +88,7 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 	ge.state = export.State()
 	ge.config = export.Config()
 	ge.integrationInstanceID = sdk.StringPointer(export.IntegrationInstanceID())
-	ge.qc.IssueManager = NewIssueManager(logger)
+	ge.qc.WorkManager = NewWorkManager(logger)
 	ge.qc.SprintManager = NewSprintManager(logger)
 	ge.qc.IntegrationInstanceID = *ge.integrationInstanceID
 	ge.qc.UserManager = NewUserManager(ge.qc.CustomerID, export, ge.state, ge.pipe, ge.qc.IntegrationInstanceID)
@@ -189,33 +189,56 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 
 	sdk.LogInfo(logger, "registering webhooks")
 
-	err = i.registerWebhooks(gexport, allnamespaces)
-	if err != nil {
-		return err
-	}
+	// err = i.registerWebhooks(gexport, allnamespaces)
+	// if err != nil {
+	// 	return err
+	// }
 
 	sdk.LogInfo(logger, "registering webhooks done")
 
 	for _, namespace := range allnamespaces {
 		sdk.LogDebug(logger, "namespace", "name", namespace.Name)
 		projectUsersMap := make(map[string]api.UsernameMap)
+
 		repos, err := gexport.exportNamespaceSourceCode(namespace, projectUsersMap)
 		if err != nil {
 			sdk.LogWarn(logger, "error exporting sourcecode namespace", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
 		}
+		sdk.LogDebug(logger, "debug-debug-repos-work")
+
 		err = gexport.exportReposWork(repos, projectUsersMap)
 		if err != nil {
 			sdk.LogWarn(logger, "error exporting work repos", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
 		}
-		// err = gexport.exportGroupBoards(namespace)
+
+		sdk.LogDebug(logger, "debug-debug-fetch-project-sprints")
+		reposSprints, err := gexport.fetchProjectsSprints(repos)
+		if err != nil {
+			sdk.LogWarn(logger, "error fetching repo sprints ", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
+		}
+
+		sdk.LogDebug(logger, "debug-debug-fetch-group-sprints")
+		// groupSprints, err := gexport.fetchGroupSprints(namespace)
+		// if err != nil {
+		// 	sdk.LogWarn(logger, "error fetching group sprints ", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
+		// }
+
+		// sdk.LogDebug(logger, "debug-debug-export-group-boards")
+		// err = gexport.exportGroupBoards(namespace, repos)
 		// if err != nil {
 		// 	return err
 		// }
+		sdk.LogDebug(logger, "debug-debug-export-repos-boards")
 		err = gexport.exportReposBoards(repos)
 		if err != nil {
 			return err
 		}
-		if err := gexport.exportReposSprints(repos); err != nil {
+
+		sdk.LogDebug(logger, "debug-debug-export-sprints")
+		// if err := gexport.exportSprints(append(reposSprints, groupSprints...)); err != nil {
+		// 	return err
+		// }
+		if err := gexport.exportSprints(reposSprints); err != nil {
 			return err
 		}
 	}

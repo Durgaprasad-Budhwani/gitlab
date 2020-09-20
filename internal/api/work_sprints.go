@@ -8,30 +8,52 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-func SprintsPage(qc QueryContext, project *sdk.SourceCodeRepo, params url.Values) (pi NextPage, res []*sdk.AgileSprint, err error) {
+type Milestone struct {
+	RefID       int64     `json:"id"`
+	ProjectID   int       `json:"project_id"`
+	Iid         int       `json:"iid"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	State       string    `json:"state"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	DueDate     string    `json:"due_date"`
+	StartDate   string    `json:"start_date"`
+	WebURL      string    `json:"web_url"`
+	GroupID     int       `json:"group_id"`
+}
 
-	sdk.LogDebug(qc.Logger, "work sprints", "project", project.Name, "project_ref_id", project.RefID, "params", params)
+func RepoSprintsPage(qc QueryContext, project *sdk.SourceCodeRepo, params url.Values) (pi NextPage, res []*sdk.AgileSprint, err error) {
+
+	sdk.LogDebug(qc.Logger, "project work sprints", "project", project.Name, "project_ref_id", project.RefID, "params", params)
 
 	objectPath := sdk.JoinURL("projects", url.QueryEscape(project.RefID), "milestones")
-	var rawsprints []struct {
-		ID          int64     `json:"id"`
-		ProjectID   int       `json:"project_id"`
-		Title       string    `json:"title"`
-		Description string    `json:"description"`
-		State       string    `json:"state"`
-		CreatedAt   time.Time `json:"created_at"`
-		UpdatedAt   time.Time `json:"updated_at"`
-		DueDate     string    `json:"due_date"`
-		StartDate   string    `json:"start_date"`
-		WebURL      string    `json:"web_url"`
-	}
-	pi, err = qc.Get(objectPath, params, &rawsprints)
+
+	return CommonSprintsPage(qc, params, objectPath)
+}
+
+func GroupSprintsPage(qc QueryContext, namespace *Namespace, params url.Values) (pi NextPage, res []*sdk.AgileSprint, err error) {
+
+	sdk.LogDebug(qc.Logger, "group work sprints", "group", namespace.Name, "group_ref_id", namespace.ID, "params", params)
+
+	objectPath := sdk.JoinURL("groups", url.QueryEscape(namespace.ID), "milestones")
+
+	return CommonSprintsPage(qc, params, objectPath)
+}
+
+func CommonSprintsPage(qc QueryContext, params url.Values, url string) (pi NextPage, res []*sdk.AgileSprint, err error) {
+
+	var rawsprints []Milestone
+	pi, err = qc.Get(url, params, &rawsprints)
 	if err != nil {
 		return
 	}
 	for _, rawsprint := range rawsprints {
 
-		sprintRefID := strconv.FormatInt(rawsprint.ID, 10)
+		sdk.LogDebug(qc.Logger, "debug-debug", "sprint-ref-id", rawsprint.RefID, "sprint", rawsprint)
+		qc.WorkManager.AddMilestoneDetails(rawsprint.RefID, rawsprint)
+
+		sprintRefID := strconv.FormatInt(rawsprint.RefID, 10)
 
 		sprint := &sdk.AgileSprint{}
 		sprint.ID = sdk.NewAgileSprintID(qc.CustomerID, sprintRefID, qc.RefType)
@@ -39,7 +61,6 @@ func SprintsPage(qc QueryContext, project *sdk.SourceCodeRepo, params url.Values
 		sprint.CustomerID = qc.CustomerID
 		sprint.RefType = qc.RefType
 		sprint.RefID = sprintRefID
-		sprint.BoardID = sdk.StringPointer(qc.SprintManager.GetBoardID(rawsprint.ID))
 
 		start, err := time.Parse("2006-01-02", rawsprint.StartDate)
 		if err == nil {
@@ -70,10 +91,6 @@ func SprintsPage(qc QueryContext, project *sdk.SourceCodeRepo, params url.Values
 				sprint.Status = sdk.AgileSprintStatusActive
 			}
 		}
-
-		sprint.ProjectIds = []string{sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)}
-		sprint.IssueIds = qc.IssueManager.GetIssuesIDsByMilestone(rawsprint.ID)
-		sprint.Columns = qc.SprintManager.GetSprintColumnsIssuesIDs(sprintRefID)
 
 		sprint.Goal = rawsprint.Description
 		sprint.Name = rawsprint.Title

@@ -2,11 +2,13 @@ package internal
 
 import "github.com/pinpt/agent.next/sdk"
 
-func (ge *GitlabExport) exportReposSprints(repos []*sdk.SourceCodeRepo) error {
-	for _, repo := range repos {
-		if err := ge.exportRepoSprints(repo); err != nil {
-			return err
-		}
+func (ge *GitlabExport) exportSprints(sprints []*sdk.AgileSprint) error {
+	for _, sprint := range sprints {
+		_ = sprint
+		// sprint.BoardIds =
+		// sprint.Columns =
+		// sprint.ProjectIds =
+		// sprint.IssueIds =
 	}
 
 	return nil
