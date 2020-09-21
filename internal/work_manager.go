@@ -8,11 +8,30 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
+// type storage struct {
+// 	state sdk.State
+// }
+
+// func (s *storage) Load(key string) (value bool, exists bool) {
+// 	exists, _ = s.state.Get(key, &value)
+// 	return value, exists
+// }
+
+// func (s *storage) Storage(key string, value bool) {
+// 	s.state.Set(key, value)
+// }
+
+// type storageI interface {
+// 	Load(key interface{}) interface{}
+// 	Storage(key, value interface{})
+// }
+
 // WorkManager work manager
 type WorkManager struct {
 	refProject           sync.Map
 	refMilestonesDetails sync.Map
 	logger               sdk.Logger
+	// storage              storageI
 }
 
 type issueDetail struct {
@@ -29,7 +48,9 @@ type milestoneDetail struct {
 }
 
 // AddIssue desc
-func (w *WorkManager) AddIssue(issueID string, issueState bool, projectRefID int64, labels []*api.Label, milestone *api.Milestone, assignee *api.UserModel, weight *int) {
+func (w *WorkManager) AddIssue(issueID string, issueState bool, projectID string, labels []*api.Label, milestone *api.Milestone, assignee *api.UserModel, weight *int) {
+
+	sdk.LogDebug(w.logger, "debug-debug4-adding-issue", "issueID", issueID)
 
 	var convertLabelsToMap = func(labels []*api.Label) map[int64]*api.Label {
 
@@ -57,21 +78,19 @@ func (w *WorkManager) AddIssue(issueID string, issueState bool, projectRefID int
 		Weight:         weight,
 	}
 
-	projectRefIDStr := strconv.FormatInt(projectRefID, 10)
-
-	projectIssues, ok := w.refProject.Load(projectRefIDStr)
+	projectIssues, ok := w.refProject.Load(projectID)
 	if !ok {
-		w.refProject.Store(projectRefIDStr, map[string]*issueDetail{issueID: issueD})
+		w.refProject.Store(projectID, map[string]*issueDetail{issueID: issueD})
 	} else {
 		projectIssues := projectIssues.(map[string]*issueDetail)
 		projectIssues[issueID] = issueD
-		w.refProject.Store(projectRefIDStr, projectIssues)
+		w.refProject.Store(projectID, projectIssues)
 	}
 
 }
 
 // GetBoardColumnIssues desc
-func (w *WorkManager) GetBoardColumnIssues(projectsRefIDs []string, milestone *api.Milestone, boardLabels []*api.Label, boardLists []api.BoardList, columnLabel *api.Label, assignee *api.UserModel, weight *int) []string {
+func (w *WorkManager) GetBoardColumnIssues(projectsIDs []string, milestone *api.Milestone, boardLabels []*api.Label, boardLists []api.BoardList, columnLabel *api.Label, assignee *api.UserModel, weight *int) []string {
 
 	issues := make([]string, 0)
 
@@ -87,15 +106,18 @@ func (w *WorkManager) GetBoardColumnIssues(projectsRefIDs []string, milestone *a
 		boardLabels = append(boardLabels, columnLabel)
 	}
 
-	if len(projectsRefIDs) == 0 {
-		w.refProject.Range(func(projectRefID, v interface{}) bool {
-			projectsRefIDs = append(projectsRefIDs, projectRefID.(string))
+	if len(projectsIDs) == 0 {
+		w.refProject.Range(func(projectID, v interface{}) bool {
+			projectsIDs = append(projectsIDs, projectID.(string))
 			return true
 		})
 	}
 
-	for _, projectRefID := range projectsRefIDs {
-		projectIssues, ok := w.refProject.Load(projectRefID)
+	sdk.LogDebug(w.logger, "debug-debug4", "projectID", projectsIDs)
+
+	for _, projectID := range projectsIDs {
+		projectIssues, ok := w.refProject.Load(projectID)
+		sdk.LogDebug(w.logger, "debug-debug4", "projectIssues", projectIssues, "ok", ok)
 		if !ok {
 			continue
 		}

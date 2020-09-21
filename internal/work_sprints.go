@@ -10,7 +10,7 @@ import (
 
 func (ge *GitlabExport) exportRepoSprints(project *sdk.SourceCodeRepo) error {
 	return api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, rerr error) {
-		pi, sprints, err := api.RepoSprintsPage(ge.qc, project, params)
+		pi, sprints, err := api.RepoSprintsPage(ge.qc, project, ge.lastExportDate, params)
 		if err != nil {
 			return pi, err
 		}
@@ -44,7 +44,7 @@ func (ge *GitlabExport) fetchProjectSprints(project *sdk.SourceCodeRepo) ([]*sdk
 	allSprints := make([]*sdk.AgileSprint, 0)
 
 	return allSprints, api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, rerr error) {
-		pi, sprints, err := api.RepoSprintsPage(ge.qc, project, params)
+		pi, sprints, err := api.RepoSprintsPage(ge.qc, project, ge.lastExportDate, params)
 		if err != nil {
 			return pi, err
 		}
@@ -65,7 +65,7 @@ func (ge *GitlabExport) fetchGroupSprints(namespace *api.Namespace) ([]*sdk.Agil
 	allSprints := make([]*sdk.AgileSprint, 0)
 
 	return allSprints, api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, rerr error) {
-		pi, sprints, err := api.GroupSprintsPage(ge.qc, namespace, params)
+		pi, sprints, err := api.GroupSprintsPage(ge.qc, namespace, ge.lastExportDate, params)
 		if err != nil {
 			return pi, err
 		}

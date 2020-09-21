@@ -41,7 +41,7 @@ func (ge *GitlabExport) fetchInitialProjectIssues(project *sdk.SourceCodeRepo, i
 		params.Set("updated_after", ge.lastExportDateGitlabFormat)
 	}
 
-	return api.WorkIssuesPage(ge.qc, project, params, issues)
+	return api.WorkIssuesPage(ge.qc, project, ge.lastExportDate, params, issues)
 }
 
 func (ge *GitlabExport) exportIssueEntitiesAndWrite(project *sdk.SourceCodeRepo, issues chan sdk.WorkIssue, users api.UsernameMap) {
@@ -98,7 +98,7 @@ func (ge *GitlabExport) fetchRemainingProjectIssues(project *sdk.SourceCodeRepo,
 		if ge.lastExportDateGitlabFormat != "" {
 			params.Set("updated_after", ge.lastExportDateGitlabFormat)
 		}
-		pi, rerr = api.WorkIssuesPage(ge.qc, project, params, pissues)
+		pi, rerr = api.WorkIssuesPage(ge.qc, project, ge.lastExportDate, params, pissues)
 		return
 	})
 }

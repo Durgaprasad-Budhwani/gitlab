@@ -51,6 +51,7 @@ type QueryContext struct {
 	UserManager           UserManager2
 	WorkManager           WorkManagerI
 	SprintManager         SprintManager2
+	State                 sdk.State
 }
 
 type NextPage string
@@ -60,9 +61,8 @@ type Assignee struct{}
 // WorkManagerI interface to manage issues, boards, milestones, labels, columns
 type WorkManagerI interface {
 	// add issues with all it's details
-	AddIssue(issueID string, issueState bool, projectRefID int64, labels []*Label, milestone *Milestone, assignees *UserModel, weight *int)
+	AddIssue(issueID string, issueState bool, projectID string, labels []*Label, milestone *Milestone, assignees *UserModel, weight *int)
 	// get issues for specific column using those filters
-	// GetBoardColumnIssues(projectsIDs []string, milestoneRefID int64, boardLabels *[]api.Label, columnLabel *api.Label, assignee *api.UserModel) []string
 	GetBoardColumnIssues(projectsRefIDs []string, milestone *Milestone, boardLabels []*Label, columnsLabels []BoardList, columnLabel *Label, assignee *UserModel, weight *int) []string
 	// add milestone details by its ref id
 	AddMilestoneDetails(milestoneRefID int64, milestone Milestone)

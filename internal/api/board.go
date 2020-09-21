@@ -22,7 +22,6 @@ type BoardList struct {
 type Board struct {
 	RefID     int64       `json:"id"`
 	Name      string      `json:"name"`
-	Project   *struct{}   `json:"project"`
 	Lists     []BoardList `json:"lists"`
 	Milestone *Milestone  `json:"milestone"`
 	Labels    []*Label    `json:"labels"`
@@ -75,16 +74,28 @@ func boardsCommonPage(
 		return
 	}
 
-	projectRefIDs2 := make([]string, 0)
+	projectIDs := make([]string, 0)
 	for _, repo := range repos {
-		projectRefIDs2 = append(projectRefIDs2, repo.RefID)
+		projectID := sdk.NewWorkProjectID(qc.CustomerID, repo.RefID, "gitlab")
+		projectIDs = append(projectIDs, projectID)
 	}
 
 	for _, board := range boards {
 
-		sdk.LogInfo(qc.Logger, "exporting board", "name", board.Name)
-
 		boardRefID := strconv.FormatInt(board.RefID, 10)
+		// TODO: Figure out how to do proper boards incrementals using issues labels
+		var value bool
+		exists, err := qc.State.Get(boardRefID, &value)
+		if err != nil {
+			return np, err
+		}
+		if exists {
+			continue
+		} else {
+			qc.State.Set(boardRefID, true)
+		}
+
+		sdk.LogInfo(qc.Logger, "exporting board", "name", board.Name)
 
 		var theboard sdk.AgileBoard
 		theboard.ID = sdk.NewAgileBoardID(qc.CustomerID, boardRefID, qc.RefType)
@@ -125,7 +136,7 @@ func boardsCommonPage(
 		if board.Milestone != nil {
 			qc.SprintManager.AddBoardID(board.Milestone.RefID, theboard.ID)
 			for _, column := range board.Lists {
-				qc.WorkManager.AddBoardColumnLabelToMilestone(board.Milestone.RefID, boardRefID, &column.Label)
+				qc.WorkManager.AddBoardColumnLabelToMilestone(board.Milestone.RefID, theboard.ID, &column.Label)
 			}
 			theboard.Type = sdk.AgileBoardTypeScrum
 		} else {
@@ -142,7 +153,7 @@ func boardsCommonPage(
 			kanban.Columns = make([]sdk.AgileKanbanColumns, 0)
 
 			for _, column := range board.Lists {
-				columnIssues := qc.WorkManager.GetBoardColumnIssues(projectRefIDs2, board.Milestone, board.Labels, board.Lists, &column.Label, board.Assignee, board.Weight)
+				columnIssues := qc.WorkManager.GetBoardColumnIssues(projectIDs, board.Milestone, board.Labels, board.Lists, &column.Label, board.Assignee, board.Weight)
 				bc := sdk.AgileKanbanColumns{
 					IssueIds: columnIssues,
 					Name:     column.Label.Name,
@@ -155,7 +166,7 @@ func boardsCommonPage(
 			kanban.ID = sdk.NewAgileKanbanID(qc.CustomerID, boardRefID, qc.RefType)
 			kanban.BoardID = theboard.ID
 
-			kanban.ProjectIds = []string{entityID}
+			kanban.ProjectIds = projectIDs
 
 			if err := qc.Pipe.Write(&kanban); err != nil {
 				return np, err

@@ -18,6 +18,7 @@ const (
 func WorkIssuesPage(
 	qc QueryContext,
 	project *sdk.SourceCodeRepo,
+	stopOnUpdatedAt time.Time,
 	params url.Values,
 	issues chan sdk.WorkIssue) (pi NextPage, err error) {
 
@@ -35,9 +36,14 @@ func WorkIssuesPage(
 		return
 	}
 
+	projectID := sdk.NewWorkProjectID(qc.CustomerID, project.RefID, "gitlab")
+
 	sdk.LogDebug(qc.Logger, "issues found", "len", len(rawissues))
 
 	for _, rawissue := range rawissues {
+		if rawissue.UpdatedAt.Before(stopOnUpdatedAt) {
+			return
+		}
 
 		issueRefID := strconv.FormatInt(rawissue.ID, 10)
 		issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
@@ -68,7 +74,7 @@ func WorkIssuesPage(
 			tags = append(tags, label.Name)
 		}
 
-		qc.WorkManager.AddIssue(issueID, rawissue.State == "opened", rawissue.ProjectRefID, rawissue.Labels, rawissue.Milestone, rawissue.Assignee, rawissue.Weight)
+		qc.WorkManager.AddIssue(issueID, rawissue.State == "opened", projectID, rawissue.Labels, rawissue.Milestone, rawissue.Assignee, rawissue.Weight)
 
 		item.Tags = tags
 		item.Type = "Issue"

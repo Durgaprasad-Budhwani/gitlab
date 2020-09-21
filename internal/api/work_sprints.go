@@ -23,25 +23,33 @@ type Milestone struct {
 	GroupID     int       `json:"group_id"`
 }
 
-func RepoSprintsPage(qc QueryContext, project *sdk.SourceCodeRepo, params url.Values) (pi NextPage, res []*sdk.AgileSprint, err error) {
+func RepoSprintsPage(
+	qc QueryContext,
+	project *sdk.SourceCodeRepo,
+	stopOnUpdatedAt time.Time,
+	params url.Values) (pi NextPage, res []*sdk.AgileSprint, err error) {
 
 	sdk.LogDebug(qc.Logger, "project work sprints", "project", project.Name, "project_ref_id", project.RefID, "params", params)
 
 	objectPath := sdk.JoinURL("projects", url.QueryEscape(project.RefID), "milestones")
 
-	return CommonSprintsPage(qc, params, objectPath)
+	return CommonSprintsPage(qc, params, stopOnUpdatedAt, objectPath)
 }
 
-func GroupSprintsPage(qc QueryContext, namespace *Namespace, params url.Values) (pi NextPage, res []*sdk.AgileSprint, err error) {
+func GroupSprintsPage(
+	qc QueryContext,
+	namespace *Namespace,
+	stopOnUpdatedAt time.Time,
+	params url.Values) (pi NextPage, res []*sdk.AgileSprint, err error) {
 
 	sdk.LogDebug(qc.Logger, "group work sprints", "group", namespace.Name, "group_ref_id", namespace.ID, "params", params)
 
 	objectPath := sdk.JoinURL("groups", url.QueryEscape(namespace.ID), "milestones")
 
-	return CommonSprintsPage(qc, params, objectPath)
+	return CommonSprintsPage(qc, params, stopOnUpdatedAt, objectPath)
 }
 
-func CommonSprintsPage(qc QueryContext, params url.Values, url string) (pi NextPage, res []*sdk.AgileSprint, err error) {
+func CommonSprintsPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Time, url string) (pi NextPage, res []*sdk.AgileSprint, err error) {
 
 	var rawsprints []Milestone
 	pi, err = qc.Get(url, params, &rawsprints)
@@ -49,6 +57,9 @@ func CommonSprintsPage(qc QueryContext, params url.Values, url string) (pi NextP
 		return
 	}
 	for _, rawsprint := range rawsprints {
+		if rawsprint.UpdatedAt.Before(stopOnUpdatedAt) {
+			return
+		}
 
 		qc.WorkManager.AddMilestoneDetails(rawsprint.RefID, rawsprint)
 
@@ -90,6 +101,8 @@ func CommonSprintsPage(qc QueryContext, params url.Values, url string) (pi NextP
 				sprint.Status = sdk.AgileSprintStatusActive
 			}
 		}
+
+		sdk.ConvertTimeToDateModel(rawsprint.UpdatedAt, &sprint.UpdatedDate)
 
 		sprint.Goal = rawsprint.Description
 		sprint.Name = rawsprint.Title

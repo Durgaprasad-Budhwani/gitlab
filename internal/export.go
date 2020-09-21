@@ -93,6 +93,7 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 	ge.qc.IntegrationInstanceID = *ge.integrationInstanceID
 	ge.qc.UserManager = NewUserManager(ge.qc.CustomerID, export, ge.state, ge.pipe, ge.qc.IntegrationInstanceID)
 	ge.qc.Pipe = ge.pipe
+	ge.qc.State = ge.state
 
 	ge.lastExportKey = "last_export_date"
 
@@ -178,12 +179,10 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		}
 		allnamespaces = append(allnamespaces, namespaces...)
 	} else {
-
 		namespaces, err := getNamespacesSelectedAccounts(gexport.qc, config.Accounts)
 		if err != nil {
 			sdk.LogError(logger, "error getting data accounts", "err", err)
 		}
-
 		allnamespaces = append(allnamespaces, namespaces...)
 	}
 
