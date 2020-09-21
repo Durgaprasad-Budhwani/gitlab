@@ -450,7 +450,7 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 				user, err := api.GroupUser(ge.qc, namespace, loginUser.StrID)
 				if err != nil && strings.Contains(err.Error(), "Not found") {
 					namespace.MarkedToCreateProjectWebHooks = true
-					sdk.LogWarn(ge.logger, "use is not member of this namespace, will try to create project webhooks", "namespace", namespace.Name, "user_id", loginUser.ID, "user_name", loginUser.Name, "err", err)
+					sdk.LogWarn(ge.logger, "use is not member of this namespace, will try to create project webhooks", "namespace", namespace.Name, "user_id", loginUser.RefID, "user_name", loginUser.Name, "err", err)
 					continue
 				}
 				if err != nil {
@@ -495,7 +495,7 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 					return err
 				}
-				sdk.LogDebug(ge.logger, "user project level", "level", user.AccessLevel)
+				sdk.LogDebug(ge.logger, "user project level", "user_level", user.AccessLevel)
 				if user.AccessLevel >= api.Maintainer || userHasProjectWebhookAcess {
 					sdk.LogDebug(ge.logger, "registering webhook for project", "project_name", project.Name)
 					err = wr.registerWebhook(sdk.WebHookScopeRepo, project.RefID, project.Name)

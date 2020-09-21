@@ -105,7 +105,7 @@ func UserByID(qc QueryContext, userID int64) (user *sdk.SourceCodeUser, err erro
 }
 
 type GitlabUser struct {
-	ID          int64  `json:"id"`
+	RefID       int64  `json:"id"`
 	Name        string `json:"name"`
 	Username    string `json:"username"`
 	IsAdmin     bool   `json:"is_admin"`
@@ -124,7 +124,7 @@ func LoginUser(qc QueryContext) (u *GitlabUser, err error) {
 		return nil, err
 	}
 
-	u.StrID = strconv.FormatInt(u.ID, 10)
+	u.StrID = strconv.FormatInt(u.RefID, 10)
 
 	return
 }

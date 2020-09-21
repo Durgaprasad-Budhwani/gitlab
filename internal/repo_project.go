@@ -35,17 +35,18 @@ func (ge *GitlabExport) fetchNamespaceProjectsRepos(namespace *api.Namespace, ap
 
 func ToProject(repo *sdk.SourceCodeRepo) *sdk.WorkProject {
 	return &sdk.WorkProject{
-		Active:      repo.Active,
-		CustomerID:  repo.CustomerID,
-		Description: sdk.StringPointer(repo.Description),
-		ID:          repo.ID,
-		Name:        repo.Name,
-		RefID:       repo.RefID,
-		RefType:     repo.RefType,
-		UpdatedAt:   repo.UpdatedAt,
-		URL:         repo.URL,
-		Hashcode:    repo.Hashcode,
-		Identifier:  repo.Name,
+		Active:                repo.Active,
+		CustomerID:            repo.CustomerID,
+		Description:           sdk.StringPointer(repo.Description),
+		Name:                  repo.Name,
+		RefID:                 repo.RefID,
+		RefType:               repo.RefType,
+		UpdatedAt:             repo.UpdatedAt,
+		URL:                   repo.URL,
+		Hashcode:              repo.Hashcode,
+		Identifier:            repo.Name,
+		IntegrationInstanceID: repo.IntegrationInstanceID,
+		ID:                    sdk.NewWorkProjectID(repo.CustomerID, repo.RefID, "gitlab"),
 	}
 }
 

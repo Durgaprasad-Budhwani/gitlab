@@ -59,6 +59,7 @@ func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config,
 	ge.qc.Logger = logger
 	ge.qc.RefType = gitlabRefType
 	ge.qc.CustomerID = customerID
+	ge.qc.RefType = gitlabRefType
 	ge.logger = logger
 
 	u, err := url.Parse(apiURL)
@@ -88,15 +89,19 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 	ge.state = export.State()
 	ge.config = export.Config()
 	ge.integrationInstanceID = sdk.StringPointer(export.IntegrationInstanceID())
+	ge.qc.WorkManager = NewWorkManager(logger)
 	ge.qc.IntegrationInstanceID = *ge.integrationInstanceID
 	ge.qc.UserManager = NewUserManager(ge.qc.CustomerID, export, ge.state, ge.pipe, ge.qc.IntegrationInstanceID)
 	ge.qc.Pipe = ge.pipe
+	ge.qc.State = ge.state
 
 	ge.lastExportKey = "last_export_date"
 
 	if rerr = ge.exportDate(); rerr != nil {
 		return
 	}
+
+	ge.qc.Historical = ge.historical
 
 	return
 }
@@ -111,6 +116,7 @@ func (ge *GitlabExport) exportDate() (rerr error) {
 			return
 		}
 		if !ok {
+			ge.historical = true
 			return
 		}
 		lastExportDate, err := time.Parse(time.RFC3339, exportDate)
@@ -176,34 +182,60 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		}
 		allnamespaces = append(allnamespaces, namespaces...)
 	} else {
-
 		namespaces, err := getNamespacesSelectedAccounts(gexport.qc, config.Accounts)
 		if err != nil {
 			sdk.LogError(logger, "error getting data accounts", "err", err)
 		}
-
 		allnamespaces = append(allnamespaces, namespaces...)
 	}
 
 	sdk.LogInfo(logger, "registering webhooks")
 
-	err = i.registerWebhooks(gexport, allnamespaces)
-	if err != nil {
-		return err
-	}
+	// err = i.registerWebhooks(gexport, allnamespaces)
+	// if err != nil {
+	// 	return err
+	// }
 
 	sdk.LogInfo(logger, "registering webhooks done")
 
 	for _, namespace := range allnamespaces {
 		sdk.LogDebug(logger, "namespace", "name", namespace.Name)
 		projectUsersMap := make(map[string]api.UsernameMap)
+
 		repos, err := gexport.exportNamespaceSourceCode(namespace, projectUsersMap)
 		if err != nil {
 			sdk.LogWarn(logger, "error exporting sourcecode namespace", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
 		}
+
 		err = gexport.exportReposWork(repos, projectUsersMap)
 		if err != nil {
 			sdk.LogWarn(logger, "error exporting work repos", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
+		}
+
+		reposSprints, err := gexport.fetchProjectsSprints(repos)
+		if err != nil {
+			sdk.LogWarn(logger, "error fetching repo sprints ", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
+		}
+
+		groupSprints, err := gexport.fetchGroupSprints(namespace)
+		if err != nil {
+			sdk.LogWarn(logger, "error fetching group sprints ", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
+		}
+
+		err = gexport.exportGroupBoards(namespace, repos)
+		if err != nil {
+			return err
+		}
+		err = gexport.exportReposBoards(repos)
+		if err != nil {
+			return err
+		}
+
+		if err := gexport.exportSprints(append(reposSprints, groupSprints...)); err != nil {
+			return err
+		}
+		if err := gexport.exportSprints(reposSprints); err != nil {
+			return err
 		}
 	}
 
@@ -267,9 +299,6 @@ func (ge *GitlabExport) exportRepoAndWrite(repo *sdk.SourceCodeRepo, projectUser
 
 func (ge *GitlabExport) exportProjectAndWrite(project *sdk.SourceCodeRepo, users api.UsernameMap) error {
 	ge.exportProjectIssues(project, users)
-	if err := ge.exportProjectSprints(project); err != nil {
-		return err
-	}
 	return nil
 }
 
