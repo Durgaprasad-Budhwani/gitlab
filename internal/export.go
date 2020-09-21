@@ -59,6 +59,7 @@ func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config,
 	ge.qc.Logger = logger
 	ge.qc.RefType = gitlabRefType
 	ge.qc.CustomerID = customerID
+	ge.qc.RefType = gitlabRefType
 	ge.logger = logger
 
 	u, err := url.Parse(apiURL)
@@ -101,6 +102,8 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 		return
 	}
 
+	ge.qc.Historical = ge.historical
+
 	return
 }
 
@@ -114,6 +117,7 @@ func (ge *GitlabExport) exportDate() (rerr error) {
 			return
 		}
 		if !ok {
+			ge.historical = true
 			return
 		}
 		lastExportDate, err := time.Parse(time.RFC3339, exportDate)

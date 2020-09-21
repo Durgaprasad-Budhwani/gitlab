@@ -38,7 +38,6 @@ func ToProject(repo *sdk.SourceCodeRepo) *sdk.WorkProject {
 		Active:                repo.Active,
 		CustomerID:            repo.CustomerID,
 		Description:           sdk.StringPointer(repo.Description),
-		ID:                    repo.ID,
 		Name:                  repo.Name,
 		RefID:                 repo.RefID,
 		RefType:               repo.RefType,
@@ -47,6 +46,7 @@ func ToProject(repo *sdk.SourceCodeRepo) *sdk.WorkProject {
 		Hashcode:              repo.Hashcode,
 		Identifier:            repo.Name,
 		IntegrationInstanceID: repo.IntegrationInstanceID,
+		ID:                    sdk.NewWorkProjectID(repo.CustomerID, repo.RefID, "gitlab"),
 	}
 }
 

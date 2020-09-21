@@ -52,6 +52,7 @@ type QueryContext struct {
 	WorkManager           WorkManagerI
 	SprintManager         SprintManager2
 	State                 sdk.State
+	Historical            bool
 }
 
 type NextPage string
