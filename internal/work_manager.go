@@ -50,8 +50,6 @@ type milestoneDetail struct {
 // AddIssue desc
 func (w *WorkManager) AddIssue(issueID string, issueState bool, projectID string, labels []*api.Label, milestone *api.Milestone, assignee *api.UserModel, weight *int) {
 
-	sdk.LogDebug(w.logger, "debug-debug4-adding-issue", "issueID", issueID)
-
 	var convertLabelsToMap = func(labels []*api.Label) map[int64]*api.Label {
 
 		m := make(map[int64]*api.Label)
@@ -113,11 +111,8 @@ func (w *WorkManager) GetBoardColumnIssues(projectsIDs []string, milestone *api.
 		})
 	}
 
-	sdk.LogDebug(w.logger, "debug-debug4", "projectID", projectsIDs)
-
 	for _, projectID := range projectsIDs {
 		projectIssues, ok := w.refProject.Load(projectID)
-		sdk.LogDebug(w.logger, "debug-debug4", "projectIssues", projectIssues, "ok", ok)
 		if !ok {
 			continue
 		}
@@ -224,13 +219,13 @@ func (w *WorkManager) SetSprintColumnsIssuesProjectIDs(sprint *sdk.AgileSprint) 
 
 	columns = []sdk.AgileSprintColumns{
 		{
-			Name:     "Unstarted Issues", // ( open and unassigned )
+			Name:     "Open Issues", // ( open and unassigned )
 			IssueIds: unstartedIssues,
 		}, {
-			Name:     "Ongoing Issues", // ( open and assigned )
+			Name:     "Scheduled Issues", // ( open and assigned )
 			IssueIds: ongoingIssues,
 		}, {
-			Name:     "Completed Issues", // ( closed )
+			Name:     "Closed Issues", // ( closed )
 			IssueIds: completedIssues,
 		},
 	}

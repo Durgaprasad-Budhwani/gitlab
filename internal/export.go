@@ -90,7 +90,6 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 	ge.config = export.Config()
 	ge.integrationInstanceID = sdk.StringPointer(export.IntegrationInstanceID())
 	ge.qc.WorkManager = NewWorkManager(logger)
-	ge.qc.SprintManager = NewSprintManager(logger)
 	ge.qc.IntegrationInstanceID = *ge.integrationInstanceID
 	ge.qc.UserManager = NewUserManager(ge.qc.CustomerID, export, ge.state, ge.pipe, ge.qc.IntegrationInstanceID)
 	ge.qc.Pipe = ge.pipe

@@ -16,24 +16,6 @@ type UserManager2 interface {
 	EmitGitUser(sdk.Logger, GitUser2) error
 }
 
-type IssueManager2 interface {
-	AddIssueID(issueID string, issueState string, projectID string, milestoneRefID int64, labels []int64)
-	GetIssuesIDsByLabelRefIDMilestonRefID(labelRefID int64, milestoneRefID int64) []string
-	GetIssuesIDsByProject(projectID string) []string
-	GetIssuesIDsByMilestone(milestoneID int64) []string
-	GetOpenIssuesIDsByProject(projectLabels []int64, projectID string) []string
-	GetCloseIssuesIDsByProject2(projectLabels []int64, projectID string) []string
-	GetOpenIssuesIDsByGroupBoardLabels(boardLabels []int64, projectIDs []string) []string
-	GetClosedIssuesIDsByGroupBoardLabels(boardLabels []int64, projectIDs []string) []string
-}
-
-type SprintManager2 interface {
-	AddBoardID(sprintID int64, boardID string)
-	GetBoardID(sprintID int64) string
-	AddColumnWithIssuesIDs(sprintID string, columnName string, issuesIDs []string)
-	GetSprintColumnsIssuesIDs(sprintID string) []sdk.AgileSprintColumns
-}
-
 // QueryContext query context
 type QueryContext struct {
 	BaseURL string
@@ -50,7 +32,6 @@ type QueryContext struct {
 	Pipe                  sdk.Pipe
 	UserManager           UserManager2
 	WorkManager           WorkManagerI
-	SprintManager         SprintManager2
 	State                 sdk.State
 	Historical            bool
 }

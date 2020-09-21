@@ -136,7 +136,6 @@ func boardsCommonPage(
 
 		// Scrum Board
 		if board.Milestone != nil {
-			qc.SprintManager.AddBoardID(board.Milestone.RefID, theboard.ID)
 			for _, column := range board.Lists {
 				qc.WorkManager.AddBoardColumnLabelToMilestone(board.Milestone.RefID, theboard.ID, &column.Label)
 			}
