@@ -50,7 +50,6 @@ func CommonSprintsPage(qc QueryContext, params url.Values, url string) (pi NextP
 	}
 	for _, rawsprint := range rawsprints {
 
-		sdk.LogDebug(qc.Logger, "debug-debug", "sprint-ref-id", rawsprint.RefID, "sprint", rawsprint)
 		qc.WorkManager.AddMilestoneDetails(rawsprint.RefID, rawsprint)
 
 		sprintRefID := strconv.FormatInt(rawsprint.RefID, 10)

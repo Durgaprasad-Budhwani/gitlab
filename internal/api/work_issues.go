@@ -68,7 +68,6 @@ func WorkIssuesPage(
 			tags = append(tags, label.Name)
 		}
 
-		sdk.LogDebug(qc.Logger, "debug-debug3 issue - refID - ID", "ref-id", rawissue.ID, "issue", issueID, "identifier", rawissue.References.Full)
 		qc.WorkManager.AddIssue(issueID, rawissue.State == "opened", rawissue.ProjectRefID, rawissue.Labels, rawissue.Milestone, rawissue.Assignee, rawissue.Weight)
 
 		item.Tags = tags

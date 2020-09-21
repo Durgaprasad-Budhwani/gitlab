@@ -77,15 +77,10 @@ func boardsCommonPage(
 
 	projectRefIDs2 := make([]string, 0)
 	for _, repo := range repos {
-		sdk.LogDebug(qc.Logger, "debug-debug2-check-check-repo-ref-id", "repoRefID", repo.RefID)
 		projectRefIDs2 = append(projectRefIDs2, repo.RefID)
 	}
 
 	for _, board := range boards {
-
-		// if board.Name != "Board with no columns" {
-		// 	continue
-		// }
 
 		sdk.LogInfo(qc.Logger, "exporting board", "name", board.Name)
 
@@ -147,11 +142,6 @@ func boardsCommonPage(
 			kanban.Columns = make([]sdk.AgileKanbanColumns, 0)
 
 			for _, column := range board.Lists {
-				// sdk.LogDebug(qc.Logger, "debug-debug2", "check-check-Label-Name", column.Label.Name)
-				// if !strings.Contains(column.Label.Name, "To Do (Project Level)") {
-				// 	continue
-				// }
-				sdk.LogDebug(qc.Logger, "debug-debug2", "check-check-Label-Name2", column.Label.Name)
 				columnIssues := qc.WorkManager.GetBoardColumnIssues(projectRefIDs2, board.Milestone, board.Labels, board.Lists, &column.Label, board.Assignee, board.Weight)
 				bc := sdk.AgileKanbanColumns{
 					IssueIds: columnIssues,
@@ -166,8 +156,6 @@ func boardsCommonPage(
 			kanban.BoardID = theboard.ID
 
 			kanban.ProjectIds = []string{entityID}
-
-			sdk.LogDebug(qc.Logger, "kanban-board", "board", kanban.Name, "body", kanban)
 
 			if err := qc.Pipe.Write(&kanban); err != nil {
 				return np, err

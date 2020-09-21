@@ -69,9 +69,7 @@ type WorkManagerI interface {
 	// add a label to a board with milestone associated
 	AddBoardColumnLabelToMilestone(milestoneRefID int64, boardID string, label *Label)
 	// get sprint columns for sdk.WorkSprint
-	GetSprintColumns(milestoneRefID string) []sdk.AgileSprintColumns
-	// get sprint issues for sdk.WorkSprint
-	GetSprintIssues(milestoneRefID string) []string
+	SetSprintColumnsIssuesProjectIDs(sprint *sdk.AgileSprint)
 	// get sprint board ids for sdk.WorkSprint
 	GetSprintBoardsIDs(milestoneRefID string) []string
 }

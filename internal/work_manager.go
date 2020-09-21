@@ -61,10 +61,8 @@ func (w *WorkManager) AddIssue(issueID string, issueState bool, projectRefID int
 
 	projectIssues, ok := w.refProject.Load(projectRefIDStr)
 	if !ok {
-		sdk.LogDebug(w.logger, "debug-debug2-adding-issue-for-project", "projectID", projectRefID, "issueID", issueID)
 		w.refProject.Store(projectRefIDStr, map[string]*issueDetail{issueID: issueD})
 	} else {
-		sdk.LogDebug(w.logger, "debug-debug2-adding-issue-for-project2", "projectID", projectRefID, "issueID", issueID)
 		projectIssues := projectIssues.(map[string]*issueDetail)
 		projectIssues[issueID] = issueD
 		w.refProject.Store(projectRefIDStr, projectIssues)
@@ -76,8 +74,6 @@ func (w *WorkManager) AddIssue(issueID string, issueState bool, projectRefID int
 func (w *WorkManager) GetBoardColumnIssues(projectsRefIDs []string, milestone *api.Milestone, boardLabels []*api.Label, boardLists []api.BoardList, columnLabel *api.Label, assignee *api.UserModel, weight *int) []string {
 
 	issues := make([]string, 0)
-
-	sdk.LogDebug(w.logger, "debug-debug2", "msg", "check1", "projectRefIDs", projectsRefIDs)
 
 	var milestoneRefID int64
 	if milestone != nil {
@@ -91,25 +87,20 @@ func (w *WorkManager) GetBoardColumnIssues(projectsRefIDs []string, milestone *a
 		boardLabels = append(boardLabels, columnLabel)
 	}
 
-	w.refProject.Range(func(k, v interface{}) bool {
-		sdk.LogDebug(w.logger, "debug-debug2", "key", k.(string), "value", v.(map[string]*issueDetail))
-		return true
-	})
+	if len(projectsRefIDs) == 0 {
+		w.refProject.Range(func(projectRefID, v interface{}) bool {
+			projectsRefIDs = append(projectsRefIDs, projectRefID.(string))
+			return true
+		})
+	}
 
-	// get project issues
 	for _, projectRefID := range projectsRefIDs {
-		sdk.LogDebug(w.logger, "debug-debug2", "msg", projectRefID)
 		projectIssues, ok := w.refProject.Load(projectRefID)
 		if !ok {
-			sdk.LogDebug(w.logger, "debug-debug2-no-project-found", "project", projectRefID)
 			continue
 		}
 
-		sdk.LogDebug(w.logger, "debug-debug22", "projectRefID", projectRefID, "issues", projectIssues)
-
 		for issueID, issueDetails := range projectIssues.(map[string]*issueDetail) {
-
-			sdk.LogDebug(w.logger, "debug-debug3", "issueID", issueID, "issueMilestoneRefID", issueDetails.MilestoneRefID, "milestoneRefID", milestoneRefID)
 
 			cond1 := milestone == nil || issueDetails.MilestoneRefID == milestoneRefID
 			cond2 := true
@@ -134,14 +125,8 @@ func (w *WorkManager) GetBoardColumnIssues(projectsRefIDs []string, milestone *a
 					}
 				}
 			}
-			cond3 := issueDetails == nil || assignee == nil || assignee.ID == issueDetails.Assignee.ID
-			cond4 := weight == nil || issueDetails == nil || *weight == *issueDetails.Weight
-
-			sdk.LogDebug(w.logger, "debug-debug3", "cond1", cond1)
-			sdk.LogDebug(w.logger, "debug-debug3", "cond2", cond2)
-			sdk.LogDebug(w.logger, "debug-debug3", "cond3", cond3)
-			sdk.LogDebug(w.logger, "debug-debug3", "cond4", cond4)
-			sdk.LogDebug(w.logger, "debug-debug3", "cond5", cond4)
+			cond3 := issueDetails == nil || assignee == nil || issueDetails.Assignee == nil || assignee.ID == issueDetails.Assignee.ID
+			cond4 := weight == nil || issueDetails == nil || issueDetails.Weight == nil || *weight == *issueDetails.Weight
 
 			if cond1 && cond2 && cond3 && cond4 && cond5 {
 				if columnLabel.ID == api.OpenColumn {
@@ -160,8 +145,6 @@ func (w *WorkManager) GetBoardColumnIssues(projectsRefIDs []string, milestone *a
 		}
 	}
 
-	sdk.LogDebug(w.logger, "debug-debug3 returning", "issues", issues)
-
 	return issues
 }
 
@@ -176,7 +159,6 @@ func (w *WorkManager) AddMilestoneDetails(milestoneRefID int64, milestone api.Mi
 // AddBoardColumnLabelToMilestone desc
 func (w *WorkManager) AddBoardColumnLabelToMilestone(milestoneRefID int64, boardID string, label *api.Label) {
 
-	sdk.LogDebug(w.logger, "debug-debug-problem", "milestoneID", milestoneRefID)
 	milestoneD, _ := w.refMilestonesDetails.Load(milestoneRefID)
 	milestone := milestoneD.(*milestoneDetail)
 	_, ok := milestone.boards[boardID]
@@ -189,19 +171,80 @@ func (w *WorkManager) AddBoardColumnLabelToMilestone(milestoneRefID int64, board
 
 }
 
-// GetSprintColumns desc
-func (w *WorkManager) GetSprintColumns(milestoneRefID string) []sdk.AgileSprintColumns {
-	return []sdk.AgileSprintColumns{}
-}
+// SetSprintColumnsIssuesProjectIDs desc
+func (w *WorkManager) SetSprintColumnsIssuesProjectIDs(sprint *sdk.AgileSprint) {
 
-// GetSprintIssues desc
-func (w *WorkManager) GetSprintIssues(milestoneRefID string) []string {
-	return []string{}
+	mRefID := convertToInt64(sprint.RefID)
+	columns := make([]sdk.AgileSprintColumns, 0)
+
+	projectIDs := make(map[string]bool)
+	unstartedIssues := make([]string, 0)
+	ongoingIssues := make([]string, 0)
+	completedIssues := make([]string, 0)
+	{
+		w.refProject.Range(func(projectID, v interface{}) bool {
+			issuesMap := v.(map[string]*issueDetail)
+			for issueID, issueDetail := range issuesMap {
+				if issueDetail.MilestoneRefID == int64(mRefID) {
+					if issueDetail.Open == true && issueDetail.Assignee == nil {
+						unstartedIssues = append(unstartedIssues, issueID)
+					} else if issueDetail.Open == true && issueDetail.Assignee != nil {
+						ongoingIssues = append(ongoingIssues, issueID)
+					} else if !issueDetail.Open {
+						completedIssues = append(completedIssues, issueID)
+					}
+					projectIDs[projectID.(string)] = true
+				}
+			}
+			return true
+		})
+	}
+
+	columns = []sdk.AgileSprintColumns{
+		{
+			Name:     "Unstarted Issues", // ( open and unassigned )
+			IssueIds: unstartedIssues,
+		}, {
+			Name:     "Ongoing Issues", // ( open and assigned )
+			IssueIds: ongoingIssues,
+		}, {
+			Name:     "Completed Issues", // ( closed )
+			IssueIds: completedIssues,
+		},
+	}
+
+	mDetails, _ := w.refMilestonesDetails.Load(mRefID)
+	mDetail := mDetails.(*milestoneDetail)
+	for boardID := range mDetail.boards {
+		sprint.BoardIds = append(sprint.BoardIds, boardID)
+	}
+
+	allissues := append(append(unstartedIssues, ongoingIssues...), completedIssues...)
+
+	sprint.Columns = columns
+	sprint.IssueIds = allissues
+	sprint.ProjectIds = sdk.Keys(projectIDs)
+
 }
 
 // GetSprintBoardsIDs desc
-func (w *WorkManager) GetSprintBoardsIDs(milestoneRefID string) []string {
-	return []string{}
+func (w *WorkManager) GetSprintBoardsIDs(milestoneRefID string) (boardIDs []string) {
+
+	mRefID := convertToInt64(milestoneRefID)
+
+	milestoneD, _ := w.refMilestonesDetails.Load(mRefID)
+
+	boards := milestoneD.(*milestoneDetail).boards
+	for boardID := range boards {
+		boardIDs = append(boardIDs, boardID)
+	}
+
+	return
+}
+
+func convertToInt64(milestoneRefID string) int64 {
+	mRefID, _ := strconv.Atoi(milestoneRefID)
+	return int64(mRefID)
 }
 
 // NewWorkManager desc

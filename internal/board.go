@@ -27,9 +27,6 @@ func (ge *GitlabExport) exportReposBoards(repos []*sdk.SourceCodeRepo) error {
 	sdk.LogInfo(ge.qc.Logger, "exporting repo boards", "repos", repos)
 
 	for _, repo := range repos {
-		if repo.ID != "ac73837e8625e095" {
-			continue
-		}
 		err := api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, rerr error) {
 			pi, err := api.RepoBoardsPage(ge.qc, repo, params)
 			if err != nil {

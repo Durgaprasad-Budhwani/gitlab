@@ -204,40 +204,34 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		if err != nil {
 			sdk.LogWarn(logger, "error exporting sourcecode namespace", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
 		}
-		sdk.LogDebug(logger, "debug-debug-repos-work")
 
 		err = gexport.exportReposWork(repos, projectUsersMap)
 		if err != nil {
 			sdk.LogWarn(logger, "error exporting work repos", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
 		}
 
-		sdk.LogDebug(logger, "debug-debug-fetch-project-sprints")
 		reposSprints, err := gexport.fetchProjectsSprints(repos)
 		if err != nil {
 			sdk.LogWarn(logger, "error fetching repo sprints ", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
 		}
 
-		sdk.LogDebug(logger, "debug-debug-fetch-group-sprints")
-		// groupSprints, err := gexport.fetchGroupSprints(namespace)
-		// if err != nil {
-		// 	sdk.LogWarn(logger, "error fetching group sprints ", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
-		// }
+		groupSprints, err := gexport.fetchGroupSprints(namespace)
+		if err != nil {
+			sdk.LogWarn(logger, "error fetching group sprints ", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
+		}
 
-		// sdk.LogDebug(logger, "debug-debug-export-group-boards")
-		// err = gexport.exportGroupBoards(namespace, repos)
-		// if err != nil {
-		// 	return err
-		// }
-		sdk.LogDebug(logger, "debug-debug-export-repos-boards")
+		err = gexport.exportGroupBoards(namespace, repos)
+		if err != nil {
+			return err
+		}
 		err = gexport.exportReposBoards(repos)
 		if err != nil {
 			return err
 		}
 
-		sdk.LogDebug(logger, "debug-debug-export-sprints")
-		// if err := gexport.exportSprints(append(reposSprints, groupSprints...)); err != nil {
-		// 	return err
-		// }
+		if err := gexport.exportSprints(append(reposSprints, groupSprints...)); err != nil {
+			return err
+		}
 		if err := gexport.exportSprints(reposSprints); err != nil {
 			return err
 		}

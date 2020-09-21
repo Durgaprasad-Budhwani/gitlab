@@ -24,7 +24,7 @@ func (g *GitlabIntegration) Start(logger sdk.Logger, config sdk.Config, manager 
 	g.logger = sdk.LogWith(logger, "pkg", gitlabRefType)
 	g.config = config
 	g.manager = manager
-	sdk.LogInfo(g.logger, "starting", "msg", "debug-update-8")
+	sdk.LogInfo(g.logger, "starting")
 	return nil
 }
 
