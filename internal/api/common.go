@@ -54,4 +54,10 @@ type WorkManagerI interface {
 	SetSprintColumnsIssuesProjectIDs(sprint *sdk.AgileSprint)
 	// get sprint board ids for sdk.WorkSprint
 	GetSprintBoardsIDs(milestoneRefID string) []string
+	// Persist save info into state
+	Persist() error
+	// Restore restoer info into work manager
+	Restore() error
+	// Delete state
+	Delete() error
 }

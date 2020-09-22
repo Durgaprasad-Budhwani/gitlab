@@ -89,7 +89,7 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 	ge.state = export.State()
 	ge.config = export.Config()
 	ge.integrationInstanceID = sdk.StringPointer(export.IntegrationInstanceID())
-	ge.qc.WorkManager = NewWorkManager(logger)
+	ge.qc.WorkManager = NewWorkManager(logger, ge.state)
 	ge.qc.IntegrationInstanceID = *ge.integrationInstanceID
 	ge.qc.UserManager = NewUserManager(ge.qc.CustomerID, export, ge.state, ge.pipe, ge.qc.IntegrationInstanceID)
 	ge.qc.Pipe = ge.pipe
@@ -198,6 +198,19 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 
 	sdk.LogInfo(logger, "registering webhooks done")
 
+	if gexport.historical {
+		if err := gexport.qc.WorkManager.Delete(); err != nil {
+			sdk.LogError(logger, "error deleting work manager state", "err", err)
+			return err
+		}
+	}
+
+	sdk.LogInfo(logger, "recovering work manager state")
+	if err := gexport.qc.WorkManager.Restore(); err != nil {
+		sdk.LogError(logger, "error recovering work manager state", "err", err)
+		return err
+	}
+
 	for _, namespace := range allnamespaces {
 		sdk.LogDebug(logger, "namespace", "name", namespace.Name)
 		projectUsersMap := make(map[string]api.UsernameMap)
@@ -237,6 +250,12 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		if err := gexport.exportSprints(reposSprints); err != nil {
 			return err
 		}
+	}
+
+	sdk.LogInfo(logger, "persisting work manager into state")
+	if err := gexport.qc.WorkManager.Persist(); err != nil {
+		sdk.LogError(logger, "error persisting work manager state", "err", err)
+		return err
 	}
 
 	return gexport.state.Set(gexport.lastExportKey, exportStartDate.Format(time.RFC3339))

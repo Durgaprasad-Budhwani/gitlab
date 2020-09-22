@@ -8,30 +8,12 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-// type storage struct {
-// 	state sdk.State
-// }
-
-// func (s *storage) Load(key string) (value bool, exists bool) {
-// 	exists, _ = s.state.Get(key, &value)
-// 	return value, exists
-// }
-
-// func (s *storage) Storage(key string, value bool) {
-// 	s.state.Set(key, value)
-// }
-
-// type storageI interface {
-// 	Load(key interface{}) interface{}
-// 	Storage(key, value interface{})
-// }
-
 // WorkManager work manager
 type WorkManager struct {
 	refProject           sync.Map
 	refMilestonesDetails sync.Map
 	logger               sdk.Logger
-	// storage              storageI
+	state                sdk.State
 }
 
 type issueDetail struct {
@@ -44,7 +26,7 @@ type issueDetail struct {
 
 type milestoneDetail struct {
 	*api.Milestone
-	boards map[string][]*api.Label
+	Boards map[string][]*api.Label
 }
 
 // AddIssue desc
@@ -169,7 +151,7 @@ func (w *WorkManager) GetBoardColumnIssues(projectsIDs []string, milestone *api.
 func (w *WorkManager) AddMilestoneDetails(milestoneRefID int64, milestone api.Milestone) {
 	w.refMilestonesDetails.Store(milestoneRefID, &milestoneDetail{
 		Milestone: &milestone,
-		boards:    map[string][]*api.Label{},
+		Boards:    map[string][]*api.Label{},
 	})
 }
 
@@ -178,11 +160,11 @@ func (w *WorkManager) AddBoardColumnLabelToMilestone(milestoneRefID int64, board
 
 	milestoneD, _ := w.refMilestonesDetails.Load(milestoneRefID)
 	milestone := milestoneD.(*milestoneDetail)
-	_, ok := milestone.boards[boardID]
+	_, ok := milestone.Boards[boardID]
 	if !ok {
-		milestone.boards[boardID] = []*api.Label{label}
+		milestone.Boards[boardID] = []*api.Label{label}
 	} else {
-		milestone.boards[boardID] = append(milestone.boards[boardID], label)
+		milestone.Boards[boardID] = append(milestone.Boards[boardID], label)
 	}
 	w.refMilestonesDetails.Store(milestoneRefID, milestone)
 
@@ -232,7 +214,7 @@ func (w *WorkManager) SetSprintColumnsIssuesProjectIDs(sprint *sdk.AgileSprint) 
 
 	mDetails, _ := w.refMilestonesDetails.Load(mRefID)
 	mDetail := mDetails.(*milestoneDetail)
-	for boardID := range mDetail.boards {
+	for boardID := range mDetail.Boards {
 		sprint.BoardIds = append(sprint.BoardIds, boardID)
 	}
 
@@ -251,7 +233,7 @@ func (w *WorkManager) GetSprintBoardsIDs(milestoneRefID string) (boardIDs []stri
 
 	milestoneD, _ := w.refMilestonesDetails.Load(mRefID)
 
-	boards := milestoneD.(*milestoneDetail).boards
+	boards := milestoneD.(*milestoneDetail).Boards
 	for boardID := range boards {
 		boardIDs = append(boardIDs, boardID)
 	}
@@ -265,8 +247,9 @@ func convertToInt64(milestoneRefID string) int64 {
 }
 
 // NewWorkManager desc
-func NewWorkManager(logger sdk.Logger) *WorkManager {
+func NewWorkManager(logger sdk.Logger, state sdk.State) *WorkManager {
 	return &WorkManager{
 		logger: logger,
+		state:  state,
 	}
 }
