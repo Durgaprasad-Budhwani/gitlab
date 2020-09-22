@@ -83,19 +83,6 @@ func boardsCommonPage(
 	for _, board := range boards {
 
 		boardRefID := strconv.FormatInt(board.RefID, 10)
-		// TODO: Figure out how to do proper boards incrementals using issues labels
-		if qc.Historical {
-			qc.State.Set(boardRefID, true)
-		} else {
-			var value bool
-			exists, err := qc.State.Get(boardRefID, &value)
-			if err != nil {
-				return np, err
-			}
-			if exists {
-				continue
-			}
-		}
 
 		sdk.LogInfo(qc.Logger, "exporting board", "name", board.Name)
 
