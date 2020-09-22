@@ -191,24 +191,25 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 
 	sdk.LogInfo(logger, "registering webhooks")
 
-	// err = i.registerWebhooks(gexport, allnamespaces)
-	// if err != nil {
-	// 	return err
-	// }
+	err = i.registerWebhooks(gexport, allnamespaces)
+	if err != nil {
+		return err
+	}
 
 	sdk.LogInfo(logger, "registering webhooks done")
 
 	if gexport.historical {
+		sdk.LogInfo(logger, "deleting work manager state")
 		if err := gexport.qc.WorkManager.Delete(); err != nil {
 			sdk.LogError(logger, "error deleting work manager state", "err", err)
 			return err
 		}
-	}
-
-	sdk.LogInfo(logger, "recovering work manager state")
-	if err := gexport.qc.WorkManager.Restore(); err != nil {
-		sdk.LogError(logger, "error recovering work manager state", "err", err)
-		return err
+	} else {
+		sdk.LogInfo(logger, "recovering work manager state")
+		if err := gexport.qc.WorkManager.Restore(); err != nil {
+			sdk.LogError(logger, "error recovering work manager state", "err", err)
+			return err
+		}
 	}
 
 	for _, namespace := range allnamespaces {

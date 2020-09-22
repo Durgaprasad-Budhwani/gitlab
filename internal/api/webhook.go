@@ -32,10 +32,12 @@ var webHookParams map[sdk.WebHookScope]url.Values = map[sdk.WebHookScope]url.Val
 	sdk.WebHookScopeOrg: {
 		"merge_requests_events": []string{"true"},
 		"note_events":           []string{"true"},
+		"issues_events":         []string{"true"},
 	},
 	sdk.WebHookScopeRepo: {
 		"merge_requests_events": []string{"true"},
 		"note_events":           []string{"true"},
+		"issues_events":         []string{"true"},
 	},
 }
 
@@ -97,7 +99,7 @@ func buildPath(whType sdk.WebHookScope, entityID string) string {
 // DeleteWebHook delete webhook
 func DeleteWebHook(whType sdk.WebHookScope, qc QueryContext, entityID, entityName, whID string) error {
 
-	sdk.LogInfo(qc.Logger, fmt.Sprintf("delete %s webhook", whType), "entityID", entityID, "entityName", entityName, "webhookID", whID)
+	sdk.LogInfo(qc.Logger, fmt.Sprintf("delete webhook %s", whType), "entityID", entityID, "entityName", entityName, "webhookID", whID)
 
 	objectPath := buildDeletePath(whType, entityID, whID)
 
