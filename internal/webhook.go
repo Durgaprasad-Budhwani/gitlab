@@ -114,7 +114,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 	projectRefID := strconv.FormatInt(rootWebHookObject.Project.ID, 10)
 
 	repoID := sdk.NewSourceCodeRepoID(customerID, projectRefID, gitlabRefType)
-	projectID2 := sdk.NewWorkProjectID(customerID, projectRefID, gitlabRefType)
+	projectID := sdk.NewWorkProjectID(customerID, projectRefID, gitlabRefType)
 
 	switch event {
 	case "Issue Hook":
@@ -130,7 +130,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 		}
 		// Fetch Issue
 		project := &sdk.SourceCodeRepo{}
-		project.ID = projectID2
+		project.ID = projectID
 		project.Name = rootWebHookObject.Project.Name
 		project.RefID = projectRefID
 		if err := ge.writeSingleIssue(project, issue.IID); err != nil {
