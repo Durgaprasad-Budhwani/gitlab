@@ -11,7 +11,7 @@ import (
 	"github.com/pinpt/agent.next/sdk"
 )
 
-const hookVersion = "1" // change this to upgrade the hook in case the events change
+const hookVersion = "2" // change this to upgrade the hook in case the events change
 
 type user struct {
 	Name      string `json:"name"`
@@ -84,6 +84,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 
 	ge.qc.Pipe = pipe
 	ge.qc.UserManager = userManager
+	ge.qc.WorkManager = NewWorkManager(logger, webhook.State())
 
 	sdk.LogInfo(logger, "event", "event", event)
 
@@ -112,9 +113,34 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 
 	projectRefID := strconv.FormatInt(rootWebHookObject.Project.ID, 10)
 
-	projectID := sdk.NewSourceCodeRepoID(customerID, projectRefID, gitlabRefType)
+	repoID := sdk.NewSourceCodeRepoID(customerID, projectRefID, gitlabRefType)
+	projectID := sdk.NewWorkProjectID(customerID, projectRefID, gitlabRefType)
 
 	switch event {
+	case "Issue Hook":
+		sdk.LogInfo(logger, "recovering work manager state")
+		if err := ge.qc.WorkManager.Restore(); err != nil {
+			sdk.LogError(logger, "error recovering work manager state", "err", err)
+			return err
+		}
+		issue := &api.IssueWebHook{}
+		err := json.Unmarshal(rootWebHookObject.WebHookMainObject, issue)
+		if err != nil {
+			return err
+		}
+		// Fetch Issue
+		project := &sdk.SourceCodeRepo{}
+		project.ID = projectID
+		project.Name = rootWebHookObject.Project.Name
+		project.RefID = projectRefID
+		if err := ge.writeSingleIssue(project, issue.IID); err != nil {
+			return err
+		}
+		sdk.LogInfo(logger, "persisting work manager into state")
+		if err := ge.qc.WorkManager.Persist(); err != nil {
+			sdk.LogError(logger, "error persisting work manager state", "err", err)
+			return err
+		}
 	case "Merge Request Hook":
 
 		pr := &api.WebhookPullRequest{}
@@ -124,7 +150,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 		}
 
 		var scPr = &sdk.SourceCodePullRequest{}
-		scPr, rerr = pr.ToSourceCodePullRequest(logger, customerID, projectID, gitlabRefType)
+		scPr, rerr = pr.ToSourceCodePullRequest(logger, customerID, repoID, gitlabRefType)
 		if rerr != nil {
 			return
 		}
@@ -156,7 +182,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 			return
 		}
 
-		pullRequestID := sdk.NewSourceCodePullRequestID(customerID, scPr.RefID, gitlabRefType, projectID)
+		pullRequestID := sdk.NewSourceCodePullRequestID(customerID, scPr.RefID, gitlabRefType, repoID)
 
 		switch pr.Action {
 		case "approved", "unapproved":
@@ -165,7 +191,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 				ge.qc,
 				customerID,
 				rootWebHookObject.Project.Name,
-				projectID,
+				repoID,
 				scPr.RefID,
 				pullRequestID,
 				scPr.RefID,
@@ -268,7 +294,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 
 		if note.System == false {
 			var scPr = &sdk.SourceCodePullRequest{}
-			scPr, rerr = rootWebHookObject.MergeRequest.ToSourceCodePullRequest(logger, customerID, projectID, gitlabRefType)
+			scPr, rerr = rootWebHookObject.MergeRequest.ToSourceCodePullRequest(logger, customerID, repoID, gitlabRefType)
 			if rerr != nil {
 				return
 			}
@@ -278,7 +304,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 				review.CustomerID = customerID
 				review.IntegrationInstanceID = sdk.StringPointer(integrationInstanceID)
 				review.PullRequestID = scPr.ID
-				review.RepoID = projectID
+				review.RepoID = repoID
 
 				rerr = pipe.Write(review)
 				if rerr != nil {
@@ -297,7 +323,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 				sdk.ConvertTimeToDateModel(note.CreatedAt, &prComment.CreatedDate)
 				sdk.ConvertTimeToDateModel(note.UpdatedAt, &prComment.UpdatedDate)
 
-				prComment.RepoID = projectID
+				prComment.RepoID = repoID
 				prComment.Body = note.Note
 
 				prComment.UserRefID = note.AuthorID
@@ -312,11 +338,6 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 	case "System Hook":
 		switch rootWebHookObject.EventName {
 		case "repository_update", "project_update", "project_rename":
-			ge, err := i.SetQueryConfig(logger, webhook.Config(), i.manager, customerID)
-			if err != nil {
-				rerr = err
-				return
-			}
 			repo, err := api.ProjectByID(ge.qc, rootWebHookObject.ProjectID)
 			if err != nil {
 				rerr = err
@@ -328,12 +349,6 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 				return
 			}
 		case "user_create", "user_rename":
-			ge, err := i.SetQueryConfig(logger, webhook.Config(), i.manager, customerID)
-			if err != nil {
-				rerr = err
-				return
-			}
-
 			user, err := api.UserByID(ge.qc, rootWebHookObject.UserID)
 			if err != nil {
 				rerr = err
@@ -400,196 +415,4 @@ func (i *GitlabIntegration) GetReviewFromAction(
 	review.UserRefID = strconv.FormatInt(note.Author.ID, 10)
 
 	return
-}
-
-func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.Namespace) error {
-
-	// TODO: Add concurrency to webhooks registration
-	customerID := ge.qc.CustomerID
-	integrationInstanceID := ge.integrationInstanceID
-	webhookManager := i.manager.WebHookManager()
-
-	wr := webHookRegistration{
-		customerID:            customerID,
-		integrationInstanceID: *integrationInstanceID,
-		manager:               webhookManager,
-		ge:                    &ge,
-	}
-
-	loginUser, err := api.LoginUser(ge.qc)
-	if err != nil {
-		return err
-	}
-
-	if !ge.isGitlabCloud && loginUser.IsAdmin {
-		err = wr.registerWebhook(sdk.WebHookScopeSystem, "", "")
-		if err != nil {
-			sdk.LogDebug(ge.logger, "error registering sytem webhooks", "err", err)
-			webhookManager.Errored(customerID, *ge.integrationInstanceID, gitlabRefType, "system", sdk.WebHookScopeSystem, err)
-			return err
-		}
-	}
-
-	sdk.LogDebug(ge.logger, "namespaces", "namespaces", sdk.Stringify(namespaces))
-	var userHasProjectWebhookAcess bool
-	for _, namespace := range namespaces {
-		sdk.LogDebug(ge.logger, "group webooks", "group_name", namespace.Name, "valid_tier", namespace.ValidTier)
-		if namespace.Kind == "user" {
-			sdk.LogDebug(ge.logger, "user namespace marked to create project webhooks", "user", namespace.Name)
-			namespace.MarkedToCreateProjectWebHooks = true
-			continue
-		}
-		if namespace.ValidTier {
-			if loginUser.IsAdmin {
-				err = wr.registerWebhook(sdk.WebHookScopeOrg, namespace.ID, namespace.Name)
-				if err != nil {
-					namespace.MarkedToCreateProjectWebHooks = true
-					sdk.LogWarn(ge.logger, "there was an error trying to create namespace webhooks, will try to create project webhooks instead", "namespace", namespace.Name, "user", loginUser.Name, "user_access_level", loginUser.AccessLevel, "err", err)
-				}
-			} else {
-				user, err := api.GroupUser(ge.qc, namespace, loginUser.StrID)
-				if err != nil && strings.Contains(err.Error(), "Not found") {
-					namespace.MarkedToCreateProjectWebHooks = true
-					sdk.LogWarn(ge.logger, "use is not member of this namespace, will try to create project webhooks", "namespace", namespace.Name, "user_id", loginUser.RefID, "user_name", loginUser.Name, "err", err)
-					continue
-				}
-				if err != nil {
-					namespace.MarkedToCreateProjectWebHooks = true
-					sdk.LogWarn(ge.logger, "there was an error trying to get namespace user access level, will try to create project webhooks instead", "namespace", namespace.Name, "user", user.Name, "user_access_level", user.AccessLevel, "err", err)
-					continue
-				}
-				sdk.LogDebug(ge.logger, "user", "access_level", user.AccessLevel)
-
-				if user.AccessLevel >= api.Owner {
-					userHasProjectWebhookAcess = true
-					err = wr.registerWebhook(sdk.WebHookScopeOrg, namespace.ID, namespace.Name)
-					if err != nil {
-						namespace.MarkedToCreateProjectWebHooks = true
-						sdk.LogWarn(ge.logger, "there was an error trying to create namespace webhooks, will try to create project webhooks instead", "namespace", namespace.Name, "user", user.Name, "user_access_level", user.AccessLevel, "err", err)
-					}
-				} else {
-					namespace.MarkedToCreateProjectWebHooks = true
-					sdk.LogWarn(ge.logger, "at least Onwner level access is needed to create webhooks for this namespace will try to create project webhooks instead", "namespace", namespace.Name, "user", user.Name, "user_access_level", user.AccessLevel)
-				}
-			}
-
-		}
-	}
-
-	sdk.LogDebug(ge.logger, "creating project webhooks")
-	for _, namespace := range namespaces {
-		sdk.LogDebug(ge.logger, "project webooks", "namespace", namespace)
-		if namespace.MarkedToCreateProjectWebHooks {
-			projects, err := ge.exportNamespaceRepos(namespace)
-			if err != nil {
-				err = fmt.Errorf("error trying to get namespace projects err => %s", err)
-				webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, namespace.ID, sdk.WebHookScopeOrg, err)
-				return err
-			}
-			sdk.LogDebug(ge.logger, "namespace projects", "projects", projects)
-			for _, project := range projects {
-				sdk.LogDebug(ge.logger, "webhook for project", "project_name", project.Name)
-				user, err := api.ProjectUser(ge.qc, project, loginUser.StrID)
-				if err != nil {
-					err = fmt.Errorf("error trying to get project user user => %s err => %s", user.Name, err)
-					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
-					return err
-				}
-				sdk.LogDebug(ge.logger, "user project level", "user_level", user.AccessLevel)
-				if user.AccessLevel >= api.Maintainer || userHasProjectWebhookAcess {
-					sdk.LogDebug(ge.logger, "registering webhook for project", "project_name", project.Name)
-					err = wr.registerWebhook(sdk.WebHookScopeRepo, project.RefID, project.Name)
-					if err != nil {
-						err := fmt.Errorf("error trying to register project webhooks err => %s", err)
-						webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
-						sdk.LogError(ge.logger, "error creating project webhook", "err", err)
-						return err
-					}
-				} else {
-					err := fmt.Errorf("at least Maintainer level access is needed to create webhooks for this project project => %s user => %s user_access_level %d", project.Name, user.Name, user.AccessLevel)
-					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
-					sdk.LogError(ge.logger, err.Error())
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-type webHookRegistration struct {
-	manager               sdk.WebHookManager
-	customerID            string
-	integrationInstanceID string
-	ge                    *GitlabExport
-}
-
-func (wr *webHookRegistration) registerWebhook(whType sdk.WebHookScope, entityID, entityName string) error {
-
-	sdk.LogDebug(wr.ge.logger, "registering webhook", "type", whType, "entityID", entityID, "entityName", entityName)
-
-	if wr.ge.isWebHookInstalled(whType, wr.manager, wr.customerID, wr.integrationInstanceID, entityID) {
-		sdk.LogDebug(wr.ge.logger, "webhook already installed", "webhook_id", entityID, "type", whType)
-		return nil
-	}
-
-	webHooks, err := wr.ge.getHooks(whType, entityID, entityName)
-	if err != nil {
-		return err
-	}
-
-	sdk.LogDebug(wr.ge.logger, "source webhooks length", "len", len(webHooks))
-
-	var found bool
-	for _, wh := range webHooks {
-		if strings.Contains(wh.URL, "event.api") && strings.Contains(wh.URL, "pinpoint.com") && strings.Contains(wh.URL, wr.integrationInstanceID) {
-			found = true
-			break
-		}
-	}
-
-	sdk.LogDebug(wr.ge.logger, "pinpoint webhook", "found", found)
-
-	if !found {
-		params := []string{"version=" + hookVersion}
-		if whType == sdk.WebHookScopeRepo {
-			params = append(params, "ref_id="+entityID)
-		}
-		url, err := wr.manager.Create(wr.customerID, wr.integrationInstanceID, gitlabRefType, entityID, whType, params...)
-		if err != nil {
-			wr.manager.Delete(wr.customerID, wr.integrationInstanceID, gitlabRefType, entityID, whType)
-			return err
-		}
-		err = api.CreateWebHook(whType, wr.ge.qc, url, entityID, entityName)
-		if err != nil {
-			return err
-		}
-		sdk.LogDebug(wr.ge.logger, "webhook created", "scope", whType, "entity_id", entityID, "entity_name", entityName)
-	}
-
-	return nil
-}
-
-func (wr *webHookRegistration) unregisterWebhook(whType sdk.WebHookScope, entityID, entityName string) error {
-
-	webHooks, err := wr.ge.getHooks(whType, entityID, entityName)
-	if err != nil {
-		return err
-	}
-
-	for _, wh := range webHooks {
-		if strings.Contains(wh.URL, wr.integrationInstanceID) {
-			sdk.LogInfo(wr.ge.logger, "deleting webhook", "url", wh.URL)
-			err = api.DeleteWebHook(whType, wr.ge.qc, entityID, entityName, strconv.FormatInt(wh.ID, 10))
-			if err != nil {
-				return err
-			}
-		}
-		err := wr.manager.Delete(wr.customerID, wr.integrationInstanceID, gitlabRefType, entityID, whType)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

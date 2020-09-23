@@ -105,6 +105,10 @@ func WorkIssuesPage(
 	return
 }
 
+type IssueWebHook struct {
+	IID int64 `json:"iid"`
+}
+
 type IssueModel struct {
 	ID                 int64     `json:"id"`
 	Iid                int       `json:"iid"`
