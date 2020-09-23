@@ -2,6 +2,7 @@ package internal
 
 import (
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -103,10 +104,10 @@ func (ge *GitlabExport) fetchRemainingProjectIssues(project *sdk.SourceCodeRepo,
 	})
 }
 
-func (ge *GitlabExport) writeSingleIssue(project *sdk.SourceCodeRepo, iid string) error {
+func (ge *GitlabExport) writeSingleIssue(project *sdk.SourceCodeRepo, iid int64) error {
 
 	params := url.Values{}
-	params.Set("iids[]", iid)
+	params.Set("iids[]", strconv.FormatInt(iid, 10))
 
 	issuesC := make(chan sdk.WorkIssue, 1)
 	_, err := api.WorkIssuesPage(ge.qc, project, ge.lastExportDate, params, issuesC)
@@ -117,5 +118,5 @@ func (ge *GitlabExport) writeSingleIssue(project *sdk.SourceCodeRepo, iid string
 
 	issue.IntegrationInstanceID = ge.integrationInstanceID
 
-	return ge.pipe.Write(&issue)
+	return ge.qc.Pipe.Write(&issue)
 }

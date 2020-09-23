@@ -84,6 +84,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 
 	ge.qc.Pipe = pipe
 	ge.qc.UserManager = userManager
+	ge.qc.WorkManager = NewWorkManager(logger, webhook.State())
 
 	sdk.LogInfo(logger, "event", "event", event)
 
