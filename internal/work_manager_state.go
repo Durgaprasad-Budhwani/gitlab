@@ -1,6 +1,11 @@
 package internal
 
-import "strconv"
+import (
+	"strconv"
+	"time"
+
+	"github.com/pinpt/agent.next/sdk"
+)
 
 const workManagerKey = "work_manager"
 
@@ -29,7 +34,11 @@ func (w *WorkManager) Persist() error {
 		RefMilestonesDetails: refMilestonesDetailsMap,
 	}
 
-	return w.state.Set(workManagerKey, r)
+	start := time.Now()
+	err := w.state.Set(workManagerKey, r)
+	sdk.LogDebug(w.logger, "persistence took", "time", time.Since(start))
+
+	return err
 }
 
 // Restore restore info into work manager
@@ -37,7 +46,9 @@ func (w *WorkManager) Restore() error {
 
 	var r recover
 
+	start := time.Now()
 	ok, err := w.state.Get(workManagerKey, &r)
+	sdk.LogDebug(w.logger, "recovery took", "time", time.Since(start))
 	if err != nil {
 		return err
 	}

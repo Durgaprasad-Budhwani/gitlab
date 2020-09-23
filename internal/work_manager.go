@@ -249,7 +249,7 @@ func convertToInt64(milestoneRefID string) int64 {
 // NewWorkManager desc
 func NewWorkManager(logger sdk.Logger, state sdk.State) *WorkManager {
 	return &WorkManager{
-		logger: logger,
+		logger: sdk.LogWith(logger, "entity", "work manager"),
 		state:  state,
 	}
 }

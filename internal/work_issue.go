@@ -102,3 +102,20 @@ func (ge *GitlabExport) fetchRemainingProjectIssues(project *sdk.SourceCodeRepo,
 		return
 	})
 }
+
+func (ge *GitlabExport) writeSingleIssue(project *sdk.SourceCodeRepo, iid string) error {
+
+	params := url.Values{}
+	params.Set("iids[]", iid)
+
+	issuesC := make(chan sdk.WorkIssue, 1)
+	_, err := api.WorkIssuesPage(ge.qc, project, ge.lastExportDate, params, issuesC)
+	if err != nil {
+		return err
+	}
+	issue := <-issuesC
+
+	issue.IntegrationInstanceID = ge.integrationInstanceID
+
+	return ge.pipe.Write(&issue)
+}
