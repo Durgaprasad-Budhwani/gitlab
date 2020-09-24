@@ -15,6 +15,7 @@ func (g *GitlabIntegration) Dismiss(instance sdk.Instance) error {
 	logger := sdk.LogWith(g.logger, "event", "dismiss", "customer_id", instance.CustomerID(), "integration_instance_id", instance.IntegrationInstanceID())
 	started := time.Now()
 	state := instance.State()
+	pipe := instance.Pipe()
 	config := instance.Config()
 
 	sdk.LogInfo(logger, "dismiss started")
@@ -22,6 +23,12 @@ func (g *GitlabIntegration) Dismiss(instance sdk.Instance) error {
 	ge, err := g.SetQueryConfig(logger, config, g.manager, instance.CustomerID())
 	if err != nil {
 		return fmt.Errorf("error creating http client: %w", err)
+	}
+	ge.repoProjectManager = NewRepoProjectManager(logger, state, pipe)
+
+	err = ge.repoProjectManager.DeactivateReposAndProjects()
+	if err != nil {
+		return err
 	}
 
 	wr := webHookRegistration{

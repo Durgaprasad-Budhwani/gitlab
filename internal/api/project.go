@@ -51,9 +51,6 @@ func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Ti
 	}
 
 	for _, r := range rr {
-		if r.UpdatedAt.Before(stopOnUpdatedAt) {
-			return
-		}
 		refID := strconv.FormatInt(r.ID, 10)
 		repo := &sdk.SourceCodeRepo{
 			ID:            sdk.NewSourceCodeRepoID(qc.CustomerID, refID, qc.RefType),
