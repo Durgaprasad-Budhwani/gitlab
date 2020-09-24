@@ -74,7 +74,9 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 
 	event := webhook.Headers()["x-gitlab-event"]
 
-	userManager := NewUserManager(customerID, webhook, webhook.State(), pipe, integrationInstanceID)
+	state := webhook.State()
+
+	userManager := NewUserManager(customerID, webhook, state, pipe, integrationInstanceID)
 
 	ge, err := i.SetQueryConfig(logger, webhook.Config(), i.manager, customerID)
 	if err != nil {
@@ -84,7 +86,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 
 	ge.qc.Pipe = pipe
 	ge.qc.UserManager = userManager
-	ge.qc.WorkManager = NewWorkManager(logger, webhook.State())
+	ge.qc.WorkManager = NewWorkManager(logger, state)
 
 	sdk.LogInfo(logger, "event", "event", event)
 

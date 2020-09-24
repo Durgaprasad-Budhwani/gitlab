@@ -22,6 +22,7 @@ type GitlabExport struct {
 	integrationInstanceID      *string
 	lastExportKey              string
 	systemWebHooksEnabled      bool
+	repoProjectManager         *RepoProjectManager
 }
 
 const concurrentAPICalls = 10
@@ -94,6 +95,7 @@ func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (g
 	ge.qc.UserManager = NewUserManager(ge.qc.CustomerID, export, ge.state, ge.pipe, ge.qc.IntegrationInstanceID)
 	ge.qc.Pipe = ge.pipe
 	ge.qc.State = ge.state
+	ge.repoProjectManager = NewRepoProjectManager(logger, ge.state, ge.pipe)
 
 	ge.lastExportKey = "last_export_date"
 
@@ -252,6 +254,10 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 			return err
 		}
 	}
+	err = gexport.repoProjectManager.PersistRepos()
+	if err != nil {
+		return err
+	}
 
 	sdk.LogInfo(logger, "persisting work manager into state")
 	if err := gexport.qc.WorkManager.Persist(); err != nil {
@@ -306,6 +312,7 @@ func (ge *GitlabExport) exportRepoAndWrite(repo *sdk.SourceCodeRepo, projectUser
 	if err := ge.pipe.Write(ToProject(repo)); err != nil {
 		return err
 	}
+	ge.repoProjectManager.AddRepo(repo)
 	ge.exportRepoPullRequests(repo)
 	if ge.isGitlabCloud {
 		users, err := ge.exportRepoUsers(repo)
@@ -344,13 +351,13 @@ func (ge *GitlabExport) exportReposWork(projects []*sdk.SourceCodeRepo, projectU
 	return
 }
 
-func (ge *GitlabExport) IncludeRepo(login string, name string, isArchived bool) bool {
-	if ge.config.Exclusions != nil && ge.config.Exclusions.Matches(login, name) {
+func (ge *GitlabExport) IncludeRepo(namespaceID string, name string, isArchived bool) bool {
+	if ge.config.Exclusions != nil && ge.config.Exclusions.Matches(namespaceID, name) {
 		// skip any repos that don't match our rule
 		sdk.LogInfo(ge.logger, "skipping repo because it matched exclusion rule", "name", name)
 		return false
 	}
-	if ge.config.Inclusions != nil && !ge.config.Inclusions.Matches(login, name) {
+	if ge.config.Inclusions != nil && !ge.config.Inclusions.Matches(namespaceID, name) {
 		// skip any repos that don't match our rule
 		sdk.LogInfo(ge.logger, "skipping repo because it didn't match inclusion rule", "name", name)
 		return false

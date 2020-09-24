@@ -7,7 +7,7 @@ import (
 
 func (ge *GitlabExport) exportNamespaceRepos(namespace *api.Namespace) (repos []*sdk.SourceCodeRepo, rerr error) {
 	rerr = ge.fetchNamespaceProjectsRepos(namespace, func(repo *sdk.SourceCodeRepo) {
-		if ge.IncludeRepo(namespace.Name, repo.Name, !repo.Active) {
+		if ge.IncludeRepo(namespace.ID, repo.Name, !repo.Active) {
 			repos = append(repos, repo)
 		}
 	})
