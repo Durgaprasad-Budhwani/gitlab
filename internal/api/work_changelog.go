@@ -26,6 +26,8 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 
 	sdk.LogDebug(qc.Logger, "work issues changelog", "project", project.Name, "project_ref_id", project.RefID, "issue", issueID, "params", params)
 
+	// TODO: extract iid from issue.Identifier
+
 	objectPath := sdk.JoinURL("projects", url.QueryEscape(project.RefID), "issues", issueID, "discussions.json")
 
 	var notes []struct {
@@ -53,7 +55,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 					RefType:   qc.RefType,
 					UserRefID: usermap[nn.Author.Username],
 					IssueID:   issueID,
-					ProjectID: project.ID,
+					ProjectID: ToProject(project).ID,
 					Body:      nn.Body,
 				}
 				sdk.ConvertTimeToDateModel(nn.CreatedAt, &comment.CreatedDate)
@@ -170,4 +172,21 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 	}
 
 	return
+}
+
+func ToProject(repo *sdk.SourceCodeRepo) *sdk.WorkProject {
+	return &sdk.WorkProject{
+		ID:                    sdk.NewWorkProjectID(repo.CustomerID, repo.RefID, "gitlab"),
+		Active:                repo.Active,
+		CustomerID:            repo.CustomerID,
+		Description:           sdk.StringPointer(repo.Description),
+		Name:                  repo.Name,
+		RefID:                 repo.RefID,
+		RefType:               repo.RefType,
+		UpdatedAt:             repo.UpdatedAt,
+		URL:                   repo.URL,
+		Hashcode:              repo.Hashcode,
+		Identifier:            repo.Name,
+		IntegrationInstanceID: repo.IntegrationInstanceID,
+	}
 }

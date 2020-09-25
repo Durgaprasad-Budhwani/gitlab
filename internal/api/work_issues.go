@@ -61,13 +61,22 @@ func WorkIssuesPage(
 		item.ReporterRefID = fmt.Sprint(rawissue.Author.ID)
 		item.CreatorRefID = fmt.Sprint(rawissue.Author.ID)
 		item.Description = rawissue.Description
-		if rawissue.EpicIid != 0 {
-			item.EpicID = sdk.StringPointer(fmt.Sprint(rawissue.EpicIid))
+		if rawissue.Epic != nil {
+			epicID := sdk.NewWorkIssueID(qc.CustomerID, strconv.FormatInt(rawissue.Epic.ID, 10), qc.RefType)
+			item.EpicID = sdk.StringPointer(epicID)
+			item.ParentID = epicID
 		}
 		item.Identifier = rawissue.References.Full
 		item.ProjectID = sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)
 		item.Title = rawissue.Title
 		item.Status = rawissue.State
+		if item.Status == "opened" {
+			item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, "gitlab", "1")
+		} else {
+			item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, "gitlab", "2")
+		}
+		// priority
+		// due_date
 
 		tags := make([]string, 0)
 		for _, label := range rawissue.Labels {
@@ -77,7 +86,7 @@ func WorkIssuesPage(
 		qc.WorkManager.AddIssue(issueID, rawissue.State == "opened", projectID, rawissue.Labels, rawissue.Milestone, rawissue.Assignee, rawissue.Weight)
 
 		item.Tags = tags
-		item.Type = "Issue"
+		item.Type = "Bug"
 		item.URL = rawissue.WebURL
 
 		sdk.ConvertTimeToDateModel(rawissue.CreatedAt, &item.CreatedDate)
@@ -151,11 +160,12 @@ type IssueModel struct {
 		Relative string `json:"relative"`
 		Full     string `json:"full"`
 	} `json:"references"`
-	MovedToID    interface{} `json:"moved_to_id"`
-	EpicIid      int         `json:"epic_iid"`
-	Epic         interface{} `json:"epic"`
-	Weight       *int        `json:"weight"`
-	ProjectRefID int64       `json:"project_id"`
+	MovedToID interface{} `json:"moved_to_id"`
+	Epic      *struct {
+		ID int64 `json:"id"`
+	} `json:"epic"`
+	Weight       *int  `json:"weight"`
+	ProjectRefID int64 `json:"project_id"`
 }
 
 type UserModel struct {

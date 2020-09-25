@@ -37,10 +37,12 @@ func (i *GitlabExport) workConfig() error {
 	wc.IntegrationInstanceID = *i.integrationInstanceID
 	wc.RefType = "gitlab"
 	wc.Statuses = sdk.WorkConfigStatuses{
-		OpenStatus:       []string{"open", "Open"},
+		OpenStatus:       []string{"opened", "Opened"},
 		InProgressStatus: []string{"in progress", "In progress", "In Progress"},
 		ClosedStatus:     []string{"closed", "Closed"},
 	}
+
+	sdk.LogDebug(i.logger, "writting - work - config", "wc", wc)
 
 	return i.pipe.Write(wc)
 }
@@ -221,6 +223,11 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		repos, err := gexport.exportNamespaceSourceCode(namespace, projectUsersMap)
 		if err != nil {
 			sdk.LogWarn(logger, "error exporting sourcecode namespace", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
+		}
+
+		// TODO: change repos[0]
+		if err := gexport.exportEpics(namespace, repos, projectUsersMap[repos[0].RefID]); err != nil {
+			return err
 		}
 
 		err = gexport.exportReposWork(repos, projectUsersMap)
