@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/pinpt/gitlab/internal/api"
-	"github.com/pinpt/agent/sdk"
+	"github.com/pinpt/agent/v4/sdk"
 )
 
 func (ge *GitlabExport) exportPullRequestsComments(repo *sdk.SourceCodeRepo, pr api.PullRequest) error {

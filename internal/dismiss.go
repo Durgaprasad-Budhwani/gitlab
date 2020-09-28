@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/pinpt/gitlab/internal/api"
-	"github.com/pinpt/agent/sdk"
+	"github.com/pinpt/agent/v4/sdk"
 )
 
 // Dismiss is called when an existing integration instance is removed
