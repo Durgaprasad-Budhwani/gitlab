@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pinpt/agent/sdk"
+	"github.com/pinpt/agent/v4/sdk"
 )
 
 // WebhookNote note struct comming from webhooks

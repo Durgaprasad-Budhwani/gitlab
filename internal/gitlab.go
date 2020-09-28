@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/pinpt/gitlab/internal/api"
-	"github.com/pinpt/agent/sdk"
+	"github.com/pinpt/agent/v4/sdk"
 )
 
 // GitlabIntegration is an integration for GitHub
