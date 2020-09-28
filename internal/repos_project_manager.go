@@ -1,6 +1,6 @@
 package internal
 
-import "github.com/pinpt/agent.next/sdk"
+import "github.com/pinpt/agent/sdk"
 
 // RepoProjectManager repo/project manager
 type RepoProjectManager struct {

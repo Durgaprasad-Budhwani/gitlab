@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/pinpt/agent.next.gitlab/internal/api"
-	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/gitlab/internal/api"
+	"github.com/pinpt/agent/sdk"
 )
 
 // WorkManager work manager

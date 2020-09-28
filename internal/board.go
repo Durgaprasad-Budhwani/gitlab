@@ -4,8 +4,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pinpt/agent.next.gitlab/internal/api"
-	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/gitlab/internal/api"
+	"github.com/pinpt/agent/sdk"
 )
 
 func (ge *GitlabExport) exportGroupBoards(namespace *api.Namespace, repos []*sdk.SourceCodeRepo) error {
