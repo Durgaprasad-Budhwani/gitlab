@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/agent/v4/sdk"
 )
 
 type PullRequest struct {

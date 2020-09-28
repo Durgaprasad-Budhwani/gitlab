@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pinpt/agent.next.gitlab/internal/api"
-	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/gitlab/internal/api"
+	"github.com/pinpt/agent/v4/sdk"
 )
 
 const hookVersion = "2" // change this to upgrade the hook in case the events change

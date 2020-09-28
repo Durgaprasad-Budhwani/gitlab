@@ -1,10 +1,8 @@
-module github.com/pinpt/agent.next.gitlab
+module github.com/pinpt/gitlab
 
 go 1.14
 
 require (
-	github.com/pinpt/agent.next v0.0.0-20200925144119-28995aa57de4
+	github.com/pinpt/agent/v4 v4.0.0
 	github.com/stretchr/testify v1.6.1
 )
-
-replace github.com/pinpt/agent.next => ../agent.next

@@ -4,8 +4,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pinpt/agent.next.gitlab/internal/api"
-	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/gitlab/internal/api"
+	"github.com/pinpt/agent/v4/sdk"
 )
 
 func (ge *GitlabExport) exportPullRequestsReviews(repo *sdk.SourceCodeRepo, pr api.PullRequest) error {

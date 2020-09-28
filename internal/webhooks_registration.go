@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pinpt/agent.next.gitlab/internal/api"
-	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/gitlab/internal/api"
+	"github.com/pinpt/agent/v4/sdk"
 )
 
 func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.Namespace) error {

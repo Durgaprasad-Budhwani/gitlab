@@ -1,8 +1,8 @@
 package internal
 
 import (
-	"github.com/pinpt/agent.next.gitlab/internal/api"
-	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/gitlab/internal/api"
+	"github.com/pinpt/agent/v4/sdk"
 )
 
 func (g *GitlabIntegration) AutoConfigure(autoconfig sdk.AutoConfigure) (*sdk.Config, error) {
