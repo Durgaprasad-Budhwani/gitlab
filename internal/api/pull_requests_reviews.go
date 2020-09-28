@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/agent/sdk"
 )
 
 // PullRequestReviews get pr reviews

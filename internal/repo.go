@@ -1,8 +1,8 @@
 package internal
 
 import (
-	"github.com/pinpt/agent.next.gitlab/internal/api"
-	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/gitlab/internal/api"
+	"github.com/pinpt/agent/sdk"
 )
 
 func (ge *GitlabExport) exportNamespaceRepos(namespace *api.Namespace) (repos []*sdk.SourceCodeRepo, rerr error) {

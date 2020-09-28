@@ -4,7 +4,7 @@ import (
 	"io"
 	"net/url"
 
-	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/agent/sdk"
 )
 
 type GitUser2 interface {

@@ -1,6 +1,6 @@
 package internal
 
-import "github.com/pinpt/agent.next/sdk"
+import "github.com/pinpt/agent/sdk"
 
 func (ge *GitlabExport) exportSprints(sprints []*sdk.AgileSprint) error {
 	for _, sprint := range sprints {

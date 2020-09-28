@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/agent/sdk"
 )
 
 type Page func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (NextPage, error)

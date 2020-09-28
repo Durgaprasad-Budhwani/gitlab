@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/agent/sdk"
 )
 
 // CommonCommitFields common fields on commit objects

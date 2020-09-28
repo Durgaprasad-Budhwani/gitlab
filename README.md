@@ -18,7 +18,7 @@ You can run like this:
 ref_type is a must, use either SOURCECODE or WORK values
 
 ```
-agent.next dev . --log-level=debug --config api_key=$PP_GITLAB_TOKEN --ref_type=WORK
+agent dev . --log-level=debug --config api_key=$PP_GITLAB_TOKEN --ref_type=WORK
 ```
 
 This will run an export for GitLab and print all the JSON objects to the console.
