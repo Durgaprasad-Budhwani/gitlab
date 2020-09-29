@@ -27,6 +27,10 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 	sdk.LogDebug(qc.Logger, "work issues changelog", "project", project.Name, "project_ref_id", project.RefID, "issue", issue.ID, "params", params)
 
 	index := strings.Index(issue.Identifier, "#")
+	if index == -1 {
+		sdk.LogWarn(qc.Logger, "no issue iid found", project.Name, "project_ref_id", project.RefID, "issue", issue, "params", params)
+		return
+	}
 	issueIID := issue.Identifier[index+1:]
 
 	objectPath := sdk.JoinURL("projects", url.QueryEscape(project.RefID), "issues", issueIID, "discussions.json")
