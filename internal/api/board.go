@@ -122,7 +122,7 @@ func boardsCommonPage(
 		theboard.Columns = columns
 
 		// Scrum Board
-		if board.Milestone != nil {
+		if board.Milestone != nil && board.Milestone.RefID != 0 {
 			for _, column := range board.Lists {
 				qc.WorkManager.AddBoardColumnLabelToMilestone(board.Milestone.RefID, theboard.ID, &column.Label)
 			}

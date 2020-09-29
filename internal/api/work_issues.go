@@ -20,7 +20,7 @@ func WorkIssuesPage(
 	project *sdk.SourceCodeRepo,
 	stopOnUpdatedAt time.Time,
 	params url.Values,
-	issues chan sdk.WorkIssue) (pi NextPage, err error) {
+	issues chan *sdk.WorkIssue) (pi NextPage, err error) {
 
 	params.Set("scope", "all")
 	params.Set("with_labels_details", "true")
@@ -48,7 +48,7 @@ func WorkIssuesPage(
 		issueRefID := strconv.FormatInt(rawissue.ID, 10)
 		issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
 
-		item := sdk.WorkIssue{}
+		item := &sdk.WorkIssue{}
 		item.Active = true
 		item.CustomerID = qc.CustomerID
 		item.RefType = qc.RefType

@@ -18,15 +18,22 @@ type ResourceStateEvents struct {
 	State     string    `json:"state"`
 }
 
-func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issueID string, usermap UsernameMap, params url.Values) (pi NextPage, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
+func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issue *sdk.WorkIssue, usermap UsernameMap, params url.Values) (pi NextPage, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
 
 	params.Set("notes_filter", "0")
 	params.Set("persist_filter", "true")
 	params.Set("scope", "all")
 
-	sdk.LogDebug(qc.Logger, "work issues changelog", "project", project.Name, "project_ref_id", project.RefID, "issue", issueID, "params", params)
+	sdk.LogDebug(qc.Logger, "work issues changelog", "project", project.Name, "project_ref_id", project.RefID, "issue", issue.ID, "params", params)
 
-	objectPath := sdk.JoinURL("projects", url.QueryEscape(project.RefID), "issues", issueID, "discussions.json")
+	index := strings.Index(issue.Identifier, "#")
+	if index == -1 {
+		sdk.LogWarn(qc.Logger, "no issue iid found", project.Name, "project_ref_id", project.RefID, "issue", issue, "params", params)
+		return
+	}
+	issueIID := issue.Identifier[index+1:]
+
+	objectPath := sdk.JoinURL("projects", url.QueryEscape(project.RefID), "issues", issueIID, "discussions.json")
 
 	var notes []struct {
 		ID    string `json:"id"`
@@ -52,7 +59,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 					RefID:     fmt.Sprint(nn.ID),
 					RefType:   qc.RefType,
 					UserRefID: usermap[nn.Author.Username],
-					IssueID:   issueID,
+					IssueID:   issue.ID,
 					ProjectID: project.ID,
 					Body:      nn.Body,
 				}
@@ -147,7 +154,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 
 	sdk.LogDebug(qc.Logger, "work issues changelog resource_state_events", "project", project.RefID)
 
-	objectPath = sdk.JoinURL("projects", url.QueryEscape(project.RefID), "issues", issueID, "resource_state_events")
+	objectPath = sdk.JoinURL("projects", url.QueryEscape(project.RefID), "issues", issueIID, "resource_state_events")
 
 	var stateEvents []ResourceStateEvents
 	pi, err = qc.Get(objectPath, params, &stateEvents)
