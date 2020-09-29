@@ -4,8 +4,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pinpt/agent.next.gitlab/internal/api"
-	"github.com/pinpt/agent.next/sdk"
+	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
 func (ge *GitlabExport) exportEpics(namespace *api.Namespace, repos []*sdk.SourceCodeRepo, projectUsers api.UsernameMap) (rerr error) {
@@ -22,7 +22,7 @@ func (ge *GitlabExport) exportEpics(namespace *api.Namespace, repos []*sdk.Sourc
 		}
 		for _, epic := range epics {
 			// TODO: Change repos[0]
-			changelogs, err := ge.fetchIssueDiscussions(repos[0], *epic, projectUsers)
+			changelogs, err := ge.fetchIssueDiscussions(repos[0], epic, projectUsers)
 			if err != nil {
 				return pi, err
 			}

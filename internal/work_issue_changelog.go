@@ -4,11 +4,11 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pinpt/gitlab/internal/api"
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
-func (ge *GitlabExport) exportIssueDiscussions(project *sdk.SourceCodeRepo, issue sdk.WorkIssue, projectUsers api.UsernameMap) (rerr error) {
+func (ge *GitlabExport) exportIssueDiscussions(project *sdk.SourceCodeRepo, issue *sdk.WorkIssue, projectUsers api.UsernameMap) (rerr error) {
 
 	sdk.LogDebug(ge.logger, "exporting issue changelog", "issue", issue.Identifier)
 
@@ -22,10 +22,10 @@ func (ge *GitlabExport) exportIssueDiscussions(project *sdk.SourceCodeRepo, issu
 	return
 }
 
-func (ge *GitlabExport) fetchIssueDiscussions(project *sdk.SourceCodeRepo, issue sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, rerr error) {
+func (ge *GitlabExport) fetchIssueDiscussions(project *sdk.SourceCodeRepo, issue *sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, rerr error) {
 
 	rerr = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, rerr error) {
-		pi, arr, comments, err := api.WorkIssuesDiscussionPage(ge.qc, project, issue.RefID, projectUsers, params)
+		pi, arr, comments, err := api.WorkIssuesDiscussionPage(ge.qc, project, issue, projectUsers, params)
 		if err != nil {
 			return pi, err
 		}

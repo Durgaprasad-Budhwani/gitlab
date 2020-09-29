@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pinpt/gitlab/internal/api"
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
 type GitlabExport struct {
