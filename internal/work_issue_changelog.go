@@ -19,12 +19,14 @@ func (ge *GitlabExport) exportIssueDiscussions(project *sdk.SourceCodeRepo, issu
 
 	issue.ChangeLog = changelogs
 
+	sdk.LogDebug(ge.logger, "finished issues changelog", "issue", issue.Identifier)
+
 	return
 }
 
-func (ge *GitlabExport) fetchIssueDiscussions(project *sdk.SourceCodeRepo, issue *sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, rerr error) {
+func (ge *GitlabExport) fetchIssueDiscussions(project *sdk.SourceCodeRepo, issue *sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, err error) {
 
-	rerr = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, rerr error) {
+	err = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (api.NextPage, error) {
 		pi, arr, comments, err := api.WorkIssuesDiscussionPage(ge.qc, project, issue, projectUsers, params)
 		if err != nil {
 			return pi, err
@@ -35,10 +37,32 @@ func (ge *GitlabExport) fetchIssueDiscussions(project *sdk.SourceCodeRepo, issue
 		for _, c := range comments {
 			c.IntegrationInstanceID = ge.integrationInstanceID
 			if err := ge.pipe.Write(c); err != nil {
-				return
+				return pi, err
 			}
 		}
-		return
+		return pi, nil
+	})
+
+	return
+}
+
+func (ge *GitlabExport) fetchEpicIssueDiscussions(namespace *api.Namespace, projects []*sdk.SourceCodeRepo, epic *sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, err error) {
+
+	err = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (api.NextPage, error) {
+		pi, arr, comments, err := api.WorkEpicIssuesDiscussionPage(ge.qc, namespace, projects, epic, projectUsers, params)
+		if err != nil {
+			return pi, err
+		}
+		for _, cl := range arr {
+			changelogs = append(changelogs, *cl)
+		}
+		for _, c := range comments {
+			c.IntegrationInstanceID = ge.integrationInstanceID
+			if err := ge.pipe.Write(c); err != nil {
+				return pi, err
+			}
+		}
+		return pi, nil
 	})
 
 	return

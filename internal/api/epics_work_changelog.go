@@ -4,36 +4,21 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pinpt/agent/v4/sdk"
 )
 
-type ResourceStateEvents struct {
-	ID        int       `json:"id"`
-	User      UserModel `json:"user"`
-	CreatedAt time.Time `json:"created_at"`
-	State     string    `json:"state"`
-}
-
-func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issue *sdk.WorkIssue, usermap UsernameMap, params url.Values) (pi NextPage, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
+func WorkEpicIssuesDiscussionPage(qc QueryContext, namespace *Namespace, projects []*sdk.SourceCodeRepo, epic *sdk.WorkIssue, usermap UsernameMap, params url.Values) (pi NextPage, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
 
 	params.Set("notes_filter", "0")
 	params.Set("persist_filter", "true")
 	params.Set("scope", "all")
 
-	sdk.LogDebug(qc.Logger, "work issues changelog", "project", project.Name, "project_ref_id", project.RefID, "issue", issue.ID, "params", params)
+	sdk.LogDebug(qc.Logger, "work epics changelog", "namespace", namespace.Name, "namespace_id", namespace.ID, "issue", epic.Identifier, "params", params)
 
-	index := strings.Index(issue.Identifier, "#")
-	if index == -1 {
-		sdk.LogWarn(qc.Logger, "no issue iid found", project.Name, "project_ref_id", project.RefID, "issue", issue, "params", params)
-		return
-	}
-	issueIID := issue.Identifier[index+1:]
-
-	objectPath := sdk.JoinURL("projects", url.QueryEscape(project.RefID), "issues", issueIID, "discussions.json")
+	objectPath := sdk.JoinURL("groups", namespace.ID, "epics", epic.RefID, "discussions.json")
 
 	var notes []struct {
 		ID    string `json:"id"`
@@ -59,8 +44,8 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 					RefID:      fmt.Sprint(nn.ID),
 					RefType:    qc.RefType,
 					UserRefID:  usermap[nn.Author.Username],
-					IssueID:    sdk.NewWorkIssueID(qc.CustomerID, issue.RefID, qc.RefType),
-					ProjectID:  ToProject(project).ID,
+					IssueID:    sdk.NewWorkIssueID(qc.CustomerID, epic.RefID, qc.RefType),
+					ProjectID:  ToProject(projects[0]).ID,
 					Body:       nn.Body,
 					CustomerID: qc.CustomerID,
 				}
@@ -153,49 +138,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 		}
 	}
 
-	sdk.LogDebug(qc.Logger, "work issues changelog resource_state_events", "project", project.RefID)
-
-	objectPath = sdk.JoinURL("projects", url.QueryEscape(project.RefID), "issues", issueIID, "resource_state_events")
-
-	// TODO: paginate this
-	var stateEvents []ResourceStateEvents
-	_, err = qc.Get(objectPath, params, &stateEvents)
-	if err != nil {
-		return
-	}
-	for _, stateEvent := range stateEvents {
-		changelog := &sdk.WorkIssueChangeLog{
-			RefID:  fmt.Sprint(stateEvent.ID),
-			UserID: strconv.FormatInt(stateEvent.User.ID, 10),
-		}
-		sdk.ConvertTimeToDateModel(stateEvent.CreatedAt, &changelog.CreatedDate)
-
-		if stateEvent.State == "closed" || stateEvent.State == "reopened" {
-			changelog.To = stateEvent.State
-			changelog.ToString = stateEvent.State
-			changelog.Field = sdk.WorkIssueChangeLogFieldStatus
-		}
-		changelogs = append(changelogs, changelog)
-	}
-
-	sdk.LogDebug(qc.Logger, "work issue changelog done")
+	sdk.LogDebug(qc.Logger, "work epic changelog done")
 
 	return
-}
-
-func ToProject(repo *sdk.SourceCodeRepo) *sdk.WorkProject {
-	return &sdk.WorkProject{
-		ID:                    sdk.NewWorkProjectID(repo.CustomerID, repo.RefID, repo.RefType),
-		Active:                repo.Active,
-		CustomerID:            repo.CustomerID,
-		Description:           sdk.StringPointer(repo.Description),
-		Name:                  repo.Name,
-		RefID:                 repo.RefID,
-		RefType:               repo.RefType,
-		UpdatedAt:             repo.UpdatedAt,
-		URL:                   repo.URL,
-		Hashcode:              repo.Hashcode,
-		Identifier:            repo.Name,
-		IntegrationInstanceID: repo.IntegrationInstanceID,
-	}
 }

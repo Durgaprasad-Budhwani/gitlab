@@ -21,8 +21,8 @@ func (ge *GitlabExport) exportEpics(namespace *api.Namespace, repos []*sdk.Sourc
 			return pi, err
 		}
 		for _, epic := range epics {
-			// TODO: Change repos[0]
-			changelogs, err := ge.fetchIssueDiscussions(repos[0], epic, projectUsers)
+
+			changelogs, err := ge.fetchEpicIssueDiscussions(namespace, repos, epic, projectUsers)
 			if err != nil {
 				return pi, err
 			}

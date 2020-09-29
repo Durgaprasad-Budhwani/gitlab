@@ -47,6 +47,15 @@ func ToProject(repo *sdk.SourceCodeRepo) *sdk.WorkProject {
 		Hashcode:              repo.Hashcode,
 		Identifier:            repo.Name,
 		IntegrationInstanceID: repo.IntegrationInstanceID,
+		IssueTypes: []sdk.WorkProjectIssueTypes{
+			{
+				RefID: "1",
+				Name:  "Bug",
+			}, {
+				RefID: "2",
+				Name:  "Epic",
+			},
+		},
 	}
 }
 

@@ -71,7 +71,7 @@ func WorkIssuesPage(
 		item.Title = rawissue.Title
 		item.Status = rawissue.State
 		if item.Status == "opened" {
-			item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, "gitlab", "1")
+			item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, "1")
 		} else {
 			item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, "gitlab", "2")
 		}
@@ -87,6 +87,7 @@ func WorkIssuesPage(
 
 		item.Tags = tags
 		item.Type = "Bug"
+		item.TypeID = getIssueTypeFromLabels(rawissue.Labels, qc)
 		item.URL = rawissue.WebURL
 
 		sdk.ConvertTimeToDateModel(rawissue.CreatedAt, &item.CreatedDate)
@@ -114,8 +115,26 @@ func WorkIssuesPage(
 	return
 }
 
+func getIssueTypeFromLabels(lbls []*Label, qc QueryContext) string {
+	if len(lbls) == 0 {
+		return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, "1")
+	}
+	for _, lbl := range lbls {
+		switch lbl.Name {
+		case "enhancement":
+			return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, "3")
+		}
+	}
+
+	return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, "1")
+}
+
 type IssueWebHook struct {
 	IID int64 `json:"iid"`
+}
+
+type GitlabEpic struct {
+	ID int64 `json:"id"`
 }
 
 type IssueModel struct {
@@ -160,12 +179,10 @@ type IssueModel struct {
 		Relative string `json:"relative"`
 		Full     string `json:"full"`
 	} `json:"references"`
-	MovedToID interface{} `json:"moved_to_id"`
-	Epic      *struct {
-		ID int64 `json:"id"`
-	} `json:"epic"`
-	Weight       *int  `json:"weight"`
-	ProjectRefID int64 `json:"project_id"`
+	MovedToID    interface{} `json:"moved_to_id"`
+	Epic         *GitlabEpic `json:"epic"`
+	Weight       *int        `json:"weight"`
+	ProjectRefID int64       `json:"project_id"`
 }
 
 type UserModel struct {

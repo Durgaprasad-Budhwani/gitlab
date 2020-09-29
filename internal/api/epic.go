@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pinpt/agent/v4/sdk"
@@ -24,26 +25,20 @@ type Epic struct {
 		AvatarURL string `json:"avatar_url"`
 		WebURL    string `json:"web_url"`
 	} `json:"author"`
-	// StartDate        string `json:"start_date"`
-	StartDateIsFixed bool `json:"start_date_is_fixed"`
-	// StartDateFixed               time.Time `json:"start_date_fixed"`
+	StartDateIsFixed             bool   `json:"start_date_is_fixed"`
 	StartDateFromInheritedSource string `json:"start_date_from_inherited_source"`
-	// StartDateFromMilestones      interface{} `json:"start_date_from_milestones"`
-	// EndDate        time.Time `json:"end_date"`
-	DueDate        string `json:"due_date"`
-	DueDateIsFixed bool   `json:"due_date_is_fixed"`
-	// DueDateFixed               interface{} `json:"due_date_fixed"`
-	DueDateFromInheritedSource string `json:"due_date_from_inherited_source"`
-	// DueDateFromMilestones        interface{} `json:"due_date_from_milestones"`
-	State      string `json:"state"`
-	WebURL     string `json:"web_url"`
-	References struct {
+	DueDate                      string `json:"due_date"`
+	DueDateIsFixed               bool   `json:"due_date_is_fixed"`
+	DueDateFromInheritedSource   string `json:"due_date_from_inherited_source"`
+	State                        string `json:"state"`
+	WebURL                       string `json:"web_url"`
+	References                   struct {
 		Full string `json:"full"`
 	} `json:"references"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	ClosedAt  time.Time `json:"closed_at"`
-	Labels    []Board   `json:"labels"`
+	Labels    []string  `json:"labels"`
 }
 
 // EpicsPage epics page
@@ -59,8 +54,12 @@ func EpicsPage(
 
 	var repics []Epic
 
-	np, err = qc.Get(objectPath, params, &epics)
+	np, err = qc.Get(objectPath, params, &repics)
 	if err != nil {
+		if strings.Contains(err.Error(), "403") {
+			sdk.LogWarn(qc.Logger, "epics is not available for this namespace, it needs a valid tier", "namespace", namespace.Name)
+			return np, epics, nil
+		}
 		return
 	}
 
@@ -72,97 +71,74 @@ func EpicsPage(
 
 	for _, epic := range repics {
 
-		issueRefID := strconv.FormatInt(epic.ID, 10)
-		issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
+		// TODO: temporary code to make epics show up in the UI
+		for _, projectID := range projectIDs {
 
-		issue := &sdk.WorkIssue{}
-		issue.ID = issueID
-		issue.Active = true
-		issue.CustomerID = qc.CustomerID
-		issue.RefType = qc.RefType
-		issue.RefID = issueRefID
+			issueRefID := strconv.FormatInt(epic.ID, 10)
+			issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
 
-		// issue.AssigneeRefID Not supported
-		issue.AssigneeRefID = strconv.FormatInt(epic.Author.ID, 10)
+			issue := &sdk.WorkIssue{}
+			issue.ID = issueID
+			issue.Active = true
+			sdk.LogDebug(qc.Logger, "writting epic - customer-id", "customer_id", qc.CustomerID)
+			issue.CustomerID = qc.CustomerID
+			issue.RefType = qc.RefType
+			issue.RefID = issueRefID
 
-		issue.ReporterRefID = fmt.Sprint(epic.Author.ID)
-		issue.CreatorRefID = fmt.Sprint(epic.Author.ID)
+			// issue.AssigneeRefID Not supported
+			// issue.AssigneeRefID = strconv.FormatInt(epic.Author.ID, 10)
 
-		issue.Description = epic.Description
-		// issue.EpicID Not Apply
-		issue.Identifier = epic.References.Full
-		// issue.ProjectID Not Apply, epics are not attached to repos/projects in gitalb
-		issue.ProjectID = projectIDs[0]
-		issue.Title = epic.Title
-		issue.Status = epic.State
-		if issue.Status == "opened" {
-			issue.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, "gitlab", "1")
-		} else {
-			issue.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, "gitlab", "2")
-		}
+			issue.ReporterRefID = fmt.Sprint(epic.Author.ID)
+			issue.CreatorRefID = fmt.Sprint(epic.Author.ID)
 
-		tags := make([]string, 0)
-		for _, label := range epic.Labels {
-			tags = append(tags, label.Name)
-		}
-
-		issue.Tags = tags
-		issue.Type = "Epic"
-		issue.URL = epic.WebURL
-
-		sdk.ConvertTimeToDateModel(epic.CreatedAt, &issue.CreatedDate)
-		sdk.ConvertTimeToDateModel(epic.UpdatedAt, &issue.UpdatedDate)
-
-		// issue.SprintIds Not Apply
-
-		if epic.StartDateFromInheritedSource != "" {
-			startDate, err := time.Parse("2006-01-02", epic.StartDateFromInheritedSource)
-			if err != nil {
-				return np, epics, err
+			issue.Description = epic.Description
+			// issue.EpicID Not Apply
+			issue.Identifier = epic.References.Full
+			// issue.ProjectID Not Apply, epics are not attached to repos/projects in gitalb
+			issue.ProjectID = projectID
+			issue.Title = epic.Title
+			issue.Status = epic.State
+			if issue.Status == "opened" {
+				issue.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, "gitlab", "1")
+			} else {
+				issue.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, "gitlab", "2")
 			}
-			sdk.ConvertTimeToDateModel(startDate, &issue.PlannedStartDate)
-			// sdk.ConvertTimeToDateModel(startDate, &issue.DueDate)
-		}
 
-		if epic.DueDateFromInheritedSource != "" {
-			endDate, err := time.Parse("2006-01-02", epic.DueDateFromInheritedSource)
-			if err != nil {
-				return np, epics, err
+			tags := make([]string, 0)
+			for _, labelName := range epic.Labels {
+				tags = append(tags, labelName)
 			}
-			sdk.ConvertTimeToDateModel(endDate, &issue.PlannedEndDate)
+
+			issue.Tags = tags
+			issue.Type = "Epic"
+			issue.TypeID = sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, "2")
+			issue.URL = epic.WebURL
+
+			sdk.ConvertTimeToDateModel(epic.CreatedAt, &issue.CreatedDate)
+			sdk.ConvertTimeToDateModel(epic.UpdatedAt, &issue.UpdatedDate)
+
+			// issue.SprintIds Not Apply
+
+			if epic.StartDateFromInheritedSource != "" {
+				startDate, err := time.Parse("2006-01-02", epic.StartDateFromInheritedSource)
+				if err != nil {
+					return np, epics, err
+				}
+				sdk.ConvertTimeToDateModel(startDate, &issue.PlannedStartDate)
+			}
+
+			if epic.DueDateFromInheritedSource != "" {
+				endDate, err := time.Parse("2006-01-02", epic.DueDateFromInheritedSource)
+				if err != nil {
+					return np, epics, err
+				}
+				sdk.ConvertTimeToDateModel(endDate, &issue.PlannedEndDate)
+			}
+
+			issue.IntegrationInstanceID = sdk.StringPointer(qc.IntegrationInstanceID)
+
+			epics = append(epics, issue)
 		}
-
-		// if epic.DueDate != "" {
-		// 	dueDate, err := time.Parse("2006-01-02", epic.DueDate)
-		// 	if err != nil {
-		// 		return np, err
-		// 	}
-		// 	sdk.ConvertTimeToDateModel(dueDate, &issue.DueDate)
-		// }
-
-		issue.IntegrationInstanceID = sdk.StringPointer(qc.IntegrationInstanceID)
-
-		// pi, arr, comments, err := WorkIssuesDiscussionPage(qc, repos[0], issue.RefID, projectUsers, params)
-		// if err != nil {
-		// 	return pi, err
-		// }
-		// for _, cl := range arr {
-		// 	changelogs = append(changelogs, *cl)
-		// }
-		// for _, c := range comments {
-		// 	c.IntegrationInstanceID = ge.integrationInstanceID
-		// 	if err := ge.pipe.Write(c); err != nil {
-		// 		return
-		// 	}
-		// }
-
-		// issue.ChangeLog = arr
-
-		// sdk.LogDebug(qc.Logger, "writting epic", "epic", epic, "issue", issue)
-		// if err := qc.Pipe.Write(&issue); err != nil {
-		// 	return np, epics, err
-		// }
-		epics = append(epics, issue)
 	}
 
 	return np, epics, nil
