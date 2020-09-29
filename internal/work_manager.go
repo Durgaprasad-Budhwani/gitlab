@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/pinpt/gitlab/internal/api"
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
 // WorkManager work manager
@@ -157,7 +157,6 @@ func (w *WorkManager) AddMilestoneDetails(milestoneRefID int64, milestone api.Mi
 
 // AddBoardColumnLabelToMilestone desc
 func (w *WorkManager) AddBoardColumnLabelToMilestone(milestoneRefID int64, boardID string, label *api.Label) {
-
 	milestoneD, _ := w.refMilestonesDetails.Load(milestoneRefID)
 	milestone := milestoneD.(*milestoneDetail)
 	_, ok := milestone.Boards[boardID]
