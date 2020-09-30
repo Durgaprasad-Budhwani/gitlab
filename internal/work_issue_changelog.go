@@ -46,7 +46,7 @@ func (ge *GitlabExport) exportIssueDiscussions(project *sdk.SourceCodeRepo, issu
 		if stateEvent.State == "closed" {
 			changelog.To = stateEvent.State
 			changelog.ToString = stateEvent.State
-			changelog.From = "1"
+			changelog.From = "opened"
 			changelog.Field = sdk.WorkIssueChangeLogFieldStatus
 
 			transition.RefID = "2"
