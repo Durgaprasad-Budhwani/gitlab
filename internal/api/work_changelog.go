@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -18,6 +17,7 @@ type ResourceStateEvents struct {
 	State     string    `json:"state"`
 }
 
+// WorkIssuesDiscussionPage issue discussions
 func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issue *sdk.WorkIssue, usermap UsernameMap, params url.Values) (pi NextPage, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
 
 	params.Set("notes_filter", "0")
@@ -150,30 +150,6 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 			changelogs = append(changelogs, changelog)
 
 		}
-	}
-
-	sdk.LogDebug(qc.Logger, "work issues changelog resource_state_events", "project", project.RefID)
-
-	objectPath = sdk.JoinURL("projects", url.QueryEscape(project.RefID), "issues", issueIID, "resource_state_events")
-
-	var stateEvents []ResourceStateEvents
-	pi, err = qc.Get(objectPath, params, &stateEvents)
-	if err != nil {
-		return
-	}
-	for _, stateEvent := range stateEvents {
-		changelog := &sdk.WorkIssueChangeLog{
-			RefID:  fmt.Sprint(stateEvent.ID),
-			UserID: strconv.FormatInt(stateEvent.User.ID, 10),
-		}
-		sdk.ConvertTimeToDateModel(stateEvent.CreatedAt, &changelog.CreatedDate)
-
-		if stateEvent.State == "closed" || stateEvent.State == "reopened" {
-			changelog.To = stateEvent.State
-			changelog.ToString = stateEvent.State
-			changelog.Field = sdk.WorkIssueChangeLogFieldStatus
-		}
-		changelogs = append(changelogs, changelog)
 	}
 
 	return

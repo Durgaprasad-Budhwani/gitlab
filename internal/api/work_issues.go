@@ -68,6 +68,11 @@ func WorkIssuesPage(
 		item.ProjectID = sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)
 		item.Title = rawissue.Title
 		item.Status = rawissue.State
+		if rawissue.State == "opened" {
+			item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, "gitlab", "1")
+		} else {
+			item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, "gitlab", "2")
+		}
 
 		tags := make([]string, 0)
 		for _, label := range rawissue.Labels {

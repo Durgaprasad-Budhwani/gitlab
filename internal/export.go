@@ -30,16 +30,15 @@ const concurrentAPICalls = 10
 func (i *GitlabExport) workConfig() error {
 
 	wc := &sdk.WorkConfig{}
-	wc.ID = sdk.NewWorkConfigID(i.qc.CustomerID, "gitlab", *i.integrationInstanceID)
+	wc.ID = sdk.NewWorkConfigID(i.qc.CustomerID, i.qc.RefType, *i.integrationInstanceID)
 	wc.CreatedAt = sdk.EpochNow()
 	wc.UpdatedAt = sdk.EpochNow()
 	wc.CustomerID = i.qc.CustomerID
 	wc.IntegrationInstanceID = *i.integrationInstanceID
-	wc.RefType = "gitlab"
+	wc.RefType = i.qc.RefType
 	wc.Statuses = sdk.WorkConfigStatuses{
-		OpenStatus:       []string{"open", "Open"},
-		InProgressStatus: []string{"in progress", "In progress", "In Progress"},
-		ClosedStatus:     []string{"closed", "Closed"},
+		OpenStatus:   []string{"open", "Open"},
+		ClosedStatus: []string{"closed", "Closed"},
 	}
 
 	return i.pipe.Write(wc)
@@ -193,10 +192,10 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 
 	sdk.LogInfo(logger, "registering webhooks")
 
-	err = i.registerWebhooks(gexport, allnamespaces)
-	if err != nil {
-		return err
-	}
+	// err = i.registerWebhooks(gexport, allnamespaces)
+	// if err != nil {
+	// 	return err
+	// }
 
 	sdk.LogInfo(logger, "registering webhooks done")
 
