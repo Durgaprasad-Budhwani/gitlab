@@ -15,6 +15,12 @@ const (
 	ClosedColumn
 )
 
+// OpenedState opened state
+const OpenedState = "opened"
+
+// ClosedState closed state
+const ClosedState = "closed"
+
 func WorkIssuesPage(
 	qc QueryContext,
 	project *sdk.SourceCodeRepo,
@@ -49,6 +55,7 @@ func WorkIssuesPage(
 		issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
 
 		item := &sdk.WorkIssue{}
+		item.ID = issueID
 		item.Active = true
 		item.CustomerID = qc.CustomerID
 		item.RefType = qc.RefType
@@ -68,18 +75,14 @@ func WorkIssuesPage(
 		item.ProjectID = sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)
 		item.Title = rawissue.Title
 		item.Status = rawissue.State
-		if rawissue.State == "opened" {
-			item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, "gitlab", "1")
-		} else {
-			item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, "gitlab", "2")
-		}
+		item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, rawissue.State)
 
 		tags := make([]string, 0)
 		for _, label := range rawissue.Labels {
 			tags = append(tags, label.Name)
 		}
 
-		qc.WorkManager.AddIssue(issueID, rawissue.State == "opened", projectID, rawissue.Labels, rawissue.Milestone, rawissue.Assignee, rawissue.Weight)
+		qc.WorkManager.AddIssue(issueID, rawissue.State == OpenedState, projectID, rawissue.Labels, rawissue.Milestone, rawissue.Assignee, rawissue.Weight)
 
 		item.Tags = tags
 		item.Type = "Issue"

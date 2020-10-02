@@ -51,6 +51,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 		return
 	}
 
+	ordinal := sdk.EpochNow()
 	for _, n := range notes {
 		for _, nn := range n.Notes {
 			if !nn.System {
@@ -71,9 +72,11 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 			if nn.Body == "changed the description" {
 				continue
 			}
+			ordinal++
 			changelog := &sdk.WorkIssueChangeLog{
-				RefID:  fmt.Sprint(nn.ID),
-				UserID: usermap[nn.Author.Username],
+				RefID:   fmt.Sprint(nn.ID),
+				UserID:  usermap[nn.Author.Username],
+				Ordinal: ordinal,
 			}
 			sdk.ConvertTimeToDateModel(nn.CreatedAt, &changelog.CreatedDate)
 
@@ -87,7 +90,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 				}
 				toUser := strings.Replace(all[0], "@", "", 1)
 				toRefID := usermap[toUser]
-				var fromUser string
+				fromUser := " @ "
 				var fromRefID string
 				if strings.HasPrefix(nn.Body, "and unassigned") {
 					fromUser = strings.Replace(all[1], "@", "", 1)
@@ -106,6 +109,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 				changelog.From = fromRefID
 				changelog.FromString = fromUser
 				changelog.Field = sdk.WorkIssueChangeLogFieldAssigneeRefID
+				changelog.ToString = " @ "
 			} else if strings.HasPrefix(nn.Body, "changed due date to ") {
 				// IssueChangeLogFieldDueDate
 				strdate := strings.Replace(nn.Body, "changed due date to ", "", 1)

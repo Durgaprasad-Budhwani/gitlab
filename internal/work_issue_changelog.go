@@ -34,47 +34,45 @@ func (ge *GitlabExport) exportIssueDiscussions(project *sdk.SourceCodeRepo, issu
 		return err
 	}
 
-	transitions := make([]sdk.WorkIssueTransitions, 0)
+	ordinal := sdk.EpochNow()
 	for _, stateEvent := range stateEvents {
+		ordinal++
 		changelog := sdk.WorkIssueChangeLog{
-			RefID:  fmt.Sprint(stateEvent.ID),
-			UserID: strconv.FormatInt(stateEvent.User.ID, 10),
+			RefID:   fmt.Sprint(stateEvent.ID),
+			UserID:  strconv.FormatInt(stateEvent.User.ID, 10),
+			Field:   sdk.WorkIssueChangeLogFieldStatus,
+			Ordinal: ordinal,
 		}
 		sdk.ConvertTimeToDateModel(stateEvent.CreatedAt, &changelog.CreatedDate)
 
-		transition := sdk.WorkIssueTransitions{}
-		if stateEvent.State == "closed" {
-			changelog.To = stateEvent.State
-			changelog.ToString = stateEvent.State
-			changelog.From = "opened"
-			changelog.Field = sdk.WorkIssueChangeLogFieldStatus
+		if stateEvent.State == api.ClosedState {
+			changelog.To = api.ClosedState
+			changelog.ToString = api.ClosedState
 
-			transition.RefID = "2"
-			transition.Name = stateEvent.State
+			changelog.From = api.OpenedState
+			changelog.FromString = api.OpenedState
 		} else if stateEvent.State == "reopened" {
-			changelog.To = "opened"
-			changelog.ToString = "opened"
-			changelog.Field = sdk.WorkIssueChangeLogFieldStatus
+			changelog.To = api.OpenedState
+			changelog.ToString = api.OpenedState
 
-			transition.RefID = "1"
-			transition.Name = "opened"
+			changelog.From = api.ClosedState
+			changelog.FromString = api.ClosedState
 		}
 		changelogs = append(changelogs, changelog)
-		transitions = append(transitions, transition)
 	}
 
 	issue.ChangeLog = changelogs
 
-	if len(transitions) == 0 {
-		issue.Transitions = []sdk.WorkIssueTransitions{
-			{
-				RefID: "1",
-				Name:  "opened",
-			},
-		}
+	transition := sdk.WorkIssueTransitions{}
+	if issue.Status == "reopened" {
+		transition.RefID = api.ClosedState
+		transition.Name = api.ClosedState
 	} else {
-		issue.Transitions = transitions
+		transition.RefID = api.OpenedState
+		transition.Name = api.OpenedState
 	}
+
+	issue.Transitions = []sdk.WorkIssueTransitions{transition}
 
 	return
 }
@@ -82,9 +80,9 @@ func (ge *GitlabExport) exportIssueDiscussions(project *sdk.SourceCodeRepo, issu
 func (ge *GitlabExport) fetchIssueDiscussions(project *sdk.SourceCodeRepo, issue *sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, rerr error) {
 
 	rerr = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (np api.NextPage, rerr error) {
-		pi, arr, comments, err := api.WorkIssuesDiscussionPage(ge.qc, project, issue, projectUsers, params)
+		np, arr, comments, err := api.WorkIssuesDiscussionPage(ge.qc, project, issue, projectUsers, params)
 		if err != nil {
-			return pi, err
+			return np, err
 		}
 		for _, cl := range arr {
 			changelogs = append(changelogs, *cl)

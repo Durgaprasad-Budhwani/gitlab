@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pinpt/gitlab/internal/api"
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
 // Dismiss is called when an existing integration instance is removed
 func (g *GitlabIntegration) Dismiss(instance sdk.Instance) error {
 
-	// TODO: Change repos to active false
 	logger := sdk.LogWith(g.logger, "event", "dismiss", "customer_id", instance.CustomerID(), "integration_instance_id", instance.IntegrationInstanceID())
 	started := time.Now()
 	state := instance.State()

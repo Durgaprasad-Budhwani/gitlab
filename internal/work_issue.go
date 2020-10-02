@@ -12,7 +12,7 @@ import (
 
 func (ge *GitlabExport) exportProjectIssues(project *sdk.SourceCodeRepo, users api.UsernameMap) {
 
-	sdk.LogDebug(ge.logger, "issues", "project", project.Name)
+	sdk.LogDebug(ge.logger, "project issues", "project", project.Name)
 
 	issuesC := make(chan *sdk.WorkIssue, 10)
 

@@ -38,7 +38,9 @@ func RepoUsersPage(qc QueryContext, repo *sdk.SourceCodeRepo, params url.Values)
 		return
 	}
 	for _, user := range ru {
+		userRefID := strconv.FormatInt(user.ID, 10)
 		sourceUser := sdk.SourceCodeUser{}
+		sourceUser.ID = sdk.NewSourceCodeUserID(qc.CustomerID, qc.RefType, userRefID)
 		sourceUser.RefType = qc.RefType
 		// sourceUser.Email = // No email info here
 		sourceUser.CustomerID = qc.CustomerID

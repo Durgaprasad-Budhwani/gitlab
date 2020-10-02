@@ -27,23 +27,6 @@ type GitlabExport struct {
 
 const concurrentAPICalls = 10
 
-func (i *GitlabExport) workConfig() error {
-
-	wc := &sdk.WorkConfig{}
-	wc.ID = sdk.NewWorkConfigID(i.qc.CustomerID, i.qc.RefType, *i.integrationInstanceID)
-	wc.CreatedAt = sdk.EpochNow()
-	wc.UpdatedAt = sdk.EpochNow()
-	wc.CustomerID = i.qc.CustomerID
-	wc.IntegrationInstanceID = *i.integrationInstanceID
-	wc.RefType = i.qc.RefType
-	wc.Statuses = sdk.WorkConfigStatuses{
-		OpenStatus:   []string{"open", "Open"},
-		ClosedStatus: []string{"closed", "Closed"},
-	}
-
-	return i.pipe.Write(wc)
-}
-
 func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config, manager sdk.Manager, customerID string) (ge GitlabExport, rerr error) {
 
 	apiURL, client, err := newHTTPClient(logger, config, manager)
@@ -216,12 +199,12 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 	for _, namespace := range allnamespaces {
 		sdk.LogDebug(logger, "namespace", "name", namespace.Name)
 		projectUsersMap := make(map[string]api.UsernameMap)
-
 		repos, err := gexport.exportNamespaceSourceCode(namespace, projectUsersMap)
 		if err != nil {
 			sdk.LogWarn(logger, "error exporting sourcecode namespace", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
 		}
 
+		sdk.LogDebug(logger, "all users map", "namespace", namespace.Name, "projectUsersMap", projectUsersMap)
 		err = gexport.exportReposWork(repos, projectUsersMap)
 		if err != nil {
 			sdk.LogWarn(logger, "error exporting work repos", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
@@ -308,7 +291,11 @@ func (ge *GitlabExport) exportRepoAndWrite(repo *sdk.SourceCodeRepo, projectUser
 	if err := ge.pipe.Write(repo); err != nil {
 		return err
 	}
-	if err := ge.pipe.Write(ToProject(repo)); err != nil {
+	p := ToProject(repo)
+	if err := ge.pipe.Write(p); err != nil {
+		return err
+	}
+	if err := ge.writeProjectCapacity(p); err != nil {
 		return err
 	}
 	ge.repoProjectManager.AddRepo(repo)
