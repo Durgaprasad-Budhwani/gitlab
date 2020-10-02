@@ -76,6 +76,10 @@ func WorkIssuesPage(
 		item.Title = rawissue.Title
 		item.Status = rawissue.State
 		item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, rawissue.State)
+		if rawissue.Weight != nil {
+			value := float64(*rawissue.Weight)
+			item.StoryPoints = &value
+		}
 
 		tags := make([]string, 0)
 		for _, label := range rawissue.Labels {
