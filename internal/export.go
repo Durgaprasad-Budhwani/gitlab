@@ -175,10 +175,10 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 
 	sdk.LogInfo(logger, "registering webhooks")
 
-	// err = i.registerWebhooks(gexport, allnamespaces)
-	// if err != nil {
-	// 	return err
-	// }
+	err = i.registerWebhooks(gexport, allnamespaces)
+	if err != nil {
+		return err
+	}
 
 	sdk.LogInfo(logger, "registering webhooks done")
 
@@ -204,7 +204,6 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 			sdk.LogWarn(logger, "error exporting sourcecode namespace", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
 		}
 
-		sdk.LogDebug(logger, "all users map", "namespace", namespace.Name, "projectUsersMap", projectUsersMap)
 		err = gexport.exportReposWork(repos, projectUsersMap)
 		if err != nil {
 			sdk.LogWarn(logger, "error exporting work repos", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
