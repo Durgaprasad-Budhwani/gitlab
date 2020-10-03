@@ -17,7 +17,7 @@ func (ge *GitlabExport) exportIssueFields(project *sdk.SourceCodeRepo, issue *sd
 
 	changelogs, err := ge.fetchIssueDiscussions(project, issue, projectUsers)
 	if err != nil {
-		return err
+		return fmt.Errorf("error on issue changelog, %s", err)
 	}
 
 	index := strings.Index(issue.Identifier, "#")
@@ -76,10 +76,17 @@ func (ge *GitlabExport) exportIssueFields(project *sdk.SourceCodeRepo, issue *sd
 
 	links, err := api.GetIssueLinks(ge.qc, project, issueIID)
 	if err != nil {
-		return err
+		return fmt.Errorf("error on issue links, %s", err)
 	}
 
 	issue.LinkedIssues = links
+
+	attachments, err := api.GetIssueAttachments(ge.qc, project, issue.RefID)
+	if err != nil {
+		return fmt.Errorf("error on issue attachments, %s", err)
+	}
+
+	issue.Attachments = attachments
 
 	return
 }

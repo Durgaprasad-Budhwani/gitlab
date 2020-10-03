@@ -6,5 +6,3 @@ require (
 	github.com/pinpt/agent/v4 v4.0.1
 	github.com/stretchr/testify v1.6.1
 )
-
-replace github.com/pinpt/agent => ../agent

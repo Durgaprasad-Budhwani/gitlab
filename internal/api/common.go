@@ -34,6 +34,7 @@ type QueryContext struct {
 	WorkManager           WorkManagerI
 	State                 sdk.State
 	Historical            bool
+	GraphClient           sdk.GraphQLClient
 }
 
 type NextPage string

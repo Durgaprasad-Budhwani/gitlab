@@ -29,7 +29,7 @@ const concurrentAPICalls = 10
 
 func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config, manager sdk.Manager, customerID string) (ge GitlabExport, rerr error) {
 
-	apiURL, client, err := newHTTPClient(logger, config, manager)
+	apiURL, client, graphql, err := newHTTPClient(logger, config, manager)
 	if err != nil {
 		rerr = err
 		return
@@ -43,6 +43,7 @@ func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config,
 	ge.qc.RefType = gitlabRefType
 	ge.qc.CustomerID = customerID
 	ge.qc.RefType = gitlabRefType
+	ge.qc.GraphClient = graphql
 	ge.logger = logger
 
 	u, err := url.Parse(apiURL)
