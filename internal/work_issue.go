@@ -53,7 +53,7 @@ func (ge *GitlabExport) exportIssueEntitiesAndWrite(project *sdk.SourceCodeRepo,
 		wg.Add(1)
 		go func(issue *sdk.WorkIssue) {
 			defer wg.Done()
-			err := ge.exportIssueDiscussions(project, issue, users)
+			err := ge.exportIssueFields(project, issue, users)
 			if err != nil {
 				sdk.LogError(ge.logger, "error on issue changelog", "err", err)
 			}

@@ -11,7 +11,7 @@ import (
 	"github.com/pinpt/gitlab/internal/api"
 )
 
-func (ge *GitlabExport) exportIssueDiscussions(project *sdk.SourceCodeRepo, issue *sdk.WorkIssue, projectUsers api.UsernameMap) (rerr error) {
+func (ge *GitlabExport) exportIssueFields(project *sdk.SourceCodeRepo, issue *sdk.WorkIssue, projectUsers api.UsernameMap) (rerr error) {
 
 	sdk.LogDebug(ge.logger, "exporting issue changelog", "issue", issue.Identifier)
 
@@ -73,6 +73,13 @@ func (ge *GitlabExport) exportIssueDiscussions(project *sdk.SourceCodeRepo, issu
 	}
 
 	issue.Transitions = []sdk.WorkIssueTransitions{transition}
+
+	links, err := api.GetIssueLinks(ge.qc, project, issueIID)
+	if err != nil {
+		return err
+	}
+
+	issue.LinkedIssues = links
 
 	return
 }
