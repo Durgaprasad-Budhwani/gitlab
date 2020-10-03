@@ -72,73 +72,64 @@ func EpicsPage(
 	for _, epic := range repics {
 
 		// TODO: temporary code to make epics show up in the UI
-		for _, projectID := range projectIDs {
 
-			issueRefID := strconv.FormatInt(epic.ID, 10)
-			issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
+		issueRefID := strconv.FormatInt(epic.ID, 10)
+		issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
 
-			issue := &sdk.WorkIssue{}
-			issue.ID = issueID
-			issue.Active = true
-			sdk.LogDebug(qc.Logger, "writting epic - customer-id", "customer_id", qc.CustomerID)
-			issue.CustomerID = qc.CustomerID
-			issue.RefType = qc.RefType
-			issue.RefID = issueRefID
+		issue := &sdk.WorkIssue{}
+		issue.ID = issueID
+		issue.Active = true
+		issue.CustomerID = qc.CustomerID
+		issue.RefType = qc.RefType
+		issue.RefID = issueRefID
 
-			// issue.AssigneeRefID Not supported
-			// issue.AssigneeRefID = strconv.FormatInt(epic.Author.ID, 10)
+		// issue.AssigneeRefID Not supported
 
-			issue.ReporterRefID = fmt.Sprint(epic.Author.ID)
-			issue.CreatorRefID = fmt.Sprint(epic.Author.ID)
+		issue.ReporterRefID = fmt.Sprint(epic.Author.ID)
+		issue.CreatorRefID = fmt.Sprint(epic.Author.ID)
 
-			issue.Description = epic.Description
-			// issue.EpicID Not Apply
-			issue.Identifier = epic.References.Full
-			// issue.ProjectID Not Apply, epics are not attached to repos/projects in gitalb
-			issue.ProjectID = projectID
-			issue.Title = epic.Title
-			issue.Status = epic.State
-			if issue.Status == "opened" {
-				issue.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, "gitlab", "1")
-			} else {
-				issue.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, "gitlab", "2")
-			}
+		issue.Description = epic.Description
+		// issue.EpicID Not Apply
+		issue.Identifier = epic.References.Full
+		// issue.ProjectID Not Apply, epics are not attached to repos/projects in gitalb
+		issue.Title = epic.Title
+		issue.Status = epic.State
+		issue.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, epic.State)
 
-			tags := make([]string, 0)
-			for _, labelName := range epic.Labels {
-				tags = append(tags, labelName)
-			}
-
-			issue.Tags = tags
-			issue.Type = "Epic"
-			issue.TypeID = sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, "2")
-			issue.URL = epic.WebURL
-
-			sdk.ConvertTimeToDateModel(epic.CreatedAt, &issue.CreatedDate)
-			sdk.ConvertTimeToDateModel(epic.UpdatedAt, &issue.UpdatedDate)
-
-			// issue.SprintIds Not Apply
-
-			if epic.StartDateFromInheritedSource != "" {
-				startDate, err := time.Parse("2006-01-02", epic.StartDateFromInheritedSource)
-				if err != nil {
-					return np, epics, err
-				}
-				sdk.ConvertTimeToDateModel(startDate, &issue.PlannedStartDate)
-			}
-
-			if epic.DueDateFromInheritedSource != "" {
-				endDate, err := time.Parse("2006-01-02", epic.DueDateFromInheritedSource)
-				if err != nil {
-					return np, epics, err
-				}
-				sdk.ConvertTimeToDateModel(endDate, &issue.PlannedEndDate)
-			}
-
-			issue.IntegrationInstanceID = sdk.StringPointer(qc.IntegrationInstanceID)
-
-			epics = append(epics, issue)
+		tags := make([]string, 0)
+		for _, labelName := range epic.Labels {
+			tags = append(tags, labelName)
 		}
+
+		issue.Tags = tags
+		issue.Type = "Epic"
+		issue.TypeID = sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, "epic")
+		issue.URL = epic.WebURL
+
+		sdk.ConvertTimeToDateModel(epic.CreatedAt, &issue.CreatedDate)
+		sdk.ConvertTimeToDateModel(epic.UpdatedAt, &issue.UpdatedDate)
+
+		// issue.SprintIds Not Apply
+
+		if epic.StartDateFromInheritedSource != "" {
+			startDate, err := time.Parse("2006-01-02", epic.StartDateFromInheritedSource)
+			if err != nil {
+				return np, epics, err
+			}
+			sdk.ConvertTimeToDateModel(startDate, &issue.PlannedStartDate)
+		}
+
+		if epic.DueDateFromInheritedSource != "" {
+			endDate, err := time.Parse("2006-01-02", epic.DueDateFromInheritedSource)
+			if err != nil {
+				return np, epics, err
+			}
+			sdk.ConvertTimeToDateModel(endDate, &issue.PlannedEndDate)
+		}
+
+		issue.IntegrationInstanceID = sdk.StringPointer(qc.IntegrationInstanceID)
+
+		epics = append(epics, issue)
 	}
 
 	return np, epics, nil

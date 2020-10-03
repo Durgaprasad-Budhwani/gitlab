@@ -122,16 +122,16 @@ func WorkIssuesPage(
 
 func getIssueTypeFromLabels(lbls []*Label, qc QueryContext) string {
 	if len(lbls) == 0 {
-		return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, "1")
+		return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, "bug")
 	}
 	for _, lbl := range lbls {
 		switch lbl.Name {
 		case "enhancement":
-			return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, "3")
+			return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, lbl.Name)
 		}
 	}
 
-	return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, "1")
+	return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, "bug")
 }
 
 type IssueWebHook struct {
