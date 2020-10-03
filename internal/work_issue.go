@@ -12,7 +12,7 @@ import (
 
 func (ge *GitlabExport) exportProjectIssues(project *sdk.SourceCodeRepo, users api.UsernameMap) {
 
-	sdk.LogDebug(ge.logger, "issues", "project", project.Name)
+	sdk.LogDebug(ge.logger, "project issues", "project", project.Name)
 
 	issuesC := make(chan *sdk.WorkIssue, 10)
 
@@ -53,8 +53,9 @@ func (ge *GitlabExport) exportIssueEntitiesAndWrite(project *sdk.SourceCodeRepo,
 		wg.Add(1)
 		go func(issue *sdk.WorkIssue) {
 			defer wg.Done()
-			if err := ge.exportIssueDiscussions(project, issue, users); err != nil {
-				sdk.LogError(ge.logger, "error on issue changelog", "issue", issue, "err", issue)
+			err := ge.exportIssueFields(project, issue, users)
+			if err != nil {
+				sdk.LogError(ge.logger, "error on issue fields", "err", err)
 			}
 			issue.IntegrationInstanceID = ge.integrationInstanceID
 			if err := ge.pipe.Write(issue); err != nil {

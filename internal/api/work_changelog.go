@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -18,6 +17,7 @@ type ResourceStateEvents struct {
 	State     string    `json:"state"`
 }
 
+// WorkIssuesDiscussionPage issue discussions
 func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issue *sdk.WorkIssue, usermap UsernameMap, params url.Values) (pi NextPage, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
 
 	params.Set("notes_filter", "0")
@@ -51,6 +51,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 		return
 	}
 
+	ordinal := sdk.EpochNow()
 	for _, n := range notes {
 		for _, nn := range n.Notes {
 			if !nn.System {
@@ -72,9 +73,11 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 			if nn.Body == "changed the description" {
 				continue
 			}
+			ordinal++
 			changelog := &sdk.WorkIssueChangeLog{
-				RefID:  fmt.Sprint(nn.ID),
-				UserID: usermap[nn.Author.Username],
+				RefID:   fmt.Sprint(nn.ID),
+				UserID:  usermap[nn.Author.Username],
+				Ordinal: ordinal,
 			}
 			sdk.ConvertTimeToDateModel(nn.CreatedAt, &changelog.CreatedDate)
 
@@ -88,7 +91,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 				}
 				toUser := strings.Replace(all[0], "@", "", 1)
 				toRefID := usermap[toUser]
-				var fromUser string
+				fromUser := " @ "
 				var fromRefID string
 				if strings.HasPrefix(nn.Body, "and unassigned") {
 					fromUser = strings.Replace(all[1], "@", "", 1)
@@ -107,6 +110,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 				changelog.From = fromRefID
 				changelog.FromString = fromUser
 				changelog.Field = sdk.WorkIssueChangeLogFieldAssigneeRefID
+				changelog.ToString = " @ "
 			} else if strings.HasPrefix(nn.Body, "changed due date to ") {
 				// IssueChangeLogFieldDueDate
 				strdate := strings.Replace(nn.Body, "changed due date to ", "", 1)
@@ -152,33 +156,6 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 
 		}
 	}
-
-	sdk.LogDebug(qc.Logger, "work issues changelog resource_state_events", "project", project.RefID)
-
-	objectPath = sdk.JoinURL("projects", url.QueryEscape(project.RefID), "issues", issueIID, "resource_state_events")
-
-	// TODO: paginate this
-	var stateEvents []ResourceStateEvents
-	_, err = qc.Get(objectPath, params, &stateEvents)
-	if err != nil {
-		return
-	}
-	for _, stateEvent := range stateEvents {
-		changelog := &sdk.WorkIssueChangeLog{
-			RefID:  fmt.Sprint(stateEvent.ID),
-			UserID: strconv.FormatInt(stateEvent.User.ID, 10),
-		}
-		sdk.ConvertTimeToDateModel(stateEvent.CreatedAt, &changelog.CreatedDate)
-
-		if stateEvent.State == "closed" || stateEvent.State == "reopened" {
-			changelog.To = stateEvent.State
-			changelog.ToString = stateEvent.State
-			changelog.Field = sdk.WorkIssueChangeLogFieldStatus
-		}
-		changelogs = append(changelogs, changelog)
-	}
-
-	sdk.LogDebug(qc.Logger, "work issue changelog done")
 
 	return
 }

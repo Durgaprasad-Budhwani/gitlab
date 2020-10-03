@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pinpt/gitlab/internal/api"
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
 func (ge *GitlabExport) exportRepoUsers(repo *sdk.SourceCodeRepo) (usermap api.UsernameMap, rerr error) {
@@ -14,6 +14,7 @@ func (ge *GitlabExport) exportRepoUsers(repo *sdk.SourceCodeRepo) (usermap api.U
 	usermap = make(api.UsernameMap)
 
 	rerr = ge.exportUsers(repo, func(user *sdk.SourceCodeUser) error {
+		usermap[*user.Username] = user.ID
 		user.IntegrationInstanceID = ge.integrationInstanceID
 		return ge.pipe.Write(user)
 	})

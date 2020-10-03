@@ -27,66 +27,9 @@ type GitlabExport struct {
 
 const concurrentAPICalls = 10
 
-type labelMap struct {
-	ID     string
-	Mapped sdk.WorkIssueTypeMappedType
-}
-
-func (i *GitlabExport) workConfig() error {
-
-	labels := map[string]labelMap{
-		"Bug": {
-			"1",
-			sdk.WorkIssueTypeMappedTypeBug,
-		},
-		"Epic": {
-			"2",
-			sdk.WorkIssueTypeMappedTypeEpic,
-		},
-		"Enhancement": {
-			"3",
-			sdk.WorkIssueTypeMappedTypeEnhancement,
-		},
-	}
-
-	wc := &sdk.WorkConfig{}
-	wc.ID = sdk.NewWorkConfigID(i.qc.CustomerID, "gitlab", *i.integrationInstanceID)
-	wc.CreatedAt = sdk.EpochNow()
-	wc.UpdatedAt = sdk.EpochNow()
-	wc.CustomerID = i.qc.CustomerID
-	wc.IntegrationInstanceID = *i.integrationInstanceID
-	wc.RefType = "gitlab"
-	wc.Statuses = sdk.WorkConfigStatuses{
-		OpenStatus:   []string{"opened", "Opened"},
-		ClosedStatus: []string{"closed", "Closed"},
-	}
-
-	if err := i.pipe.Write(wc); err != nil {
-		return err
-	}
-
-	for key, lbl := range labels {
-		issuetype := &sdk.WorkIssueType{}
-		issuetype.CustomerID = i.qc.CustomerID
-		issuetype.RefID = lbl.ID
-		issuetype.RefType = i.qc.RefType
-		issuetype.Name = key
-		issuetype.IntegrationInstanceID = sdk.StringPointer(i.integrationInstanceID)
-		issuetype.Description = sdk.StringPointer(key)
-		// issuetype.IconURL NA
-		issuetype.MappedType = lbl.Mapped
-		issuetype.ID = sdk.NewWorkIssueTypeID(i.qc.CustomerID, i.qc.RefType, lbl.ID)
-		if err := i.pipe.Write(issuetype); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config, manager sdk.Manager, customerID string) (ge GitlabExport, rerr error) {
 
-	apiURL, client, err := newHTTPClient(logger, config, manager)
+	apiURL, client, graphql, err := newHTTPClient(logger, config, manager)
 	if err != nil {
 		rerr = err
 		return
@@ -100,6 +43,7 @@ func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config,
 	ge.qc.RefType = gitlabRefType
 	ge.qc.CustomerID = customerID
 	ge.qc.RefType = gitlabRefType
+	ge.qc.GraphClient = graphql
 	ge.logger = logger
 
 	u, err := url.Parse(apiURL)
@@ -258,7 +202,6 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 	for _, namespace := range allnamespaces {
 		sdk.LogDebug(logger, "namespace", "name", namespace.Name)
 		projectUsersMap := make(map[string]api.UsernameMap)
-
 		repos, err := gexport.exportNamespaceSourceCode(namespace, projectUsersMap)
 		if err != nil {
 			sdk.LogWarn(logger, "error exporting sourcecode namespace", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
@@ -355,7 +298,11 @@ func (ge *GitlabExport) exportRepoAndWrite(repo *sdk.SourceCodeRepo, projectUser
 	if err := ge.pipe.Write(repo); err != nil {
 		return err
 	}
-	if err := ge.pipe.Write(ToProject(repo)); err != nil {
+	p := ToProject(repo)
+	if err := ge.pipe.Write(p); err != nil {
+		return err
+	}
+	if err := ge.writeProjectCapacity(p); err != nil {
 		return err
 	}
 	ge.repoProjectManager.AddRepo(repo)
