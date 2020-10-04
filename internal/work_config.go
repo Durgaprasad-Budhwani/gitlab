@@ -6,23 +6,19 @@ import (
 )
 
 type labelMap struct {
-	ID     string
 	Mapped sdk.WorkIssueTypeMappedType
 }
 
 func (i *GitlabExport) workConfig() error {
 
 	labels := map[string]labelMap{
-		"Bug": {
-			"1",
+		api.BugIssueType: {
 			sdk.WorkIssueTypeMappedTypeBug,
 		},
-		"Epic": {
-			"2",
+		api.EpicIssueType: {
 			sdk.WorkIssueTypeMappedTypeEpic,
 		},
-		"Enhancement": {
-			"3",
+		api.EnhancementIssueType: {
 			sdk.WorkIssueTypeMappedTypeEnhancement,
 		},
 	}
@@ -46,14 +42,14 @@ func (i *GitlabExport) workConfig() error {
 	for key, lbl := range labels {
 		issuetype := &sdk.WorkIssueType{}
 		issuetype.CustomerID = i.qc.CustomerID
-		issuetype.RefID = lbl.ID
+		issuetype.RefID = key
 		issuetype.RefType = i.qc.RefType
 		issuetype.Name = key
 		issuetype.IntegrationInstanceID = sdk.StringPointer(i.integrationInstanceID)
 		issuetype.Description = sdk.StringPointer(key)
 		// issuetype.IconURL NA
 		issuetype.MappedType = lbl.Mapped
-		issuetype.ID = sdk.NewWorkIssueTypeID(i.qc.CustomerID, i.qc.RefType, lbl.ID)
+		issuetype.ID = sdk.NewWorkIssueTypeID(i.qc.CustomerID, i.qc.RefType, key)
 		if err := i.pipe.Write(issuetype); err != nil {
 			return err
 		}

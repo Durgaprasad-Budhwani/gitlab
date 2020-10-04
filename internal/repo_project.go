@@ -4,8 +4,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pinpt/gitlab/internal/api"
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
 type callback func(item *sdk.SourceCodeRepo)
@@ -49,11 +49,15 @@ func ToProject(repo *sdk.SourceCodeRepo) *sdk.WorkProject {
 		IntegrationInstanceID: repo.IntegrationInstanceID,
 		IssueTypes: []sdk.WorkProjectIssueTypes{
 			{
-				RefID: "1",
-				Name:  "Bug",
+				RefID: api.BugIssueType,
+				Name:  api.BugIssueType,
 			}, {
-				RefID: "2",
-				Name:  "Epic",
+				RefID: api.EpicIssueType,
+				Name:  api.EpicIssueType,
+			},
+			{
+				RefID: api.EnhancementIssueType,
+				Name:  api.EnhancementIssueType,
 			},
 		},
 	}
