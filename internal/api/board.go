@@ -76,7 +76,7 @@ func boardsCommonPage(
 
 	projectIDs := make([]string, 0)
 	for _, repo := range repos {
-		projectID := sdk.NewWorkProjectID(qc.CustomerID, repo.RefID, "gitlab")
+		projectID := sdk.NewWorkProjectID(qc.CustomerID, repo.RefID, qc.RefType)
 		projectIDs = append(projectIDs, projectID)
 	}
 

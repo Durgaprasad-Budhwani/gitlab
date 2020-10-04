@@ -96,8 +96,8 @@ func PullRequestReviews(
 func reviewRequest(qc QueryContext, pr *sdk.SourceCodePullRequest, requestedReviewerID string) sdk.SourceCodePullRequestReviewRequest {
 	return sdk.SourceCodePullRequestReviewRequest{
 		CustomerID:             qc.CustomerID,
-		ID:                     sdk.NewSourceCodePullRequestReviewRequestID(qc.CustomerID, "gitlab", pr.ID, requestedReviewerID),
-		RefType:                "gitlab",
+		ID:                     sdk.NewSourceCodePullRequestReviewRequestID(qc.CustomerID, qc.RefType, pr.ID, requestedReviewerID),
+		RefType:                qc.RefType,
 		RepoID:                 pr.RepoID,
 		PullRequestID:          pr.ID,
 		Active:                 true,

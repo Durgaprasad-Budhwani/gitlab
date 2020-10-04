@@ -12,7 +12,7 @@ import (
 
 // Epic model
 type Epic struct {
-	ID           int64  `json:"id"`
+	RefID        int64  `json:"id"`
 	Iid          int    `json:"iid"`
 	GroupID      int    `json:"group_id"`
 	Title        string `json:"title"`
@@ -65,15 +65,13 @@ func EpicsPage(
 
 	projectIDs := make([]string, 0)
 	for _, repo := range repos {
-		projectID := sdk.NewWorkProjectID(qc.CustomerID, repo.RefID, "gitlab")
+		projectID := sdk.NewWorkProjectID(qc.CustomerID, repo.RefID, qc.RefType)
 		projectIDs = append(projectIDs, projectID)
 	}
 
 	for _, epic := range repics {
 
-		// TODO: temporary code to make epics show up in the UI
-
-		issueRefID := strconv.FormatInt(epic.ID, 10)
+		issueRefID := strconv.FormatInt(epic.RefID, 10)
 		issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
 
 		issue := &sdk.WorkIssue{}
@@ -91,7 +89,7 @@ func EpicsPage(
 		issue.Description = epic.Description
 		// issue.EpicID Not Apply
 		issue.Identifier = epic.References.Full
-		// issue.ProjectID Not Apply, epics are not attached to repos/projects in gitalb
+		// issue.ProjectID Not Apply, epics are not tight to repos/projects in gitalb
 		issue.Title = epic.Title
 		issue.Status = epic.State
 		issue.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, epic.State)

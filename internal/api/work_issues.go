@@ -42,7 +42,7 @@ func WorkIssuesPage(
 		return
 	}
 
-	projectID := sdk.NewWorkProjectID(qc.CustomerID, project.RefID, "gitlab")
+	projectID := sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)
 
 	sdk.LogDebug(qc.Logger, "issues found", "len", len(rawissues))
 
@@ -69,12 +69,12 @@ func WorkIssuesPage(
 		item.CreatorRefID = fmt.Sprint(rawissue.Author.ID)
 		item.Description = rawissue.Description
 		if rawissue.Epic != nil {
-			epicID := sdk.NewWorkIssueID(qc.CustomerID, strconv.FormatInt(rawissue.Epic.ID, 10), qc.RefType)
+			epicID := sdk.NewWorkIssueID(qc.CustomerID, strconv.FormatInt(rawissue.Epic.RefID, 10), qc.RefType)
 			item.EpicID = sdk.StringPointer(epicID)
 			item.ParentID = epicID
 		}
 		item.Identifier = rawissue.References.Full
-		item.ProjectID = sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)
+		item.ProjectID = sdk.StringPointer(sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType))
 		item.Title = rawissue.Title
 		item.Status = rawissue.State
 		item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, rawissue.State)
@@ -139,7 +139,7 @@ type IssueWebHook struct {
 }
 
 type GitlabEpic struct {
-	ID int64 `json:"id"`
+	RefID int64 `json:"id"`
 }
 
 type IssueModel struct {

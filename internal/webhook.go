@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pinpt/gitlab/internal/api"
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
 const hookVersion = "2" // change this to upgrade the hook in case the events change
@@ -28,7 +28,7 @@ func (a *user) ToModel(customerID string, integrationInstanceID string) *sdk.Sou
 	user := &sdk.SourceCodeUser{}
 	user.CustomerID = customerID
 	user.RefID = a.RefID(customerID)
-	user.RefType = "gitlab"
+	user.RefType = gitlabRefType
 	user.IntegrationInstanceID = sdk.StringPointer(integrationInstanceID)
 	user.URL = sdk.StringPointer("")
 	user.AvatarURL = sdk.StringPointer(a.AvatarURL)

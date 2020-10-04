@@ -138,7 +138,5 @@ func WorkEpicIssuesDiscussionPage(qc QueryContext, namespace *Namespace, project
 		}
 	}
 
-	sdk.LogDebug(qc.Logger, "work epic changelog done")
-
 	return
 }

@@ -29,7 +29,6 @@ func (ge *GitlabExport) exportEpics(namespace *api.Namespace, repos []*sdk.Sourc
 
 			epic.ChangeLog = changelogs
 
-			sdk.LogDebug(ge.logger, "writting epic", "epic", epic)
 			if err := ge.pipe.Write(epic); err != nil {
 				return pi, err
 			}
