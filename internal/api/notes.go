@@ -12,25 +12,31 @@ import (
 
 // WebhookNote note struct comming from webhooks
 type WebhookNote struct {
-	ID        int64     `json:"id"`
-	System    bool      `json:"system"`
-	Note      string    `json:"note"`
-	NoteType  string    `json:"type"`
-	URL       string    `json:"url"`
-	AuthorID  string    `json:"author_id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	RefID        int64  `json:"id"`
+	System       bool   `json:"system"`
+	Note         string `json:"note"`
+	NoteType     string `json:"type"`
+	URL          string `json:"url"`
+	AuthorID     int64  `json:"author_id"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+	NoteableType string `json:"noteable_type"`
 }
+
+// NoteDateFormat note date format
+const NoteDateFormat = "2006-01-02 15:04:05 MST"
 
 func (wn *WebhookNote) ToSourceCodePullRequestReview() (review *sdk.SourceCodePullRequestReview) {
 
 	review.RefType = "gitlab"
-	review.RefID = strconv.FormatInt(wn.ID, 10)
+	review.RefID = strconv.FormatInt(wn.RefID, 10)
 	review.State = sdk.SourceCodePullRequestReviewStateCommented
 	review.URL = wn.URL
-	review.UserRefID = wn.AuthorID
+	review.UserRefID = strconv.FormatInt(wn.AuthorID, 10)
 
-	sdk.ConvertTimeToDateModel(wn.CreatedAt, &review.CreatedDate)
+	t, _ := time.Parse(NoteDateFormat, wn.CreatedAt)
+
+	sdk.ConvertTimeToDateModel(t, &review.CreatedDate)
 
 	return
 }
@@ -70,7 +76,7 @@ func GetGetSinglePullRequestNote(
 		return
 	}
 
-	r, err := time.Parse("2006-01-02 15:04:05 MST", prUpdatedAt)
+	r, err := time.Parse(NoteDateFormat, prUpdatedAt)
 	if err != nil {
 		return
 	}
