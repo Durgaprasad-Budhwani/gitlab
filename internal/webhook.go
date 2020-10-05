@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pinpt/gitlab/internal/api"
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
 const hookVersion = "2" // change this to upgrade the hook in case the events change
@@ -60,6 +60,9 @@ type webHookRootPayload struct {
 	ProjectID    int64                  `json:"project_id"`
 	UserID       int64                  `json:"user_id"`
 	Assignees    []user                 `json:"assignees"`
+	Issue        struct {
+		RefID int64 `json:"id"`
+	} `json:"issue"`
 }
 
 // WebHook is called when a webhook is received on behalf of the integration
@@ -286,7 +289,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 
 	case "Push Hook":
 		// No need to implement this at this moment
-		// After Merge Requeste event it will fetch commits
+		// It will fetch commits after a Merge Request event
 	case "Note Hook":
 		note := api.WebhookNote{}
 		rerr = json.Unmarshal(rootWebHookObject.WebHookMainObject, &note)
@@ -295,46 +298,69 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 		}
 
 		if note.System == false {
-			var scPr = &sdk.SourceCodePullRequest{}
-			scPr, rerr = rootWebHookObject.MergeRequest.ToSourceCodePullRequest(logger, customerID, repoID, gitlabRefType)
-			if rerr != nil {
-				return
-			}
 
-			if note.NoteType == "DiffNote" {
-				review := note.ToSourceCodePullRequestReview()
-				review.CustomerID = customerID
-				review.IntegrationInstanceID = sdk.StringPointer(integrationInstanceID)
-				review.PullRequestID = scPr.ID
-				review.RepoID = repoID
-
-				rerr = pipe.Write(review)
+			switch note.NoteableType {
+			case "Issue":
+				comment := &sdk.WorkIssueComment{
+					Active:    true,
+					RefID:     fmt.Sprint(note.RefID),
+					RefType:   webhook.RefType(),
+					UserRefID: strconv.FormatInt(note.AuthorID, 10),
+					IssueID:   strconv.FormatInt(rootWebHookObject.Issue.RefID, 10),
+					ProjectID: projectID,
+					Body:      note.Note,
+				}
+				tCreatedAt, _ := time.Parse(api.NoteDateFormat, note.CreatedAt)
+				sdk.ConvertTimeToDateModel(tCreatedAt, &comment.CreatedDate)
+				tUpdatedAt, _ := time.Parse(api.NoteDateFormat, note.UpdatedAt)
+				sdk.ConvertTimeToDateModel(tUpdatedAt, &comment.CreatedDate)
+				rerr = pipe.Write(comment)
 				if rerr != nil {
 					return
 				}
-			} else if note.NoteType == "" {
-				prComment := &sdk.SourceCodePullRequestComment{}
-				prComment.CustomerID = customerID
-				prComment.IntegrationInstanceID = sdk.StringPointer(integrationInstanceID)
-				prComment.PullRequestID = scPr.ID
-
-				prComment.RefType = gitlabRefType
-				prComment.RefID = strconv.FormatInt(note.ID, 10)
-				prComment.URL = note.URL
-
-				sdk.ConvertTimeToDateModel(note.CreatedAt, &prComment.CreatedDate)
-				sdk.ConvertTimeToDateModel(note.UpdatedAt, &prComment.UpdatedDate)
-
-				prComment.RepoID = repoID
-				prComment.Body = note.Note
-
-				prComment.UserRefID = note.AuthorID
-
-				rerr = pipe.Write(prComment)
+			case "MergeRequest":
+				var scPr = &sdk.SourceCodePullRequest{}
+				scPr, rerr = rootWebHookObject.MergeRequest.ToSourceCodePullRequest(logger, customerID, repoID, gitlabRefType)
 				if rerr != nil {
 					return
 				}
+				if note.NoteType == "DiffNote" {
+					review := note.ToSourceCodePullRequestReview()
+					review.CustomerID = customerID
+					review.IntegrationInstanceID = sdk.StringPointer(integrationInstanceID)
+					review.PullRequestID = scPr.ID
+					review.RepoID = repoID
 
+					rerr = pipe.Write(review)
+					if rerr != nil {
+						return
+					}
+				} else if note.NoteType == "" {
+					prComment := &sdk.SourceCodePullRequestComment{}
+					prComment.CustomerID = customerID
+					prComment.IntegrationInstanceID = sdk.StringPointer(integrationInstanceID)
+					prComment.PullRequestID = scPr.ID
+
+					prComment.RefType = gitlabRefType
+					prComment.RefID = strconv.FormatInt(note.RefID, 10)
+					prComment.URL = note.URL
+
+					tCreatedAt, _ := time.Parse(api.NoteDateFormat, note.CreatedAt)
+					sdk.ConvertTimeToDateModel(tCreatedAt, &prComment.CreatedDate)
+					tUpdatedAt, _ := time.Parse(api.NoteDateFormat, note.UpdatedAt)
+					sdk.ConvertTimeToDateModel(tUpdatedAt, &prComment.UpdatedDate)
+
+					prComment.RepoID = repoID
+					prComment.Body = note.Note
+
+					prComment.UserRefID = strconv.FormatInt(note.AuthorID, 10)
+
+					rerr = pipe.Write(prComment)
+					if rerr != nil {
+						return
+					}
+
+				}
 			}
 		}
 	case "System Hook":
@@ -374,8 +400,6 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 			// case "user_remove_from_group":
 		}
 	}
-
-	// TODO: Add webhooks for WORK type
 
 	return
 }
