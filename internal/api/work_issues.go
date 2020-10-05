@@ -78,7 +78,7 @@ func WorkIssuesPage(
 			item.ParentID = epicID
 		}
 		item.Identifier = rawissue.References.Full
-		item.ProjectID = sdk.StringPointer(sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType))
+		item.ProjectIds = []string{sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)}
 		item.Title = rawissue.Title
 		item.Status = rawissue.State
 		item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, rawissue.State)
