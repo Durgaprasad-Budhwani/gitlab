@@ -8,10 +8,19 @@ import (
 	"github.com/pinpt/gitlab/internal/api"
 )
 
-func (ge *GitlabExport) exportEpics(namespace *api.Namespace, repos []*sdk.SourceCodeRepo, projectUsers api.UsernameMap) (rerr error) {
+func (ge *GitlabExport) exportEpics(namespace *api.Namespace, repos []*sdk.SourceCodeRepo, projectUsers map[string]api.UsernameMap) (rerr error) {
 	if namespace.Kind == "user" {
 		return
 	}
+
+	allUsers := make(api.UsernameMap)
+	for _, repo := range repos {
+		users := projectUsers[repo.RefID]
+		for key, value := range users {
+			allUsers[key] = value
+		}
+	}
+
 	return api.Paginate(ge.logger, "", ge.lastExportDate, func(log sdk.Logger, params url.Values, _ time.Time) (api.NextPage, error) {
 		if ge.lastExportDateGitlabFormat != "" {
 			params.Set("updated_after", ge.lastExportDateGitlabFormat)
@@ -22,7 +31,7 @@ func (ge *GitlabExport) exportEpics(namespace *api.Namespace, repos []*sdk.Sourc
 		}
 		for _, epic := range epics {
 
-			changelogs, err := ge.fetchEpicIssueDiscussions(namespace, repos, epic, projectUsers)
+			changelogs, err := ge.fetchEpicIssueDiscussions(namespace, repos, epic, allUsers)
 			if err != nil {
 				return pi, err
 			}

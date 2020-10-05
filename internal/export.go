@@ -157,8 +157,6 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		return err
 	}
 
-	sdk.LogDebug(logger, "accounts", "accounts", config.Accounts)
-
 	allnamespaces := make([]*api.Namespace, 0)
 	if config.Accounts == nil {
 		namespaces, err := api.AllNamespaces(gexport.qc)
@@ -176,12 +174,12 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		allnamespaces = append(allnamespaces, namespaces...)
 	}
 
-	sdk.LogInfo(logger, "registering webhooks")
+	sdk.LogInfo(logger, "registering webhooks", "config", sdk.Stringify(config))
 
-	err = i.registerWebhooks(gexport, allnamespaces)
-	if err != nil {
-		return err
-	}
+	// err = i.registerWebhooks(gexport, allnamespaces)
+	// if err != nil {
+	// 	return err
+	// }
 
 	sdk.LogInfo(logger, "registering webhooks done")
 
@@ -212,9 +210,10 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 			sdk.LogWarn(logger, "error exporting work repos", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
 		}
 
-		// TODO: change repos[0]
-		if err := gexport.exportEpics(namespace, repos, projectUsersMap[repos[0].RefID]); err != nil {
-			return err
+		if len(repos) > 0 {
+			if err := gexport.exportEpics(namespace, repos, projectUsersMap); err != nil {
+				return err
+			}
 		}
 
 		reposSprints, err := gexport.fetchProjectsSprints(repos)
