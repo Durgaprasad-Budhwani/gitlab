@@ -89,7 +89,7 @@ func EpicsPage(
 		issue.Description = epic.Description
 		// issue.EpicID Not Apply
 		issue.Identifier = epic.References.Full
-		// issue.ProjectID Not Apply, epics are not tight to repos/projects in gitalb
+		issue.ProjectIds = projectIDs
 		issue.Title = epic.Title
 		issue.Status = epic.State
 		issue.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, epic.State)
