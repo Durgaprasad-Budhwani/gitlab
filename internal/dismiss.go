@@ -57,7 +57,7 @@ func (g *GitlabIntegration) Dismiss(instance sdk.Instance) error {
 	}
 
 	for _, namespace := range namespaces {
-		if namespace.Kind == "ORG" {
+		if namespace.Kind == "group" {
 			err := wr.unregisterWebhook(sdk.WebHookScopeOrg, namespace.ID, namespace.ID)
 			if err != nil {
 				sdk.LogInfo(logger, "error unregistering namespace webhook", "err", err)

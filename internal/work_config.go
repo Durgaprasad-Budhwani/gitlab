@@ -5,7 +5,23 @@ import (
 	"github.com/pinpt/gitlab/internal/api"
 )
 
+type labelMap struct {
+	Mapped sdk.WorkIssueTypeMappedType
+}
+
 func (i *GitlabExport) workConfig() error {
+
+	labels := map[string]labelMap{
+		api.BugIssueType: {
+			sdk.WorkIssueTypeMappedTypeBug,
+		},
+		api.EpicIssueType: {
+			sdk.WorkIssueTypeMappedTypeEpic,
+		},
+		api.EnhancementIssueType: {
+			sdk.WorkIssueTypeMappedTypeEnhancement,
+		},
+	}
 
 	wc := &sdk.WorkConfig{}
 	wc.ID = sdk.NewWorkConfigID(i.qc.CustomerID, i.qc.RefType, *i.integrationInstanceID)
@@ -19,5 +35,25 @@ func (i *GitlabExport) workConfig() error {
 		ClosedStatus: []string{api.ClosedState},
 	}
 
-	return i.pipe.Write(wc)
+	if err := i.pipe.Write(wc); err != nil {
+		return err
+	}
+
+	for key, lbl := range labels {
+		issuetype := &sdk.WorkIssueType{}
+		issuetype.CustomerID = i.qc.CustomerID
+		issuetype.RefID = key
+		issuetype.RefType = i.qc.RefType
+		issuetype.Name = key
+		issuetype.IntegrationInstanceID = sdk.StringPointer(i.integrationInstanceID)
+		issuetype.Description = sdk.StringPointer(key)
+		// issuetype.IconURL NA
+		issuetype.MappedType = lbl.Mapped
+		issuetype.ID = sdk.NewWorkIssueTypeID(i.qc.CustomerID, i.qc.RefType, key)
+		if err := i.pipe.Write(issuetype); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

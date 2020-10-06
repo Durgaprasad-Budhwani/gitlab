@@ -157,12 +157,11 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		return err
 	}
 
-	sdk.LogDebug(logger, "accounts", "accounts", config.Accounts)
-
 	allnamespaces := make([]*api.Namespace, 0)
 	if config.Accounts == nil {
 		namespaces, err := api.AllNamespaces(gexport.qc)
 		if err != nil {
+			sdk.LogError(logger, "error getting data accounts", "err", err)
 			return err
 		}
 		allnamespaces = append(allnamespaces, namespaces...)
@@ -170,16 +169,17 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		namespaces, err := getNamespacesSelectedAccounts(gexport.qc, config.Accounts)
 		if err != nil {
 			sdk.LogError(logger, "error getting data accounts", "err", err)
+			return err
 		}
 		allnamespaces = append(allnamespaces, namespaces...)
 	}
 
-	sdk.LogInfo(logger, "registering webhooks")
+	sdk.LogInfo(logger, "registering webhooks", "config", sdk.Stringify(config))
 
-	err = i.registerWebhooks(gexport, allnamespaces)
-	if err != nil {
-		return err
-	}
+	// err = i.registerWebhooks(gexport, allnamespaces)
+	// if err != nil {
+	// 	return err
+	// }
 
 	sdk.LogInfo(logger, "registering webhooks done")
 
@@ -208,6 +208,12 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		err = gexport.exportReposWork(repos, projectUsersMap)
 		if err != nil {
 			sdk.LogWarn(logger, "error exporting work repos", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
+		}
+
+		if len(repos) > 0 {
+			if err := gexport.exportEpics(namespace, repos, projectUsersMap); err != nil {
+				return err
+			}
 		}
 
 		reposSprints, err := gexport.fetchProjectsSprints(repos)

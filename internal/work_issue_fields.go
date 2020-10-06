@@ -123,3 +123,25 @@ func (ge *GitlabExport) writeProjectIssues(commits []*sdk.SourceCodePullRequestC
 	}
 	return
 }
+
+func (ge *GitlabExport) fetchEpicIssueDiscussions(namespace *api.Namespace, projects []*sdk.SourceCodeRepo, epic *sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, err error) {
+
+	err = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (api.NextPage, error) {
+		pi, arr, comments, err := api.WorkEpicIssuesDiscussionPage(ge.qc, namespace, projects, epic, projectUsers, params)
+		if err != nil {
+			return pi, err
+		}
+		for _, cl := range arr {
+			changelogs = append(changelogs, *cl)
+		}
+		for _, c := range comments {
+			c.IntegrationInstanceID = ge.integrationInstanceID
+			if err := ge.pipe.Write(c); err != nil {
+				return pi, err
+			}
+		}
+		return pi, nil
+	})
+
+	return
+}

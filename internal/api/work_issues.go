@@ -21,6 +21,10 @@ const OpenedState = "opened"
 // ClosedState closed state
 const ClosedState = "closed"
 
+const BugIssueType = "Bug"
+const EpicIssueType = "Epic"
+const EnhancementIssueType = "Enhancement"
+
 func WorkIssuesPage(
 	qc QueryContext,
 	project *sdk.SourceCodeRepo,
@@ -42,7 +46,7 @@ func WorkIssuesPage(
 		return
 	}
 
-	projectID := sdk.NewWorkProjectID(qc.CustomerID, project.RefID, "gitlab")
+	projectID := sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)
 
 	sdk.LogDebug(qc.Logger, "issues found", "len", len(rawissues))
 
@@ -68,11 +72,13 @@ func WorkIssuesPage(
 		item.ReporterRefID = fmt.Sprint(rawissue.Author.ID)
 		item.CreatorRefID = fmt.Sprint(rawissue.Author.ID)
 		item.Description = rawissue.Description
-		if rawissue.EpicIid != 0 {
-			item.EpicID = sdk.StringPointer(fmt.Sprint(rawissue.EpicIid))
+		if rawissue.Epic != nil {
+			epicID := sdk.NewWorkIssueID(qc.CustomerID, strconv.FormatInt(rawissue.Epic.RefID, 10), qc.RefType)
+			item.EpicID = sdk.StringPointer(epicID)
+			item.ParentID = epicID
 		}
 		item.Identifier = rawissue.References.Full
-		item.ProjectID = sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)
+		item.ProjectIds = []string{sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)}
 		item.Title = rawissue.Title
 		item.Status = rawissue.State
 		item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, rawissue.State)
@@ -89,7 +95,8 @@ func WorkIssuesPage(
 		qc.WorkManager.AddIssue(issueID, rawissue.State == OpenedState, projectID, rawissue.Labels, rawissue.Milestone, rawissue.Assignee, rawissue.Weight)
 
 		item.Tags = tags
-		item.Type = "Issue"
+		item.Type = BugIssueType
+		item.TypeID = getIssueTypeFromLabels(rawissue.Labels, qc)
 		item.URL = rawissue.WebURL
 
 		sdk.ConvertTimeToDateModel(rawissue.CreatedAt, &item.CreatedDate)
@@ -117,8 +124,26 @@ func WorkIssuesPage(
 	return
 }
 
+func getIssueTypeFromLabels(lbls []*Label, qc QueryContext) string {
+	if len(lbls) == 0 {
+		return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, BugIssueType)
+	}
+	for _, lbl := range lbls {
+		switch lbl.Name {
+		case "enhancement":
+			return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, EnhancementIssueType)
+		}
+	}
+
+	return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, BugIssueType)
+}
+
 type IssueWebHook struct {
 	IID int64 `json:"iid"`
+}
+
+type GitlabEpic struct {
+	RefID int64 `json:"id"`
 }
 
 type IssueModel struct {
@@ -164,8 +189,7 @@ type IssueModel struct {
 		Full     string `json:"full"`
 	} `json:"references"`
 	MovedToID    interface{} `json:"moved_to_id"`
-	EpicIid      int         `json:"epic_iid"`
-	Epic         interface{} `json:"epic"`
+	Epic         *GitlabEpic `json:"epic"`
 	Weight       *int        `json:"weight"`
 	ProjectRefID int64       `json:"project_id"`
 }
