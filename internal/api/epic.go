@@ -100,8 +100,8 @@ func EpicsPage(
 		}
 
 		issue.Tags = tags
-		issue.Type = "Epic"
-		issue.TypeID = sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, "epic")
+		issue.Type = EpicIssueType
+		issue.TypeID = sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, EpicIssueType)
 		issue.URL = epic.WebURL
 
 		sdk.ConvertTimeToDateModel(epic.CreatedAt, &issue.CreatedDate)
