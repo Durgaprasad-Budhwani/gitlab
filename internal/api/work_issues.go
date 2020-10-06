@@ -16,10 +16,15 @@ const (
 )
 
 // OpenedState opened state
-const OpenedState = "opened"
+const OpenedState = "Opened"
 
 // ClosedState closed state
-const ClosedState = "closed"
+const ClosedState = "Closed"
+
+var StatesMap = map[string]string{
+	"opened": OpenedState,
+	"closed": ClosedState,
+}
 
 const BugIssueType = "Bug"
 const EpicIssueType = "Epic"
@@ -80,8 +85,8 @@ func WorkIssuesPage(
 		item.Identifier = rawissue.References.Full
 		item.ProjectIds = []string{sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)}
 		item.Title = rawissue.Title
-		item.Status = rawissue.State
-		item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, rawissue.State)
+		item.Status = StatesMap[rawissue.State]
+		item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, item.Status)
 		if rawissue.Weight != nil {
 			value := float64(*rawissue.Weight)
 			item.StoryPoints = &value
