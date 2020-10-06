@@ -91,8 +91,8 @@ func EpicsPage(
 		issue.Identifier = epic.References.Full
 		issue.ProjectIds = projectIDs
 		issue.Title = epic.Title
-		issue.Status = epic.State
-		issue.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, epic.State)
+		issue.Status = StatesMap[epic.State]
+		issue.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, issue.Status)
 
 		tags := make([]string, 0)
 		for _, labelName := range epic.Labels {

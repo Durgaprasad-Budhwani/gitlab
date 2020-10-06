@@ -1,8 +1,6 @@
 package internal
 
 import (
-	"strings"
-
 	"github.com/pinpt/agent/v4/sdk"
 	"github.com/pinpt/gitlab/internal/api"
 )
@@ -33,8 +31,8 @@ func (i *GitlabExport) workConfig() error {
 	wc.IntegrationInstanceID = *i.integrationInstanceID
 	wc.RefType = i.qc.RefType
 	wc.Statuses = sdk.WorkConfigStatuses{
-		OpenStatus:   []string{api.OpenedState, strings.ToLower(api.OpenedState)},
-		ClosedStatus: []string{api.ClosedState, strings.ToLower(api.ClosedState)},
+		OpenStatus:   []string{api.OpenedState},
+		ClosedStatus: []string{api.ClosedState},
 	}
 
 	if err := i.pipe.Write(wc); err != nil {
