@@ -16,10 +16,10 @@ const (
 )
 
 // OpenedState opened state
-const OpenedState = "opened"
+const OpenedState = "Opened"
 
 // ClosedState closed state
-const ClosedState = "closed"
+const ClosedState = "Closed"
 
 const BugIssueType = "Bug"
 const EpicIssueType = "Epic"
