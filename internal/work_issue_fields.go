@@ -45,7 +45,7 @@ func (ge *GitlabExport) exportIssueFields(project *sdk.SourceCodeRepo, issue *sd
 		}
 		sdk.ConvertTimeToDateModel(stateEvent.CreatedAt, &changelog.CreatedDate)
 
-		if stateEvent.State == api.ClosedState {
+		if stateEvent.State == strings.ToLower(api.ClosedState) {
 			changelog.To = api.ClosedState
 			changelog.ToString = api.ClosedState
 
