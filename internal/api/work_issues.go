@@ -28,7 +28,7 @@ var StatesMap = map[string]string{
 
 const BugIssueType = "Bug"
 const EpicIssueType = "Epic"
-const EnhancementIssueType = "Enhancement"
+const IncidentIssueType = "Incident"
 
 func WorkIssuesPage(
 	qc QueryContext,
@@ -100,8 +100,7 @@ func WorkIssuesPage(
 		qc.WorkManager.AddIssue(issueID, rawissue.State == OpenedState, projectID, rawissue.Labels, rawissue.Milestone, rawissue.Assignee, rawissue.Weight)
 
 		item.Tags = tags
-		item.Type = BugIssueType
-		item.TypeID = getIssueTypeFromLabels(rawissue.Labels, qc)
+		item.Type, item.TypeID = getIssueTypeFromLabels(rawissue.Labels, qc)
 		item.URL = rawissue.WebURL
 
 		sdk.ConvertTimeToDateModel(rawissue.CreatedAt, &item.CreatedDate)
@@ -129,18 +128,19 @@ func WorkIssuesPage(
 	return
 }
 
-func getIssueTypeFromLabels(lbls []*Label, qc QueryContext) string {
+func getIssueTypeFromLabels(lbls []*Label, qc QueryContext) (string, string) {
 	if len(lbls) == 0 {
-		return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, BugIssueType)
+		return BugIssueType, sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, BugIssueType)
 	}
+
 	for _, lbl := range lbls {
 		switch lbl.Name {
-		case "enhancement":
-			return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, EnhancementIssueType)
+		case "incident":
+			return IncidentIssueType, sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, IncidentIssueType)
 		}
 	}
 
-	return sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, BugIssueType)
+	return BugIssueType, sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, BugIssueType)
 }
 
 type IssueWebHook struct {
