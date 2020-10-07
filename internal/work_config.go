@@ -18,6 +18,9 @@ func (i *GitlabExport) workConfig() error {
 		api.EpicIssueType: {
 			sdk.WorkIssueTypeMappedTypeEpic,
 		},
+		api.IncidentIssueType: {
+			sdk.WorkIssueTypeMappedTypeUnknown,
+		},
 		api.EnhancementIssueType: {
 			sdk.WorkIssueTypeMappedTypeEnhancement,
 		},
