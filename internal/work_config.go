@@ -21,6 +21,9 @@ func (i *GitlabExport) workConfig() error {
 		api.IncidentIssueType: {
 			sdk.WorkIssueTypeMappedTypeUnknown,
 		},
+		api.EnhancementIssueType: {
+			sdk.WorkIssueTypeMappedTypeEnhancement,
+		},
 	}
 
 	wc := &sdk.WorkConfig{}

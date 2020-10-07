@@ -39,6 +39,7 @@ type Epic struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	ClosedAt  time.Time `json:"closed_at"`
 	Labels    []string  `json:"labels"`
+	ParentID  *int64    `json:"parent_id"`
 }
 
 // EpicsPage epics page
@@ -87,7 +88,11 @@ func EpicsPage(
 		issue.CreatorRefID = fmt.Sprint(epic.Author.ID)
 
 		issue.Description = epic.Description
-		// issue.EpicID Not Apply
+		if epic.ParentID != nil {
+			epicID := sdk.NewWorkIssueID(qc.CustomerID, strconv.FormatInt(*epic.ParentID, 10), qc.RefType)
+			issue.EpicID = sdk.StringPointer(epicID)
+			issue.ParentID = epicID
+		}
 		issue.Identifier = epic.References.Full
 		issue.ProjectIds = projectIDs
 		issue.Title = epic.Title

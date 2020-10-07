@@ -29,6 +29,7 @@ var StatesMap = map[string]string{
 const BugIssueType = "Bug"
 const EpicIssueType = "Epic"
 const IncidentIssueType = "Incident"
+const EnhancementIssueType = "Enhancement"
 
 func WorkIssuesPage(
 	qc QueryContext,
@@ -97,7 +98,7 @@ func WorkIssuesPage(
 			tags = append(tags, label.Name)
 		}
 
-		qc.WorkManager.AddIssue(issueID, rawissue.State == OpenedState, projectID, rawissue.Labels, rawissue.Milestone, rawissue.Assignee, rawissue.Weight)
+		qc.WorkManager.AddIssue(issueID, rawissue.State == strings.ToLower(OpenedState), projectID, rawissue.Labels, rawissue.Milestone, rawissue.Assignee, rawissue.Weight)
 
 		item.Tags = tags
 		item.Type, item.TypeID = getIssueTypeFromLabels(rawissue.Labels, qc)
@@ -135,8 +136,10 @@ func getIssueTypeFromLabels(lbls []*Label, qc QueryContext) (string, string) {
 
 	for _, lbl := range lbls {
 		switch lbl.Name {
-		case "incident":
+		case strings.ToLower(IncidentIssueType):
 			return IncidentIssueType, sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, IncidentIssueType)
+		case strings.ToLower(EnhancementIssueType):
+			return EnhancementIssueType, sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, EnhancementIssueType)
 		}
 	}
 
