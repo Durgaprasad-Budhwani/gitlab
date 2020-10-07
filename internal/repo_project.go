@@ -59,6 +59,10 @@ func ToProject(repo *sdk.SourceCodeRepo) *sdk.WorkProject {
 				RefID: api.IncidentIssueType,
 				Name:  api.IncidentIssueType,
 			},
+			{
+				RefID: api.EnhancementIssueType,
+				Name:  api.EnhancementIssueType,
+			},
 		},
 	}
 }
