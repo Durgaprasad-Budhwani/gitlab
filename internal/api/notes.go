@@ -26,8 +26,9 @@ type WebhookNote struct {
 // NoteDateFormat note date format
 const NoteDateFormat = "2006-01-02 15:04:05 MST"
 
-func (wn *WebhookNote) ToSourceCodePullRequestReview() (review *sdk.SourceCodePullRequestReview) {
+func (wn *WebhookNote) ToSourceCodePullRequestReview() *sdk.SourceCodePullRequestReview {
 
+	review := &sdk.SourceCodePullRequestReview{}
 	review.RefType = "gitlab"
 	review.RefID = strconv.FormatInt(wn.RefID, 10)
 	review.State = sdk.SourceCodePullRequestReviewStateCommented
@@ -38,7 +39,7 @@ func (wn *WebhookNote) ToSourceCodePullRequestReview() (review *sdk.SourceCodePu
 
 	sdk.ConvertTimeToDateModel(t, &review.CreatedDate)
 
-	return
+	return review
 }
 
 // Note raw struct from api
