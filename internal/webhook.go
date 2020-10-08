@@ -366,7 +366,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 	case "System Hook":
 		switch rootWebHookObject.EventName {
 		case "repository_update", "project_update", "project_rename":
-			repo, err := api.ProjectByID(ge.qc, rootWebHookObject.ProjectID)
+			repo, err := api.ProjectByRefID(ge.qc, rootWebHookObject.ProjectID)
 			if err != nil {
 				rerr = err
 				return

@@ -42,6 +42,69 @@ type Epic struct {
 	ParentID  *int64    `json:"parent_id"`
 }
 
+func (e *Epic) ToModel(qc QueryContext, projectIDs []string) (*sdk.WorkIssue, error) {
+
+	issueRefID := strconv.FormatInt(e.RefID, 10)
+	issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
+
+	issue := &sdk.WorkIssue{}
+	issue.ID = issueID
+	issue.Active = true
+	issue.CustomerID = qc.CustomerID
+	issue.RefType = qc.RefType
+	issue.RefID = issueRefID
+
+	issue.ReporterRefID = fmt.Sprint(e.Author.ID)
+	issue.CreatorRefID = fmt.Sprint(e.Author.ID)
+
+	issue.Description = e.Description
+	if e.ParentID != nil {
+		epicID := sdk.NewWorkIssueID(qc.CustomerID, strconv.FormatInt(*e.ParentID, 10), qc.RefType)
+		issue.EpicID = sdk.StringPointer(epicID)
+		issue.ParentID = epicID
+	}
+	issue.Identifier = e.References.Full
+	issue.ProjectIds = projectIDs
+	issue.Title = e.Title
+	issue.Status = StatesMap[e.State]
+	issue.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, issue.Status)
+
+	tags := make([]string, 0)
+	for _, labelName := range e.Labels {
+		tags = append(tags, labelName)
+	}
+
+	issue.Tags = tags
+	issue.Type = EpicIssueType
+	issue.TypeID = sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, EpicIssueType)
+	issue.URL = e.WebURL
+
+	sdk.ConvertTimeToDateModel(e.CreatedAt, &issue.CreatedDate)
+	sdk.ConvertTimeToDateModel(e.UpdatedAt, &issue.UpdatedDate)
+
+	// issue.SprintIds Not Apply
+
+	if e.StartDateFromInheritedSource != "" {
+		startDate, err := time.Parse("2006-01-02", e.StartDateFromInheritedSource)
+		if err != nil {
+			return nil, err
+		}
+		sdk.ConvertTimeToDateModel(startDate, &issue.PlannedStartDate)
+	}
+
+	if e.DueDateFromInheritedSource != "" {
+		endDate, err := time.Parse("2006-01-02", e.DueDateFromInheritedSource)
+		if err != nil {
+			return nil, err
+		}
+		sdk.ConvertTimeToDateModel(endDate, &issue.PlannedEndDate)
+	}
+
+	issue.IntegrationInstanceID = sdk.StringPointer(qc.IntegrationInstanceID)
+
+	return issue, nil
+}
+
 // EpicsPage epics page
 func EpicsPage(
 	qc QueryContext,
@@ -71,69 +134,79 @@ func EpicsPage(
 	}
 
 	for _, epic := range repics {
-
-		issueRefID := strconv.FormatInt(epic.RefID, 10)
-		issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
-
-		issue := &sdk.WorkIssue{}
-		issue.ID = issueID
-		issue.Active = true
-		issue.CustomerID = qc.CustomerID
-		issue.RefType = qc.RefType
-		issue.RefID = issueRefID
-
-		// issue.AssigneeRefID Not supported
-
-		issue.ReporterRefID = fmt.Sprint(epic.Author.ID)
-		issue.CreatorRefID = fmt.Sprint(epic.Author.ID)
-
-		issue.Description = epic.Description
-		if epic.ParentID != nil {
-			epicID := sdk.NewWorkIssueID(qc.CustomerID, strconv.FormatInt(*epic.ParentID, 10), qc.RefType)
-			issue.EpicID = sdk.StringPointer(epicID)
-			issue.ParentID = epicID
+		e, err := epic.ToModel(qc, projectIDs)
+		if err != nil {
+			return np, epics, err
 		}
-		issue.Identifier = epic.References.Full
-		issue.ProjectIds = projectIDs
-		issue.Title = epic.Title
-		issue.Status = StatesMap[epic.State]
-		issue.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, issue.Status)
-
-		tags := make([]string, 0)
-		for _, labelName := range epic.Labels {
-			tags = append(tags, labelName)
-		}
-
-		issue.Tags = tags
-		issue.Type = EpicIssueType
-		issue.TypeID = sdk.NewWorkIssueTypeID(qc.CustomerID, qc.RefType, EpicIssueType)
-		issue.URL = epic.WebURL
-
-		sdk.ConvertTimeToDateModel(epic.CreatedAt, &issue.CreatedDate)
-		sdk.ConvertTimeToDateModel(epic.UpdatedAt, &issue.UpdatedDate)
-
-		// issue.SprintIds Not Apply
-
-		if epic.StartDateFromInheritedSource != "" {
-			startDate, err := time.Parse("2006-01-02", epic.StartDateFromInheritedSource)
-			if err != nil {
-				return np, epics, err
-			}
-			sdk.ConvertTimeToDateModel(startDate, &issue.PlannedStartDate)
-		}
-
-		if epic.DueDateFromInheritedSource != "" {
-			endDate, err := time.Parse("2006-01-02", epic.DueDateFromInheritedSource)
-			if err != nil {
-				return np, epics, err
-			}
-			sdk.ConvertTimeToDateModel(endDate, &issue.PlannedEndDate)
-		}
-
-		issue.IntegrationInstanceID = sdk.StringPointer(qc.IntegrationInstanceID)
-
-		epics = append(epics, issue)
+		epics = append(epics, e)
 	}
 
 	return np, epics, nil
+}
+
+// CreateEpic create epic
+func CreateEpic(qc QueryContext, mutation *sdk.WorkIssueCreateMutation) (*sdk.MutationResponse, error) {
+
+	sdk.LogDebug(qc.Logger, "create epic", "project_ref_id", mutation.ProjectRefID)
+
+	projectRefID, err := strconv.Atoi(mutation.ProjectRefID)
+	if err != nil {
+		return nil, err
+	}
+
+	repo, err := ProjectByRefID(qc, int64(projectRefID))
+	if err != nil {
+		return nil, err
+	}
+
+	ind := strings.Index(repo.Name, "/")
+
+	groupName := repo.Name[:ind]
+
+	objectPath := sdk.JoinURL("groups", url.QueryEscape(groupName), "epics")
+
+	issueCreate := convertMutationToGitlabIssue(mutation)
+
+	reader, err := issueCreate.ToReader()
+	if err != nil {
+		return nil, err
+	}
+
+	var epic Epic
+
+	_, err = qc.Post(objectPath, nil, reader, &epic)
+	if err != nil {
+		return nil, err
+	}
+
+	projectIDs, err := GroupProjectsIDs(qc, &Namespace{
+		ID:   groupName,
+		Name: groupName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	workIssue, err := epic.ToModel(qc, projectIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	transition := sdk.WorkIssueTransitions{}
+	transition.RefID = ClosedState
+	transition.Name = ClosedState
+
+	workIssue.Transitions = []sdk.WorkIssueTransitions{transition}
+
+	err = qc.Pipe.Write(workIssue)
+	if err != nil {
+		return nil, err
+	}
+
+	return &sdk.MutationResponse{
+		RefID:    sdk.StringPointer(workIssue.RefID),
+		EntityID: sdk.StringPointer(workIssue.ID),
+		URL:      sdk.StringPointer(workIssue.URL),
+	}, nil
+
 }

@@ -44,7 +44,7 @@ type Assignee struct{}
 // WorkManagerI interface to manage issues, boards, milestones, labels, columns
 type WorkManagerI interface {
 	// add issues with all it's details
-	AddIssue(issueID string, issueState bool, projectID string, labels []*Label, milestone *Milestone, assignees *UserModel, weight *int)
+	AddIssue(issueID string, issueState bool, projectID string, labels []interface{}, milestone *Milestone, assignees *UserModel, weight *int)
 	// get issues for specific column using those filters
 	GetBoardColumnIssues(projectsRefIDs []string, milestone *Milestone, boardLabels []*Label, columnsLabels []BoardList, columnLabel *Label, assignee *UserModel, weight *int) []string
 	// add milestone details by its ref id

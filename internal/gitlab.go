@@ -102,13 +102,6 @@ func (g *GitlabIntegration) Enroll(instance sdk.Instance) error {
 	return nil
 }
 
-// Mutation is called when a mutation is received on behalf of the integration
-func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationResponse, error) {
-	sdk.LogInfo(g.logger, "mutation request received", "action", mutation.Action(), "id", mutation.ID(), "customer_id", mutation.CustomerID(), "model", mutation.Model())
-	// TODO: Add mutations
-	return nil, nil
-}
-
 // Stop is called when the integration is shutting down for cleanup
 func (g *GitlabIntegration) Stop() error {
 	sdk.LogInfo(g.logger, "stopping")

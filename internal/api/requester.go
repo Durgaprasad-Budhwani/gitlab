@@ -129,17 +129,17 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 	case Get:
 		resp, rerr = e.client.Get(&r.Response, headers, endpoint, parameters)
 		if rerr != nil {
-			return true, np, fmt.Errorf("error: %s %s", rerr, string(resp.Body))
+			return true, np, fmt.Errorf("error on get: %s %s", rerr, string(resp.Body))
 		}
 	case Post:
 		resp, rerr = e.client.Post(r.Data, &r.Response, headers, endpoint, parameters)
 		if rerr != nil {
-			return true, np, fmt.Errorf("error: %s %s", rerr, string(resp.Body))
+			return true, np, fmt.Errorf("error on post: %s %s", rerr, string(resp.Body))
 		}
 	case Delete:
 		resp, rerr = e.client.Delete(&r.Response, headers, endpoint, parameters)
 		if rerr != nil {
-			return true, np, fmt.Errorf("error: %s %s", rerr, string(resp.Body))
+			return true, np, fmt.Errorf("error on delete: %s %s", rerr, string(resp.Body))
 		}
 	}
 

@@ -130,23 +130,30 @@ func GroupUser(qc QueryContext, namespace *Namespace, userId string) (u *GitlabU
 }
 
 // GroupProjects get group projects
-func GroupProjects(qc QueryContext, group *Namespace) (int, error) {
+func GroupProjectsIDs(qc QueryContext, group *Namespace) ([]string, error) {
 
 	sdk.LogDebug(qc.Logger, "group projects", "group_name", group.Name, "group_id", group.ID)
 
 	params := url.Values{}
 	params.Set("with_projects", "true")
 
-	objectPath := sdk.JoinURL("groups", group.ID)
+	objectPath := sdk.JoinURL("groups", url.QueryEscape(group.ID))
 
 	var rr struct {
-		Projects []json.RawMessage `json:"projects"`
+		Projects []*GitlabProject `json:"projects"`
 	}
 
 	_, err := qc.Get(objectPath, nil, &rr)
 	if err != nil {
-		return 0, err
+		return []string{}, err
 	}
 
-	return len(rr.Projects), nil
+	projectIDs := make([]string, 0)
+	for _, project := range rr.Projects {
+		projectRefID := strconv.FormatInt(project.RefID, 10)
+		projectID := sdk.NewWorkProjectID(qc.CustomerID, projectRefID, qc.RefType)
+		projectIDs = append(projectIDs, projectID)
+	}
+
+	return projectIDs, nil
 }
