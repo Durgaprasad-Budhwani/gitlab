@@ -30,14 +30,18 @@ type milestoneDetail struct {
 }
 
 // AddIssue desc
-func (w *WorkManager) AddIssue(issueID string, issueState bool, projectID string, labels []*api.Label, milestone *api.Milestone, assignee *api.UserModel, weight *int) {
+func (w *WorkManager) AddIssue(issueID string, issueState bool, projectID string, labels []interface{}, milestone *api.Milestone, assignee *api.UserModel, weight *int) {
 
-	var convertLabelsToMap = func(labels []*api.Label) map[int64]*api.Label {
+	var convertLabelsToMap = func() map[int64]*api.Label {
 
 		m := make(map[int64]*api.Label)
 
 		for _, label := range labels {
-			m[label.ID] = label
+			switch label.(type) {
+			case *api.Label:
+				l := label.(*api.Label)
+				m[l.ID] = l
+			}
 		}
 
 		return m
@@ -52,7 +56,7 @@ func (w *WorkManager) AddIssue(issueID string, issueState bool, projectID string
 
 	issueD := &issueDetail{
 		Open:           issueState,
-		Labels:         convertLabelsToMap(labels),
+		Labels:         convertLabelsToMap(),
 		Assignee:       assignee,
 		MilestoneRefID: milestoneRefID,
 		Weight:         weight,

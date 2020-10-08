@@ -9,6 +9,20 @@ import (
 	"github.com/pinpt/agent/v4/sdk"
 )
 
+// GitlabProject gitlab project
+type GitlabProject struct {
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"last_activity_at"`
+	RefID             int64           `json:"id"`
+	FullName          string          `json:"path_with_namespace"`
+	Description       string          `json:"description"`
+	WebURL            string          `json:"web_url"`
+	Archived          bool            `json:"archived"`
+	DefaultBranch     string          `json:"default_branch"`
+	Visibility        string          `json:"visibility"`
+	ForkedFromProject json.RawMessage `json:"forked_from_project"`
+}
+
 func GroupNamespaceReposPage(qc QueryContext, namespace *Namespace, params url.Values, stopOnUpdatedAt time.Time) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
 
 	params.Set("with_shared", "false")
@@ -32,18 +46,7 @@ func UserReposPage(qc QueryContext, namespace *Namespace, params url.Values, sto
 
 func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Time, objectPath string, afiliation sdk.SourceCodeRepoAffiliation) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
 
-	var rr []struct {
-		CreatedAt         time.Time       `json:"created_at"`
-		UpdatedAt         time.Time       `json:"last_activity_at"`
-		ID                int64           `json:"id"`
-		FullName          string          `json:"path_with_namespace"`
-		Description       string          `json:"description"`
-		WebURL            string          `json:"web_url"`
-		Archived          bool            `json:"archived"`
-		DefaultBranch     string          `json:"default_branch"`
-		Visibility        string          `json:"visibility"`
-		ForkedFromProject json.RawMessage `json:"forked_from_project"`
-	}
+	var rr []GitlabProject
 
 	page, err = qc.Get(objectPath, params, &rr)
 	if err != nil {
@@ -51,7 +54,7 @@ func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Ti
 	}
 
 	for _, r := range rr {
-		refID := strconv.FormatInt(r.ID, 10)
+		refID := strconv.FormatInt(r.RefID, 10)
 		repo := &sdk.SourceCodeRepo{
 			ID:            sdk.NewSourceCodeRepoID(qc.CustomerID, refID, qc.RefType),
 			RefID:         refID,
@@ -82,9 +85,9 @@ func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Ti
 	return
 }
 
-func ProjectByID(qc QueryContext, projectID int64) (repo *sdk.SourceCodeRepo, err error) {
+func ProjectByRefID(qc QueryContext, projectRefID int64) (repo *sdk.SourceCodeRepo, err error) {
 
-	objectPath := sdk.JoinURL("projects", strconv.FormatInt(projectID, 10))
+	objectPath := sdk.JoinURL("projects", strconv.FormatInt(projectRefID, 10))
 
 	var r struct {
 		CreatedAt         time.Time       `json:"created_at"`
