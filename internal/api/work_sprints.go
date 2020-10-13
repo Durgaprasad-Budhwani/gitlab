@@ -1,8 +1,10 @@
 package api
 
 import (
+	"errors"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pinpt/agent/v4/sdk"
@@ -21,6 +23,10 @@ type Milestone struct {
 	StartDate   string    `json:"start_date"`
 	WebURL      string    `json:"web_url"`
 	GroupID     int       `json:"group_id"`
+}
+
+func (m *Milestone) StringRefID() string {
+	return strconv.FormatInt(m.RefID, 10)
 }
 
 func RepoSprintsPage(
@@ -112,4 +118,52 @@ func CommonSprintsPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.
 	}
 
 	return
+}
+
+func CreateGitlabSprint(qc QueryContext, projectRefID string) error {
+
+	return nil
+}
+
+// CreateSprint create sprint
+func CreateSprint(qc QueryContext, mutation *sdk.AgileSprintCreateMutation) (*sdk.MutationResponse, error) {
+
+	sdk.LogDebug(qc.Logger, "create sprint", "project_ref_id", mutation.ProjectRefID)
+
+	if mutation.Name == "" {
+		return nil, errors.New("sprint name cannot be empty")
+	}
+
+	if mutation.StartDate.Epoch == 0 || mutation.EndDate.Epoch == 0 {
+		return nil, errors.New("start date and end date must both be set")
+	}
+
+	if len(mutation.IssueRefIDs) > 0 {
+		return nil, errors.New("adding issues to a new sprint is not supported yet")
+	}
+
+	var milestone Milestone
+	{
+		objectPath := sdk.JoinURL("projects", *mutation.ProjectRefID, "milestones")
+
+		startDate := sdk.DateFromEpoch(mutation.StartDate.Epoch)
+		endDate := sdk.DateFromEpoch(mutation.EndDate.Epoch)
+
+		params := url.Values{}
+		params.Set("title", mutation.Name)
+		params.Set("description", *mutation.Goal)
+		params.Set("start_date", startDate.Format(GitLabDateFormat))
+		params.Set("due_date", endDate.Format(GitLabDateFormat))
+
+		_, err := qc.Post(objectPath, params, strings.NewReader(""), &milestone)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &sdk.MutationResponse{
+		RefID:    sdk.StringPointer(milestone.StringRefID()),
+		EntityID: sdk.StringPointer(sdk.NewAgileSprintID(qc.CustomerID, milestone.StringRefID(), qc.RefType)),
+	}, nil
+
 }

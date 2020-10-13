@@ -7,6 +7,9 @@ import (
 	"github.com/pinpt/agent/v4/sdk"
 )
 
+// GitLabDateFormat gitlab layout to format dates
+const GitLabDateFormat = "2006-01-02T15:04:05.000Z"
+
 type GitUser2 interface {
 	RefID(customerID string) string
 	ToModel(customerID string, integrationInstanceID string) *sdk.SourceCodeUser

@@ -18,7 +18,6 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 	c.APIKeyAuth = user.APIKeyAuth
 	c.BasicAuth = user.BasicAuth
 	c.OAuth2Auth = user.OAuth2Auth
-	c.OAuth1Auth = user.OAuth1Auth
 
 	ge, err := g.SetQueryConfig(g.logger, c, g.manager, mutation.CustomerID())
 	if err != nil {
@@ -43,17 +42,11 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 			return api.CreateEpic(ge.qc, mutationModelType)
 		}
 
-		// // Sprint
-		// case *sdk.AgileSprintUpdateMutation:
-		// 	if !authConfig.SupportsAgileAPI {
-		// 		return nil, errors.New("current authentication does not support agile api")
-		// 	}
-		// 	return i.updateSprint(logger, mutation, authConfig, v)
-		// case *sdk.AgileSprintCreateMutation:
-		// 	if !authConfig.SupportsAgileAPI {
-		// 		return nil, errors.New("current authentication does not support agile api")
-		// 	}
-		// 	return i.createSprint(logger, mutation, authConfig, v)
+	// // Sprint
+	// case *sdk.AgileSprintUpdateMutation:
+	// 	return i.updateSprint(logger, mutation, authConfig, v)
+	case *sdk.AgileSprintCreateMutation:
+		return api.CreateSprint(ge.qc, mutationModelType)
 	}
 	sdk.LogInfo(logger, "unhandled mutation request", "type", reflect.TypeOf(mutation.Payload()))
 	return nil, nil

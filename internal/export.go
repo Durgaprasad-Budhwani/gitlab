@@ -111,7 +111,7 @@ func (ge *GitlabExport) exportDate() (rerr error) {
 		}
 
 		ge.lastExportDate = lastExportDate.UTC()
-		ge.lastExportDateGitlabFormat = lastExportDate.UTC().Format(GitLabDateFormat)
+		ge.lastExportDateGitlabFormat = lastExportDate.UTC().Format(api.GitLabDateFormat)
 	}
 
 	sdk.LogDebug(ge.logger, "last export date", "date", ge.lastExportDate)
@@ -127,9 +127,6 @@ const (
 
 // GitlabRefType Integraion constant type
 const gitlabRefType = "gitlab"
-
-// GitLabDateFormat gitlab layout to format dates
-const GitLabDateFormat = "2006-01-02T15:04:05.000Z"
 
 // Export is called to tell the integration to run an export
 func (i *GitlabIntegration) Export(export sdk.Export) error {
