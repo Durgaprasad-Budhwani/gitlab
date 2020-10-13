@@ -120,11 +120,6 @@ func CommonSprintsPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.
 	return
 }
 
-func CreateGitlabSprint(qc QueryContext, projectRefID string) error {
-
-	return nil
-}
-
 // CreateSprint create sprint
 func CreateSprint(qc QueryContext, mutation *sdk.AgileSprintCreateMutation) (*sdk.MutationResponse, error) {
 
