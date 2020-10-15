@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/pinpt/agent/v4/sdk"
@@ -10,8 +9,7 @@ import (
 const workManagerKey = "work_manager"
 
 type recover struct {
-	RefProject           map[string]map[string]*issueDetail
-	RefMilestonesDetails map[string]*milestoneDetail
+	RefProject map[string]map[string]*issueDetail
 }
 
 // Persist persist info
@@ -23,15 +21,8 @@ func (w *WorkManager) Persist() error {
 		return true
 	})
 
-	refMilestonesDetailsMap := make(map[string]*milestoneDetail, 0)
-	w.refMilestonesDetails.Range(func(k, v interface{}) bool {
-		refMilestonesDetailsMap[strconv.FormatInt(k.(int64), 10)] = v.(*milestoneDetail)
-		return true
-	})
-
 	r := recover{
-		RefProject:           refProjectMap,
-		RefMilestonesDetails: refMilestonesDetailsMap,
+		RefProject: refProjectMap,
 	}
 
 	start := time.Now()
@@ -58,11 +49,6 @@ func (w *WorkManager) Restore() error {
 
 	for k, v := range r.RefProject {
 		w.refProject.Store(k, v)
-	}
-
-	for k, v := range r.RefMilestonesDetails {
-		mrID := convertToInt64(k)
-		w.refMilestonesDetails.Store(mrID, v)
 	}
 
 	return nil
