@@ -7,5 +7,3 @@ require (
 	github.com/pinpt/go-common/v10 v10.0.26
 	github.com/stretchr/testify v1.6.1
 )
-
-replace github.com/pinpt/agent => ../agent
