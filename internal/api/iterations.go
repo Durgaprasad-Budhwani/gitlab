@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/pinpt/agent/v4/sdk"
-	"github.com/pinpt/go-common/v10/log"
 )
 
 type Iteration struct {
@@ -71,7 +70,7 @@ func getIterationsPage(
 	err = qc.GraphRequester.Query(query, nil, &Data)
 	if err != nil {
 		if strings.Contains(err.Error(), "The resource that you are attempting to access does not exist or you don't have permission to perform this action") {
-			log.Warn(qc.Logger, err.Error())
+			sdk.LogWarn(qc.Logger, err.Error())
 			return nextPage, sprints, nil
 		}
 		return
@@ -84,13 +83,6 @@ func getIterationsPage(
 	for _, edge := range Data.Group.Iterations.Edges {
 
 		sprintRefIDStr := ExtractGraphQLID(edge.Node.ID)
-
-		// sprintRefID, err := strconv.Atoi(sprintRefIDStr)
-		// if err != nil {
-		// 	return nextPage, sprints, err
-		// }
-
-		// qc.WorkManager.AddIterationDetails(int64(sprintRefID), edge.Node)
 
 		sprint := &sdk.AgileSprint{}
 		sprint.ID = sdk.NewAgileSprintID(qc.CustomerID, sprintRefIDStr, qc.RefType)
