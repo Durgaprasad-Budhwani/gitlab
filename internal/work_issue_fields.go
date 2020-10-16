@@ -83,7 +83,7 @@ func (ge *GitlabExport) exportIssueFields(project *sdk.SourceCodeRepo, issue *sd
 
 	attachments, err := api.GetIssueAttachments(ge.qc, project, issue.RefID)
 	if err != nil {
-		return fmt.Errorf("error on issue attachments, %s", err)
+		return fmt.Errorf("error on issue attachments, %s issue %s", err, issue.RefID)
 	}
 
 	issue.Attachments = attachments

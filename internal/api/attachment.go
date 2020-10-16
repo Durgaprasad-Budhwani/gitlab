@@ -61,7 +61,7 @@ func getIssueAttachmentsPage(
 	designPage NextPage,
 	discussionPage NextPage) (nextDesign NextPage, nextDiscussion NextPage, attachments []*sdk.WorkIssueAttachments, err error) {
 
-	sdk.LogDebug(qc.Logger, "work issue resource_state_events", "project", project.RefID)
+	sdk.LogDebug(qc.Logger, "work issue attachments", "project", project.RefID, "issue", issueRefID)
 
 	var GraphQLResponse struct {
 		Issue struct {
@@ -110,7 +110,7 @@ func getIssueAttachmentsPage(
 
 	query := fmt.Sprintf(attachementQuery, issueRefID, designPage, discussionPage)
 
-	err = qc.GraphClient.Query(query, nil, &GraphQLResponse)
+	err = qc.GraphRequester.Query(query, nil, &GraphQLResponse)
 	if err != nil {
 		return
 	}

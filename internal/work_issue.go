@@ -4,46 +4,10 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/pinpt/agent/v4/sdk"
 	"github.com/pinpt/gitlab/internal/api"
 )
-
-func (ge *GitlabExport) exportProjectIssues(project *sdk.SourceCodeRepo, users api.UsernameMap) {
-
-	sdk.LogDebug(ge.logger, "project issues", "project", project.Name)
-
-	issuesC := make(chan *sdk.WorkIssue, 10)
-
-	done := make(chan bool, 1)
-	go func() {
-		ge.exportIssueEntitiesAndWrite(project, issuesC, users)
-		done <- true
-	}()
-
-	go func() {
-		defer close(issuesC)
-		var err error
-		_, err = ge.fetchInitialProjectIssues(project, issuesC)
-		if err != nil {
-			sdk.LogError(ge.logger, "error initial issues", "project", project.Name, "err", err)
-			done <- true
-		}
-	}()
-
-	<-done
-}
-
-func (ge *GitlabExport) fetchInitialProjectIssues(project *sdk.SourceCodeRepo, issues chan *sdk.WorkIssue) (pi api.NextPage, rerr error) {
-	params := url.Values{}
-
-	if ge.lastExportDateGitlabFormat != "" {
-		params.Set("updated_after", ge.lastExportDateGitlabFormat)
-	}
-
-	return api.WorkIssuesPage(ge.qc, project, ge.lastExportDate, params, issues)
-}
 
 func (ge *GitlabExport) exportIssueEntitiesAndWrite(project *sdk.SourceCodeRepo, issues chan *sdk.WorkIssue, users api.UsernameMap) {
 
@@ -69,9 +33,9 @@ func (ge *GitlabExport) exportIssueEntitiesAndWrite(project *sdk.SourceCodeRepo,
 	return
 }
 
-func (ge *GitlabExport) exportRemainingProjectIssues(project *sdk.SourceCodeRepo, users api.UsernameMap) {
+func (ge *GitlabExport) exportProjectIssues(project *sdk.SourceCodeRepo, users api.UsernameMap) {
 
-	sdk.LogDebug(ge.logger, "remaining issues", "project", project.Name)
+	sdk.LogDebug(ge.logger, "exporting project issues", "project", project.Name)
 
 	issuesC := make(chan *sdk.WorkIssue, 10)
 
@@ -84,9 +48,9 @@ func (ge *GitlabExport) exportRemainingProjectIssues(project *sdk.SourceCodeRepo
 	go func() {
 		defer close(issuesC)
 		var err error
-		err = ge.fetchRemainingProjectIssues(project, issuesC)
+		err = ge.fetchProjectIssues(project, issuesC)
 		if err != nil {
-			sdk.LogError(ge.logger, "error remaining  issues", "project", project.Name, "err", err)
+			sdk.LogError(ge.logger, "error exporting project issues", "project", project.Name, "err", err)
 			done <- true
 		}
 	}()
@@ -94,14 +58,17 @@ func (ge *GitlabExport) exportRemainingProjectIssues(project *sdk.SourceCodeRepo
 	<-done
 }
 
-func (ge *GitlabExport) fetchRemainingProjectIssues(project *sdk.SourceCodeRepo, pissues chan *sdk.WorkIssue) (rerr error) {
-	return api.Paginate(ge.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.NextPage, rerr error) {
-		if ge.lastExportDateGitlabFormat != "" {
-			params.Set("updated_after", ge.lastExportDateGitlabFormat)
+func (ge *GitlabExport) fetchProjectIssues(project *sdk.SourceCodeRepo, pissues chan *sdk.WorkIssue) (err error) {
+	var nP api.NextPage
+	for {
+		nP, err = api.WorkIssuesPage(ge.qc, project, nP, pissues)
+		if err != nil {
+			return err
 		}
-		pi, rerr = api.WorkIssuesPage(ge.qc, project, ge.lastExportDate, params, pissues)
-		return
-	})
+		if nP == "" {
+			return
+		}
+	}
 }
 
 func (ge *GitlabExport) writeSingleIssue(project *sdk.SourceCodeRepo, iid int64) error {
@@ -110,7 +77,7 @@ func (ge *GitlabExport) writeSingleIssue(project *sdk.SourceCodeRepo, iid int64)
 	params.Set("iids[]", strconv.FormatInt(iid, 10))
 
 	issuesC := make(chan *sdk.WorkIssue, 1)
-	_, err := api.WorkIssuesPage(ge.qc, project, ge.lastExportDate, params, issuesC)
+	_, err := api.WorkSingleIssue(ge.qc, project, ge.lastExportDate, params, issuesC)
 	if err != nil {
 		return err
 	}

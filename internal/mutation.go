@@ -46,7 +46,7 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 	// case *sdk.AgileSprintUpdateMutation:
 	// 	return i.updateSprint(logger, mutation, authConfig, v)
 	case *sdk.AgileSprintCreateMutation:
-		return api.CreateSprint(ge.qc, mutationModelType)
+		return api.CreateSprint(ge.qc, mutation.ID(), mutationModelType)
 	}
 	sdk.LogInfo(logger, "unhandled mutation request", "type", reflect.TypeOf(mutation.Payload()))
 	return nil, nil
