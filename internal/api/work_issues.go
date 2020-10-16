@@ -483,6 +483,11 @@ func (i *Issue2) ToModel(qc QueryContext, projectRefID string) (*sdk.WorkIssue, 
 		epicID := sdk.NewWorkIssueID(qc.CustomerID, epicRefID, qc.RefType)
 		item.EpicID = sdk.StringPointer(epicID)
 		item.ParentID = epicID
+	} else if i.Milestone != nil {
+		milestoneRefID := ExtractGraphQLID(i.Milestone.ID)
+		milestoneID := sdk.NewWorkIssueID(qc.CustomerID, milestoneRefID, qc.RefType)
+		item.EpicID = sdk.StringPointer(milestoneID)
+		item.ParentID = milestoneID
 	}
 	item.Identifier = i.Reference
 	item.ProjectIds = []string{sdk.NewWorkProjectID(qc.CustomerID, projectRefID, qc.RefType)}

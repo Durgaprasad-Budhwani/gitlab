@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -89,7 +90,7 @@ func CommonMilestonesPage2(
 		issue.RefID = issueRefID
 		issue.Description = rawmilestone.Description
 
-		issue.Identifier = rawmilestone.WebURL
+		issue.Identifier = fmt.Sprintf("%s#%d", rawmilestone.Title, rawmilestone.RefID)
 		issue.ProjectIds = projectIDs
 		issue.Title = rawmilestone.Title
 		issue.Status = StatesMap[rawmilestone.State]
