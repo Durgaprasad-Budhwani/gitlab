@@ -43,7 +43,7 @@ func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config,
 	ge.qc.RefType = gitlabRefType
 	ge.qc.CustomerID = customerID
 	ge.qc.RefType = gitlabRefType
-	ge.qc.GraphRequester = api.NewGraphqlRequester(graphql, 5)
+	ge.qc.GraphRequester = api.NewGraphqlRequester(graphql, concurrentAPICalls, logger)
 	ge.logger = logger
 
 	u, err := url.Parse(apiURL)
