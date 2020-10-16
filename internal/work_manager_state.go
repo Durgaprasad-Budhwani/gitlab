@@ -10,6 +10,7 @@ const workManagerKey = "work_manager"
 
 type recover struct {
 	RefProject map[string]map[string]*issueDetail
+	RefIssues  map[string]string
 }
 
 // Persist persist info
@@ -21,8 +22,15 @@ func (w *WorkManager) Persist() error {
 		return true
 	})
 
+	refIssuesMap := make(map[string]string, 0)
+	w.refIssueDetails.Range(func(k, v interface{}) bool {
+		refIssuesMap[k.(string)] = v.(string)
+		return true
+	})
+
 	r := recover{
 		RefProject: refProjectMap,
+		RefIssues:  refIssuesMap,
 	}
 
 	start := time.Now()
@@ -49,6 +57,10 @@ func (w *WorkManager) Restore() error {
 
 	for k, v := range r.RefProject {
 		w.refProject.Store(k, v)
+	}
+
+	for k, v := range r.RefIssues {
+		w.refIssueDetails.Store(k, v)
 	}
 
 	return nil

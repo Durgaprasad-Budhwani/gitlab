@@ -176,7 +176,7 @@ func GetIterations(
 	}
 }
 
-type iterationResponse struct {
+type createIterationResponse struct {
 	CreateIteration struct {
 		MutationID string    `json:"string"`
 		Errors     []string  `json:"errors"`
@@ -201,7 +201,7 @@ func CreateSprint(qc QueryContext, mutationID string, mutation *sdk.AgileSprintC
 		return nil, errors.New("adding issues to a new sprint is not supported yet")
 	}
 
-	var iteration iterationResponse
+	var iteration createIterationResponse
 	{
 		startDate := sdk.DateFromEpoch(mutation.StartDate.Epoch)
 		endDate := sdk.DateFromEpoch(mutation.EndDate.Epoch)
@@ -226,4 +226,91 @@ func CreateSprint(qc QueryContext, mutationID string, mutation *sdk.AgileSprintC
 		EntityID: sdk.StringPointer(sdk.NewAgileSprintID(qc.CustomerID, refID, qc.RefType)),
 	}, nil
 
+}
+
+const updateIterationQuery = `mutation {
+	updateIteration(input:{
+	  id:"%s",%s
+	}) {
+	  errors
+	  iteration {
+		id
+		title
+	  }
+	}
+  }`
+
+type updateIterationResponse struct {
+	CreateIteration struct {
+		Errors    []string  `json:"errors"`
+		Iteration Iteration `json:"iteration"`
+	} `json:"updateIteration"`
+}
+
+func UpdateSprint(qc QueryContext, mutation sdk.Mutation, event *sdk.AgileSprintUpdateMutation) (*sdk.MutationResponse, error) {
+
+	refID := mutation.ID()
+	subquery, hasMutation, err := makeIterationUpdate(event)
+	if err != nil {
+		return nil, err
+	}
+
+	var iteration updateIterationResponse
+	if hasMutation {
+
+		query := fmt.Sprintf(updateIterationQuery, refID, subquery)
+
+		err := qc.GraphRequester.Query(query, nil, &iteration)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(event.Set.IssueRefIDs) > 0 {
+		for _, issueRefID := range event.Set.IssueRefIDs {
+			if err := updateIssueIteration(qc, refID, issueRefID); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if len(event.Unset.IssueRefIDs) > 0 {
+		for _, issueRefID := range event.Unset.IssueRefIDs {
+			// TODO: create a dump iteration and change 2288 with that
+			if err := updateIssueIteration(qc, "2288", issueRefID); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return &sdk.MutationResponse{
+		RefID:    sdk.StringPointer(refID),
+		EntityID: sdk.StringPointer(sdk.NewAgileSprintID(mutation.CustomerID(), refID, qc.RefType)),
+	}, nil
+}
+
+func makeIterationUpdate(event *sdk.AgileSprintUpdateMutation) (string, bool, error) {
+
+	fmt.Println("event", sdk.Stringify(event))
+
+	var hasMutation bool
+	var subquery string
+	if event.Set.Name != nil {
+		subquery += fmt.Sprintf("title:\"%s\",", *event.Set.Name)
+		hasMutation = true
+	}
+	if event.Set.Goal != nil {
+		subquery += fmt.Sprintf("description:\"%s\",", *event.Set.Goal)
+		hasMutation = true
+	}
+	if event.Set.StartDate != nil {
+		startDate := sdk.DateFromEpoch(event.Set.StartDate.Epoch)
+		subquery += fmt.Sprintf("startDate:\"%s\",", startDate.Format("2006-01-02"))
+		hasMutation = true
+	}
+	if event.Set.EndDate != nil {
+		endDate := sdk.DateFromEpoch(event.Set.EndDate.Epoch)
+		subquery += fmt.Sprintf("dueDate:\"%s\",", endDate.Format("2006-01-02"))
+		hasMutation = true
+	}
+	// TODO: change premium_group2 and make it dynamic
+	subquery += fmt.Sprintf("groupPath:\"%s\"", "premium_group2")
+	return subquery, hasMutation, nil
 }

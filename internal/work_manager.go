@@ -10,9 +10,10 @@ import (
 
 // WorkManager work manager
 type WorkManager struct {
-	refProject sync.Map
-	logger     sdk.Logger
-	state      sdk.State
+	refProject      sync.Map
+	refIssueDetails sync.Map
+	logger          sdk.Logger
+	state           sdk.State
 }
 
 type issueDetail struct {
@@ -35,7 +36,7 @@ type iterationDetail struct {
 }
 
 // AddIssue desc
-func (w *WorkManager) AddIssue(issueID string, issueState bool, projectID string, labels []interface{}, milestone *api.Milestone, iterationRefID string, assignee *api.UserModel, weight *int) {
+func (w *WorkManager) AddIssue(issueID string, issueIID string, issueState bool, projectID string, labels []interface{}, milestone *api.Milestone, iterationRefID string, assignee *api.UserModel, weight *int) {
 
 	var convertLabelsToMap = func() map[int64]*api.Label {
 
@@ -77,10 +78,12 @@ func (w *WorkManager) AddIssue(issueID string, issueState bool, projectID string
 		w.refProject.Store(projectID, projectIssues)
 	}
 
+	w.refIssueDetails.Store(issueID, issueIID)
+
 }
 
 // AddIssue2 desc
-func (w *WorkManager) AddIssue2(issueID string, issueState bool, projectID string, labels []*api.Label2, milestone *api.Milestone2, iterationRefID string, assignee *api.UserModel, weight *int) {
+func (w *WorkManager) AddIssue2(issueID string, issueIID string, issueState bool, projectID string, labels []*api.Label2, milestone *api.Milestone2, iterationRefID string, assignee *api.UserModel, weight *int) {
 
 	var convertLabelsToMap = func() map[int64]*api.Label {
 
@@ -123,6 +126,8 @@ func (w *WorkManager) AddIssue2(issueID string, issueState bool, projectID strin
 		projectIssues[issueID] = issueD
 		w.refProject.Store(projectID, projectIssues)
 	}
+
+	w.refIssueDetails.Store(issueID, issueIID)
 
 }
 
@@ -264,4 +269,14 @@ func NewWorkManager(logger sdk.Logger, state sdk.State) *WorkManager {
 		logger: sdk.LogWith(logger, "entity", "work manager"),
 		state:  state,
 	}
+}
+
+func (w *WorkManager) GetIssueIID(issueID string) string {
+
+	issueIID, ok := w.refIssueDetails.Load(issueID)
+	if !ok {
+		return ""
+	}
+
+	return issueIID.(string)
 }

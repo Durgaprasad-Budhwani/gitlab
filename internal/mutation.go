@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/pinpt/agent/v4/sdk"
@@ -12,7 +13,8 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 
 	logger := sdk.LogWith(g.logger, "integration_event", "mutation", "customer_id", mutation.CustomerID(), "integration_instance_id", mutation.IntegrationInstanceID())
 
-	sdk.LogInfo(logger, "mutation request received", "action", mutation.Action(), "id", mutation.ID(), "model", mutation.Model())
+	sdk.LogInfo(logger, "mutation request received", "action", mutation.Action(), "id", mutation.ID(), "model", mutation.Model(), "data", fmt.Sprintf("%+q", mutation.Payload()))
+
 	user := mutation.User()
 	var c sdk.Config
 	c.APIKeyAuth = user.APIKeyAuth
@@ -25,6 +27,12 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 	}
 	ge.qc.Pipe = mutation.Pipe()
 	ge.qc.WorkManager = NewWorkManager(logger, mutation.State())
+
+	sdk.LogInfo(logger, "recovering work manager state")
+	if err := ge.qc.WorkManager.Restore(); err != nil {
+		sdk.LogError(logger, "error recovering work manager state", "err", err)
+		return nil, err
+	}
 
 	switch mutationModelType := mutation.Payload().(type) {
 	// Issue
@@ -42,9 +50,9 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 			return api.CreateEpic(ge.qc, mutationModelType)
 		}
 
-	// // Sprint
-	// case *sdk.AgileSprintUpdateMutation:
-	// 	return i.updateSprint(logger, mutation, authConfig, v)
+	// Sprint
+	case *sdk.AgileSprintUpdateMutation:
+		return api.UpdateSprint(ge.qc, mutation, mutationModelType)
 	case *sdk.AgileSprintCreateMutation:
 		return api.CreateSprint(ge.qc, mutation.ID(), mutationModelType)
 	}

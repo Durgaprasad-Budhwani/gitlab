@@ -39,6 +39,7 @@ func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config,
 	ge.qc.Get = r.Get
 	ge.qc.Post = r.Post
 	ge.qc.Delete = r.Delete
+	ge.qc.Put = r.Put
 	ge.qc.Logger = logger
 	ge.qc.RefType = gitlabRefType
 	ge.qc.CustomerID = customerID

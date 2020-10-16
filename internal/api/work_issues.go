@@ -26,6 +26,7 @@ type Label2 struct {
 
 type Issue2 struct {
 	ID        string `json:"id"`
+	IID       string `json:"iid"`
 	Assignees struct {
 		Edges []struct {
 			Node struct {
@@ -76,6 +77,7 @@ const issuesQuery = `query {
 			edges{
 			  node{
 				id
+				iid
 				assignees{
 				  edges{
 					node{
@@ -311,7 +313,7 @@ type GitlabEpic struct {
 
 type IssueModel struct {
 	ID                 int64         `json:"id"`
-	Iid                int           `json:"iid"`
+	Iid                int64         `json:"iid"`
 	Title              string        `json:"title"`
 	Description        string        `json:"description"`
 	State              string        `json:"state"`
@@ -420,7 +422,7 @@ func (i *IssueModel) ToModel(qc QueryContext, projectRefID string) *sdk.WorkIssu
 		}
 	}
 
-	qc.WorkManager.AddIssue(issueID, i.State == strings.ToLower(OpenedState), projectID, i.Labels, i.Milestone, "", i.Assignee, i.Weight)
+	qc.WorkManager.AddIssue(issueID, strconv.FormatInt(i.Iid, 10), i.State == strings.ToLower(OpenedState), projectID, i.Labels, i.Milestone, "", i.Assignee, i.Weight)
 
 	item.Tags = tags
 	item.Type, item.TypeID = getIssueTypeFromLabels(tags, qc)
@@ -505,7 +507,7 @@ func (i *Issue2) ToModel(qc QueryContext, projectRefID string) (*sdk.WorkIssue, 
 		tags = append(tags, label.Title)
 	}
 
-	qc.WorkManager.AddIssue2(issueID, i.State == strings.ToLower(OpenedState), projectID, i.Labels.Edges, i.Milestone, ExtractGraphQLID(i.Iteration.ID), mainAssignee, i.Weight)
+	qc.WorkManager.AddIssue2(issueID, i.IID, i.State == strings.ToLower(OpenedState), projectID, i.Labels.Edges, i.Milestone, ExtractGraphQLID(i.Iteration.ID), mainAssignee, i.Weight)
 
 	item.Tags = tags
 	item.Type, item.TypeID = getIssueTypeFromLabels(tags, qc)
@@ -584,4 +586,59 @@ func convertMutationToGitlabIssue(m *sdk.WorkIssueCreateMutation) IssueCreateMod
 		Title:       m.Title,
 		Description: m.Description,
 	}
+}
+
+const updateIssueIterationQuery = `mutation {
+	issueSetIteration(input:{
+	  clientMutationId:"%s",
+	  projectPath:"%s",
+	  iid:"%s",
+	  iterationId:"gid://gitlab/Iteration/%s"
+	}) {
+	  errors
+	  clientMutationId
+	  issue{
+		id
+	  }
+	}
+  }`
+
+type issueUpdateResponse struct {
+	IssueSetIteration struct {
+		Errors           []string `json:"errors"`
+		ClientMutationID string   `json:"clientMutationId"`
+		Issue            struct {
+			ID string `json:"id"`
+		} `json:"issue"`
+	} `json:"issueSetIteration"`
+}
+
+func updateIssueIteration(qc QueryContext, mutationID string, issueRefID string) error {
+
+	var response issueUpdateResponse
+
+	// TODO: change 20082159 to by dynamic
+	projectRefID := "premium_group2/apipremium"
+
+	issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
+
+	// Get Issue IID
+	issueIID := qc.WorkManager.GetIssueIID(issueID)
+
+	query := fmt.Sprintf(updateIssueIterationQuery, mutationID, projectRefID, issueIID, mutationID)
+
+	sdk.LogDebug(qc.Logger, "debug-", "QUERY", query)
+
+	err := qc.GraphRequester.Query(query, nil, &response)
+	if err != nil {
+		return err
+	}
+
+	if len(response.IssueSetIteration.Errors) > 0 {
+		errors := strings.Join(response.IssueSetIteration.Errors, ", ")
+		return fmt.Errorf("error creating sprint, mutation-id: %s, error %s, issue-id %s, issue-iid %s", response.IssueSetIteration.ClientMutationID, errors, issueID, issueIID)
+	}
+
+	return nil
+
 }
