@@ -13,6 +13,122 @@ import (
 	"github.com/pinpt/agent/v4/sdk"
 )
 
+type Milestone2 struct {
+	ID        string `json:"id"`
+	StartDate string `json:"startDate"`
+	DueDate   string `json:"dueDate"`
+}
+
+type Label2 struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+type Issue2 struct {
+	ID        string `json:"id"`
+	Assignees struct {
+		Edges []struct {
+			Node struct {
+				ID       string `json:"id"`
+				Username string `json:"username"`
+			} `json:"node"`
+		} `json:"edges"`
+	} `json:"assignees"`
+	Author struct {
+		ID       string `json:"id"`
+		Username string `json:"username"`
+	} `json:"author"`
+	Description string `json:"description"`
+	Epic        *struct {
+		ID string `json:"id"`
+	} `json:"epic"`
+	Reference string `json:"reference"`
+	WebPath   string `json:"webPath"`
+	Title     string `json:"title"`
+	State     string `json:"state"`
+	Weight    *int   `json:"weight"`
+	Labels    struct {
+		Edges []*Label2 `json:"edges"`
+		// Edges []struct{} `json:"edges"`
+	} `json:"labels"`
+	Type      string    `json:"type"`
+	WebURL    string    `json:"webUrl"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	ClosedAt  time.Time `json:"closedAt"`
+	Iteration struct {
+		ID        string `json:"id"`
+		DueDate   string `json:"dueDate"`
+		StartDate string `json:"startDate"`
+	} `json:"iteration"`
+	Milestone *Milestone2 `json:"milestone"`
+	DueDate   interface{} `json:"dueDate"`
+}
+
+const issuesQuery = `query {
+	project(fullPath:"%s"){
+		issues(first:100,after:"%s"){
+			pageInfo{
+				hasNextPage
+				endCursor
+			}
+			count
+			edges{
+			  node{
+				id
+				assignees{
+				  edges{
+					node{
+					  id
+					  username
+					}
+				  }
+				}
+				author{
+				  id
+				  username
+				}
+				description
+				epic{
+				  id
+				  iid
+				}
+				reference(full:true)
+				webPath
+				title
+				state
+				weight
+				labels{
+				  edges{
+					node{
+					  id
+					  title
+					}
+				  }
+				}
+				type
+				webUrl
+				webPath
+				createdAt
+				updatedAt
+				closedAt
+				iteration{
+				  id
+				  startDate
+				  dueDate
+				}
+				milestone{
+				  id
+				  startDate
+				  dueDate
+				}
+				dueDate
+			  }
+			}
+		}
+	}
+  }`
+
 type UserModel struct {
 	Username  string `json:"username"`
 	Email     string `json:"email"`
@@ -65,6 +181,7 @@ const ClosedState = "Closed"
 var StatesMap = map[string]string{
 	"opened": OpenedState,
 	"closed": ClosedState,
+	"active": OpenedState,
 }
 
 // BugIssueType bug issue type
@@ -79,7 +196,10 @@ const IncidentIssueType = "Incident"
 // EnhancementIssueType enhancement issue type
 const EnhancementIssueType = "Enhancement"
 
-func WorkIssuesPage(
+// MilestoneIssueType enhancement issue type
+const MilestoneIssueType = "Milestone"
+
+func WorkSingleIssue(
 	qc QueryContext,
 	project *sdk.SourceCodeRepo,
 	stopOnUpdatedAt time.Time,
@@ -109,6 +229,56 @@ func WorkIssuesPage(
 
 		issues <- rawissue.ToModel(qc, project.RefID)
 	}
+
+	return
+}
+
+// WorkIssuesPage graphql issue page
+func WorkIssuesPage(
+	qc QueryContext,
+	project *sdk.SourceCodeRepo,
+	nextPageP NextPage,
+	issues chan *sdk.WorkIssue) (nextPage NextPage, err error) {
+
+	sdk.LogDebug(qc.Logger, "work issues", "project", project.Name, "project_ref_id", project.RefID)
+
+	var Data struct {
+		Project struct {
+			Issues struct {
+				PageInfo struct {
+					HasNextPage bool   `json:"hasNextPage"`
+					EndCursor   string `json:"endCursor"`
+				} `json:"pageInfo"`
+				Count int `json:"count"`
+				Edges []struct {
+					Node Issue2 `json:"node"`
+				} `json:"edges"`
+			} `json:"issues"`
+		} `json:"project"`
+	}
+
+	query := fmt.Sprintf(issuesQuery, project.Name, nextPageP)
+
+	err = qc.GraphRequester.Query(query, nil, &Data)
+	if err != nil {
+		return
+	}
+
+	sdk.LogDebug(qc.Logger, "issues found", "len", Data.Project.Issues.Count)
+
+	for _, rawissue := range Data.Project.Issues.Edges {
+		issue, err := rawissue.Node.ToModel(qc, project.RefID)
+		if err != nil {
+			return nextPage, err
+		}
+		issues <- issue
+	}
+
+	if !Data.Project.Issues.PageInfo.HasNextPage {
+		return
+	}
+
+	nextPage = NextPage(Data.Project.Issues.PageInfo.EndCursor)
 
 	return
 }
@@ -250,7 +420,7 @@ func (i *IssueModel) ToModel(qc QueryContext, projectRefID string) *sdk.WorkIssu
 		}
 	}
 
-	qc.WorkManager.AddIssue(issueID, i.State == strings.ToLower(OpenedState), projectID, i.Labels, i.Milestone, i.Assignee, i.Weight)
+	qc.WorkManager.AddIssue(issueID, i.State == strings.ToLower(OpenedState), projectID, i.Labels, i.Milestone, "", i.Assignee, i.Weight)
 
 	item.Tags = tags
 	item.Type, item.TypeID = getIssueTypeFromLabels(tags, qc)
@@ -276,6 +446,92 @@ func (i *IssueModel) ToModel(qc QueryContext, projectRefID string) *sdk.WorkIssu
 	}
 
 	return item
+}
+
+func (i *Issue2) ToModel(qc QueryContext, projectRefID string) (*sdk.WorkIssue, error) {
+
+	issueRefID := ExtractGraphQLID(i.ID)
+
+	issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
+
+	projectID := sdk.NewWorkProjectID(qc.CustomerID, projectRefID, qc.RefType)
+
+	item := &sdk.WorkIssue{}
+	item.ID = issueID
+	item.Active = true
+	item.CustomerID = qc.CustomerID
+	item.RefType = qc.RefType
+	item.RefID = issueRefID
+
+	mainAssignee := &UserModel{}
+	for _, assignee := range i.Assignees.Edges {
+		userID := ExtractGraphQLID(assignee.Node.ID)
+		userRefID, err := strconv.Atoi(userID)
+		if err != nil {
+			return nil, err
+		}
+		mainAssignee.ID = int64(userRefID)
+		item.AssigneeRefID = ExtractGraphQLID(assignee.Node.ID)
+		break
+	}
+
+	item.ReporterRefID = fmt.Sprint(i.Author.ID)
+	item.CreatorRefID = fmt.Sprint(i.Author.ID)
+	item.Description = i.Description
+	if i.Epic != nil {
+		epicRefID := ExtractGraphQLID(i.Epic.ID)
+		epicID := sdk.NewWorkIssueID(qc.CustomerID, epicRefID, qc.RefType)
+		item.EpicID = sdk.StringPointer(epicID)
+		item.ParentID = epicID
+	} else if i.Milestone != nil {
+		milestoneRefID := ExtractGraphQLID(i.Milestone.ID)
+		milestoneID := sdk.NewWorkIssueID(qc.CustomerID, milestoneRefID, qc.RefType)
+		item.EpicID = sdk.StringPointer(milestoneID)
+		item.ParentID = milestoneID
+	}
+	item.Identifier = i.Reference
+	item.ProjectIds = []string{sdk.NewWorkProjectID(qc.CustomerID, projectRefID, qc.RefType)}
+	item.Title = i.Title
+	item.Status = StatesMap[i.State]
+	item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, item.Status)
+	if i.Weight != nil {
+		value := float64(*i.Weight)
+		item.StoryPoints = &value
+	}
+
+	tags := make([]string, 0)
+
+	for _, label := range i.Labels.Edges {
+		tags = append(tags, label.Title)
+	}
+
+	qc.WorkManager.AddIssue2(issueID, i.State == strings.ToLower(OpenedState), projectID, i.Labels.Edges, i.Milestone, ExtractGraphQLID(i.Iteration.ID), mainAssignee, i.Weight)
+
+	item.Tags = tags
+	item.Type, item.TypeID = getIssueTypeFromLabels(tags, qc)
+	item.URL = i.WebURL
+
+	sdk.ConvertTimeToDateModel(i.CreatedAt, &item.CreatedDate)
+	sdk.ConvertTimeToDateModel(i.UpdatedAt, &item.UpdatedDate)
+
+	if i.Milestone != nil {
+
+		item.SprintIds = []string{sdk.NewAgileSprintID(qc.CustomerID, ExtractGraphQLID(i.Iteration.ID), qc.RefType)}
+
+		duedate, err := time.Parse("2006-01-02", i.Iteration.DueDate)
+		if err != nil {
+			duedate = time.Time{}
+		}
+		sdk.ConvertTimeToDateModel(duedate, &item.PlannedEndDate)
+
+		startdate, err := time.Parse("2006-01-02", i.Iteration.StartDate)
+		if err != nil {
+			startdate = time.Time{}
+		}
+		sdk.ConvertTimeToDateModel(startdate, &item.PlannedStartDate)
+	}
+
+	return item, nil
 }
 
 // CreateWorkIssue create work issue

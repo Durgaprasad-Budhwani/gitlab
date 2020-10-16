@@ -24,6 +24,9 @@ func (i *GitlabExport) workConfig() error {
 		api.EnhancementIssueType: {
 			sdk.WorkIssueTypeMappedTypeEnhancement,
 		},
+		api.MilestoneIssueType: {
+			sdk.WorkIssueTypeMappedTypeEpic,
+		},
 	}
 
 	wc := &sdk.WorkConfig{}

@@ -43,7 +43,7 @@ func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config,
 	ge.qc.RefType = gitlabRefType
 	ge.qc.CustomerID = customerID
 	ge.qc.RefType = gitlabRefType
-	ge.qc.GraphClient = graphql
+	ge.qc.GraphRequester = api.NewGraphqlRequester(graphql, concurrentAPICalls, logger)
 	ge.logger = logger
 
 	u, err := url.Parse(apiURL)
@@ -133,7 +133,6 @@ const GitLabDateFormat = "2006-01-02T15:04:05.000Z"
 
 // Export is called to tell the integration to run an export
 func (i *GitlabIntegration) Export(export sdk.Export) error {
-
 	logger := sdk.LogWith(i.logger, "customer_id", export.CustomerID(), "job_id", export.JobID())
 
 	sdk.LogInfo(logger, "export started", "historical", export.Historical())
@@ -198,47 +197,58 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 	}
 
 	for _, namespace := range allnamespaces {
-		sdk.LogDebug(logger, "namespace", "name", namespace.Name)
+		l := sdk.LogWith(logger, "namespace_id", namespace.ID, "namespace_name", namespace.Name)
 		projectUsersMap := make(map[string]api.UsernameMap)
 		repos, err := gexport.exportNamespaceSourceCode(namespace, projectUsersMap)
 		if err != nil {
-			sdk.LogWarn(logger, "error exporting sourcecode namespace", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
+			sdk.LogWarn(logger, "error exporting sourcecode namespace", "err", err)
+			return err
 		}
 
-		err = gexport.exportReposWork(repos, projectUsersMap)
+		err = gexport.exportProjectsWork(repos, projectUsersMap)
 		if err != nil {
-			sdk.LogWarn(logger, "error exporting work repos", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
+			sdk.LogWarn(l, "error exporting work repos", "err", err)
+			return err
 		}
 
 		if len(repos) > 0 {
 			if err := gexport.exportEpics(namespace, repos, projectUsersMap); err != nil {
+				sdk.LogWarn(l, "error exporting repos epics", "err", err)
 				return err
 			}
 		}
 
-		reposSprints, err := gexport.fetchProjectsSprints(repos)
+		err = gexport.exportProjectsMilestones(repos)
 		if err != nil {
-			sdk.LogWarn(logger, "error fetching repo sprints ", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
+			sdk.LogWarn(l, "error exporting repos milestones", "err", err)
+			return err
 		}
 
-		groupSprints, err := gexport.fetchGroupSprints(namespace)
+		err = gexport.exportGroupMilestones(namespace, repos)
 		if err != nil {
-			sdk.LogWarn(logger, "error fetching group sprints ", "namespace_id", namespace.ID, "namespace_name", namespace.Name, "err", err)
+			sdk.LogWarn(l, "error exporting group milestones", "err", err)
+			return err
+		}
+
+		sprints, err := gexport.fetchGroupSprints(namespace)
+		if err != nil {
+			sdk.LogWarn(l, "error fetching group sprints", "err", err)
+			return err
 		}
 
 		err = gexport.exportGroupBoards(namespace, repos)
 		if err != nil {
+			sdk.LogWarn(l, "error exporting group boards", "err", err)
 			return err
 		}
 		err = gexport.exportReposBoards(repos)
 		if err != nil {
+			sdk.LogWarn(l, "error exporting repos boards", "err", err)
 			return err
 		}
 
-		if err := gexport.exportSprints(append(reposSprints, groupSprints...)); err != nil {
-			return err
-		}
-		if err := gexport.exportSprints(reposSprints); err != nil {
+		if err := gexport.exportSprints(sprints); err != nil {
+			sdk.LogWarn(l, "error exporting group sprints", "err", err)
 			return err
 		}
 	}
@@ -321,23 +331,12 @@ func (ge *GitlabExport) exportProjectAndWrite(project *sdk.SourceCodeRepo, users
 	return nil
 }
 
-func (ge *GitlabExport) exportReposWork(projects []*sdk.SourceCodeRepo, projectUsersMap map[string]api.UsernameMap) (rerr error) {
+func (ge *GitlabExport) exportProjectsWork(projects []*sdk.SourceCodeRepo, projectUsersMap map[string]api.UsernameMap) (rerr error) {
+
+	sdk.LogDebug(ge.logger, "exporting projects issues")
 
 	for _, project := range projects {
-		err := ge.exportProjectAndWrite(project, projectUsersMap[project.RefID])
-		if err != nil {
-			sdk.LogError(ge.logger, "error exporting project", "project", project.Name, "project_refid", project.RefID, "err", err)
-		}
-	}
-	rerr = ge.pipe.Flush()
-	if rerr != nil {
-		return
-	}
-
-	sdk.LogDebug(ge.logger, "remaining project issues")
-
-	for _, project := range projects {
-		ge.exportRemainingProjectIssues(project, projectUsersMap[project.RefID])
+		ge.exportProjectIssues(project, projectUsersMap[project.RefID])
 	}
 
 	return

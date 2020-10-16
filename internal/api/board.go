@@ -121,44 +121,36 @@ func boardsCommonPage(
 		}
 		theboard.Columns = columns
 
-		// Scrum Board
-		if board.Milestone != nil && board.Milestone.RefID != 0 {
-			for _, column := range board.Lists {
-				qc.WorkManager.AddBoardColumnLabelToMilestone(board.Milestone.RefID, theboard.ID, &column.Label)
+		// Kanban board
+		theboard.Type = sdk.AgileBoardTypeKanban
+		var kanban sdk.AgileKanban
+		kanban.Active = true
+		kanban.CustomerID = qc.CustomerID
+		kanban.IntegrationInstanceID = sdk.StringPointer(qc.IntegrationInstanceID)
+		kanban.RefID = boardRefID
+		kanban.RefType = qc.RefType
+		kanban.Name = board.Name
+		kanban.IssueIds = make([]string, 0)
+		kanban.Columns = make([]sdk.AgileKanbanColumns, 0)
+
+		for _, column := range board.Lists {
+			columnIssues := qc.WorkManager.GetBoardColumnIssues(projectIDs, board.Milestone, board.Labels, board.Lists, &column.Label, board.Assignee, board.Weight)
+			bc := sdk.AgileKanbanColumns{
+				IssueIds: columnIssues,
+				Name:     column.Label.Name,
 			}
-			theboard.Type = sdk.AgileBoardTypeScrum
-		} else {
-			// Kanban board
-			theboard.Type = sdk.AgileBoardTypeKanban
-			var kanban sdk.AgileKanban
-			kanban.Active = true
-			kanban.CustomerID = qc.CustomerID
-			kanban.IntegrationInstanceID = sdk.StringPointer(qc.IntegrationInstanceID)
-			kanban.RefID = boardRefID
-			kanban.RefType = qc.RefType
-			kanban.Name = board.Name
-			kanban.IssueIds = make([]string, 0)
-			kanban.Columns = make([]sdk.AgileKanbanColumns, 0)
+			kanban.Columns = append(kanban.Columns, bc)
+			kanban.IssueIds = append(kanban.IssueIds, columnIssues...)
+		}
 
-			for _, column := range board.Lists {
-				columnIssues := qc.WorkManager.GetBoardColumnIssues(projectIDs, board.Milestone, board.Labels, board.Lists, &column.Label, board.Assignee, board.Weight)
-				bc := sdk.AgileKanbanColumns{
-					IssueIds: columnIssues,
-					Name:     column.Label.Name,
-				}
-				kanban.Columns = append(kanban.Columns, bc)
-				kanban.IssueIds = append(kanban.IssueIds, columnIssues...)
-			}
+		kanban.URL = sdk.StringPointer(initialKanbanURL)
+		kanban.ID = sdk.NewAgileKanbanID(qc.CustomerID, boardRefID, qc.RefType)
+		kanban.BoardID = theboard.ID
 
-			kanban.URL = sdk.StringPointer(initialKanbanURL)
-			kanban.ID = sdk.NewAgileKanbanID(qc.CustomerID, boardRefID, qc.RefType)
-			kanban.BoardID = theboard.ID
+		kanban.ProjectIds = projectIDs
 
-			kanban.ProjectIds = projectIDs
-
-			if err := qc.Pipe.Write(&kanban); err != nil {
-				return np, err
-			}
+		if err := qc.Pipe.Write(&kanban); err != nil {
+			return np, err
 		}
 		if err := qc.Pipe.Write(&theboard); err != nil {
 			return np, err
