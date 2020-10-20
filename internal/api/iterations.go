@@ -231,8 +231,8 @@ func CreateSprintFromMutation(qc QueryContext, mutationID string, mutation *sdk.
 		startDate := sdk.DateFromEpoch(mutation.StartDate.Epoch)
 		endDate := sdk.DateFromEpoch(mutation.EndDate.Epoch)
 
-		// TODO: change premium_group2 to be dynamic
-		err := CreateSprint(qc, startDate, endDate, mutationID, "premium_group2", mutation.Name, *mutation.Goal, &iteration)
+		// TODO: change FIX_THIS to the value the UI sends
+		err := CreateSprint(qc, startDate, endDate, mutationID, "FIX_THIS", mutation.Name, *mutation.Goal, &iteration)
 		if err != nil {
 			return nil, err
 		}
@@ -342,8 +342,8 @@ func makeIterationUpdate(event *sdk.AgileSprintUpdateMutation) (string, bool, er
 		subquery += fmt.Sprintf("dueDate:\"%s\",", endDate.Format("2006-01-02"))
 		hasMutation = true
 	}
-	// TODO: change premium_group2 and make it dynamic
-	subquery += fmt.Sprintf("groupPath:\"%s\"", "premium_group2")
+	// TODO: change FIX_THIS to the value the UI sends
+	subquery += fmt.Sprintf("groupPath:\"%s\"", "FIX_THIS")
 	return subquery, hasMutation, nil
 }
 

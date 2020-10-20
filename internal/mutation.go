@@ -52,9 +52,13 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 
 	// Sprint
 	case *sdk.AgileSprintUpdateMutation:
-		return api.UpdateSprint(ge.qc, mutation, mutationModelType)
+		sdk.LogInfo(logger, "not action for this mutation type")
+		// Uncomment when Group Name/ID is sent by the UI
+		// return api.UpdateSprint(ge.qc, mutation, mutationModelType)
 	case *sdk.AgileSprintCreateMutation:
-		return api.CreateSprintFromMutation(ge.qc, mutation.ID(), mutationModelType)
+		sdk.LogInfo(logger, "not action for this mutation type")
+		// Uncomment when Group Name/ID is sent by the UI
+		// return api.CreateSprintFromMutation(ge.qc, mutation.ID(), mutationModelType)
 	}
 	sdk.LogInfo(logger, "unhandled mutation request", "type", reflect.TypeOf(mutation.Payload()))
 	return nil, nil
