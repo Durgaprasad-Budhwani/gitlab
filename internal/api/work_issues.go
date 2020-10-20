@@ -640,9 +640,7 @@ func updateIssueIteration(qc QueryContext, mutationID string, issueRefID string)
 
 	query := fmt.Sprintf(updateIssueIterationQuery, mutationID, projectDetails.ProjectPath, issueD.IID, mutationID)
 
-	var m map[string]interface{}
-
-	err := qc.GraphRequester.Query(query, nil, &m)
+	err := qc.GraphRequester.Query(query, nil, &response)
 	if err != nil {
 		return err
 	}
