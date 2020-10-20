@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/pinpt/agent/v4/sdk"
@@ -13,7 +12,7 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 
 	logger := sdk.LogWith(g.logger, "integration_event", "mutation", "customer_id", mutation.CustomerID(), "integration_instance_id", mutation.IntegrationInstanceID())
 
-	sdk.LogInfo(logger, "mutation request received", "action", mutation.Action(), "id", mutation.ID(), "model", mutation.Model(), "data", fmt.Sprintf("%+q", mutation.Payload()))
+	sdk.LogInfo(logger, "mutation request received", "action", mutation.Action(), "id", mutation.ID(), "model", mutation.Model())
 
 	user := mutation.User()
 	var c sdk.Config
@@ -26,6 +25,7 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 		return nil, err
 	}
 	ge.qc.Pipe = mutation.Pipe()
+	ge.qc.State = mutation.State()
 	ge.qc.WorkManager = NewWorkManager(logger, mutation.State())
 
 	sdk.LogInfo(logger, "recovering work manager state")
@@ -54,7 +54,7 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 	case *sdk.AgileSprintUpdateMutation:
 		return api.UpdateSprint(ge.qc, mutation, mutationModelType)
 	case *sdk.AgileSprintCreateMutation:
-		return api.CreateSprint(ge.qc, mutation.ID(), mutationModelType)
+		return api.CreateSprintFromMutation(ge.qc, mutation.ID(), mutationModelType)
 	}
 	sdk.LogInfo(logger, "unhandled mutation request", "type", reflect.TypeOf(mutation.Payload()))
 	return nil, nil

@@ -32,7 +32,7 @@ func GroupNamespaceReposPage(qc QueryContext, namespace *Namespace, params url.V
 
 	objectPath := sdk.JoinURL("groups", namespace.ID, "projects")
 
-	return reposCommonPage(qc, params, stopOnUpdatedAt, objectPath, sdk.SourceCodeRepoAffiliationOrganization)
+	return reposCommonPage(qc, params, stopOnUpdatedAt, objectPath, sdk.SourceCodeRepoAffiliationOrganization, namespace.Name)
 }
 
 func UserReposPage(qc QueryContext, namespace *Namespace, params url.Values, stopOnUpdatedAt time.Time) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
@@ -41,10 +41,16 @@ func UserReposPage(qc QueryContext, namespace *Namespace, params url.Values, sto
 
 	objectPath := sdk.JoinURL("users", namespace.Path, "projects")
 
-	return reposCommonPage(qc, params, stopOnUpdatedAt, objectPath, sdk.SourceCodeRepoAffiliationUser)
+	return reposCommonPage(qc, params, stopOnUpdatedAt, objectPath, sdk.SourceCodeRepoAffiliationUser, namespace.Name)
 }
 
-func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Time, objectPath string, afiliation sdk.SourceCodeRepoAffiliation) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
+func reposCommonPage(
+	qc QueryContext,
+	params url.Values,
+	stopOnUpdatedAt time.Time,
+	objectPath string,
+	afiliation sdk.SourceCodeRepoAffiliation,
+	groupName string) (page NextPage, repos []*sdk.SourceCodeRepo, err error) {
 
 	var rr []GitlabProject
 
@@ -54,10 +60,11 @@ func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Ti
 	}
 
 	for _, r := range rr {
-		refID := strconv.FormatInt(r.RefID, 10)
+		repoRefID := strconv.FormatInt(r.RefID, 10)
+
 		repo := &sdk.SourceCodeRepo{
-			ID:            sdk.NewSourceCodeRepoID(qc.CustomerID, refID, qc.RefType),
-			RefID:         refID,
+			ID:            sdk.NewSourceCodeRepoID(qc.CustomerID, repoRefID, qc.RefType),
+			RefID:         repoRefID,
 			RefType:       qc.RefType,
 			CustomerID:    qc.CustomerID,
 			Name:          r.FullName,
@@ -78,6 +85,11 @@ func reposCommonPage(qc QueryContext, params url.Values, stopOnUpdatedAt time.Ti
 		} else {
 			repo.Affiliation = afiliation
 		}
+
+		qc.WorkManager.AddProjectDetails(ToProject(repo).ID, &ProjectStateInfo{
+			ProjectPath: r.FullName,
+			GroupPath:   groupName,
+		})
 
 		repos = append(repos, repo)
 	}

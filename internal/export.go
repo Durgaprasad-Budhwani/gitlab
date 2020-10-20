@@ -112,19 +112,13 @@ func (ge *GitlabExport) exportDate() (rerr error) {
 		}
 
 		ge.lastExportDate = lastExportDate.UTC()
-		ge.lastExportDateGitlabFormat = lastExportDate.UTC().Format(api.GitLabDateFormat)
+		ge.lastExportDateGitlabFormat = lastExportDate.UTC().Format(api.GitLabDateTimeFormat)
 	}
 
 	sdk.LogDebug(ge.logger, "last export date", "date", ge.lastExportDate)
 
 	return
 }
-
-// Integration constants types
-const (
-	IntegrationSourceCodeType = "SOURCECODE"
-	IntegrationWorkType       = "WORK"
-)
 
 // GitlabRefType Integraion constant type
 const gitlabRefType = "gitlab"
@@ -136,11 +130,6 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 	sdk.LogInfo(logger, "export started", "historical", export.Historical())
 
 	config := export.Config()
-
-	// TODO: Create a list with the most common use cases, prioritize them and work on them
-	// For instance: It is higher priority to have SOURCECODE ready first than WORK
-
-	// TODO: remove webhooks in case inclusions/exclusions change
 
 	gexport, err := gitlabExport(i, logger, export)
 	if err != nil {
@@ -173,10 +162,10 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 
 	sdk.LogInfo(logger, "registering webhooks", "config", sdk.Stringify(config))
 
-	// err = i.registerWebhooks(gexport, allnamespaces)
-	// if err != nil {
-	// 	return err
-	// }
+	err = i.registerWebhooks(gexport, allnamespaces)
+	if err != nil {
+		return err
+	}
 
 	sdk.LogInfo(logger, "registering webhooks done")
 
@@ -199,7 +188,11 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		projectUsersMap := make(map[string]api.UsernameMap)
 		repos, err := gexport.exportNamespaceSourceCode(namespace, projectUsersMap)
 		if err != nil {
-			sdk.LogWarn(logger, "error exporting sourcecode namespace", "err", err)
+			sdk.LogError(logger, "error exporting sourcecode namespace", "err", err)
+			return err
+		}
+
+		if err := api.CreateHelperSprintToUnsetIssues(gexport.qc, namespace); err != nil {
 			return err
 		}
 

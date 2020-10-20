@@ -3,14 +3,18 @@ package api
 import (
 	"errors"
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pinpt/agent/v4/sdk"
 )
 
-type Iteration struct {
-	ID          string    `json:"id"`
+const helperIterationTitle = "Pinpoint Iteration Helper"
+
+type GraphQLIteration struct {
+	RefID       string    `json:"id"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
 	StartDate   string    `json:"startDate"`
@@ -77,7 +81,7 @@ func getIterationsPage(
 					EndCursor string `json:"endCursor"`
 				} `json:"pageInfo"`
 				Edges []struct {
-					Node Iteration `json:"node"`
+					Node GraphQLIteration `json:"node"`
 				} `json:"edges"`
 			} `json:"iterations"`
 		} `json:"group"`
@@ -87,8 +91,7 @@ func getIterationsPage(
 
 	err = qc.GraphRequester.Query(query, nil, &Data)
 	if err != nil {
-		if strings.Contains(err.Error(), "The resource that you are attempting to access does not exist or you don't have permission to perform this action") {
-			sdk.LogWarn(qc.Logger, err.Error())
+		if checkPermissionsIssue(qc.Logger, err, fmt.Sprintf("no permissions to get iterations on this group %s", namespace.Name)) {
 			return nextPage, sprints, nil
 		}
 		return
@@ -100,7 +103,7 @@ func getIterationsPage(
 
 	for _, edge := range Data.Group.Iterations.Edges {
 
-		sprintRefIDStr := ExtractGraphQLID(edge.Node.ID)
+		sprintRefIDStr := ExtractGraphQLID(edge.Node.RefID)
 
 		sprint := &sdk.AgileSprint{}
 		sprint.ID = sdk.NewAgileSprintID(qc.CustomerID, sprintRefIDStr, qc.RefType)
@@ -178,14 +181,36 @@ func GetIterations(
 
 type createIterationResponse struct {
 	CreateIteration struct {
-		MutationID string    `json:"string"`
-		Errors     []string  `json:"errors"`
-		Iteration  Iteration `json:"iteration"`
+		MutationID string           `json:"string"`
+		Errors     []string         `json:"errors"`
+		Iteration  GraphQLIteration `json:"iteration"`
 	} `json:"createIteration"`
 }
 
 // CreateSprint create sprint
-func CreateSprint(qc QueryContext, mutationID string, mutation *sdk.AgileSprintCreateMutation) (*sdk.MutationResponse, error) {
+func CreateSprint(qc QueryContext, startDate, endDate time.Time, groupName, clientMutationID, sprintName, sprintGoal string, iteration *createIterationResponse) error {
+
+	sDate := startDate.Format(GitLabDateFormat)
+	eDate := endDate.Format(GitLabDateFormat)
+
+	query := fmt.Sprintf(createIteration, clientMutationID, sprintName, sprintGoal, groupName, sDate, eDate)
+
+	if err := qc.GraphRequester.Query(query, nil, &iteration); err != nil {
+		if checkPermissionsIssue(qc.Logger, err, fmt.Sprintf("no permissions to create sprint on this group %s, sprint %s", groupName, sprintName)) {
+			return nil
+		}
+		return err
+	}
+
+	if len(iteration.CreateIteration.Errors) > 0 {
+		return fmt.Errorf("error creating sprint: namespace %s, error %q", groupName, iteration.CreateIteration.Errors)
+	}
+
+	return nil
+}
+
+// CreateSprintFromMutation create sprint from sprint
+func CreateSprintFromMutation(qc QueryContext, mutationID string, mutation *sdk.AgileSprintCreateMutation) (*sdk.MutationResponse, error) {
 
 	sdk.LogDebug(qc.Logger, "create sprint", "project_ref_id", mutation.ProjectRefID)
 
@@ -207,19 +232,14 @@ func CreateSprint(qc QueryContext, mutationID string, mutation *sdk.AgileSprintC
 		endDate := sdk.DateFromEpoch(mutation.EndDate.Epoch)
 
 		// TODO: change premium_group2 to be dynamic
-		query := fmt.Sprintf(createIteration, mutationID, mutation.Name, *mutation.Goal, "premium_group2", startDate, endDate)
-
-		if err := qc.GraphRequester.Query(query, nil, &iteration); err != nil {
+		err := CreateSprint(qc, startDate, endDate, mutationID, "premium_group2", mutation.Name, *mutation.Goal, &iteration)
+		if err != nil {
 			return nil, err
 		}
 
-		if len(iteration.CreateIteration.Errors) > 0 {
-			errors := strings.Join(iteration.CreateIteration.Errors, ", ")
-			return nil, fmt.Errorf("error creating sprint, mutation-id: %s, error %s, body %v", iteration.CreateIteration.MutationID, errors, sdk.Stringify(mutation))
-		}
 	}
 
-	refID := ExtractGraphQLID(iteration.CreateIteration.Iteration.ID)
+	refID := ExtractGraphQLID(iteration.CreateIteration.Iteration.RefID)
 
 	return &sdk.MutationResponse{
 		RefID:    sdk.StringPointer(refID),
@@ -242,14 +262,14 @@ const updateIterationQuery = `mutation {
 
 type updateIterationResponse struct {
 	CreateIteration struct {
-		Errors    []string  `json:"errors"`
-		Iteration Iteration `json:"iteration"`
+		Errors    []string         `json:"errors"`
+		Iteration GraphQLIteration `json:"iteration"`
 	} `json:"updateIteration"`
 }
 
 func UpdateSprint(qc QueryContext, mutation sdk.Mutation, event *sdk.AgileSprintUpdateMutation) (*sdk.MutationResponse, error) {
 
-	refID := mutation.ID()
+	iterationRefID := mutation.ID()
 	subquery, hasMutation, err := makeIterationUpdate(event)
 	if err != nil {
 		return nil, err
@@ -258,7 +278,7 @@ func UpdateSprint(qc QueryContext, mutation sdk.Mutation, event *sdk.AgileSprint
 	var iteration updateIterationResponse
 	if hasMutation {
 
-		query := fmt.Sprintf(updateIterationQuery, refID, subquery)
+		query := fmt.Sprintf(updateIterationQuery, iterationRefID, subquery)
 
 		err := qc.GraphRequester.Query(query, nil, &iteration)
 		if err != nil {
@@ -267,28 +287,40 @@ func UpdateSprint(qc QueryContext, mutation sdk.Mutation, event *sdk.AgileSprint
 	}
 	if len(event.Set.IssueRefIDs) > 0 {
 		for _, issueRefID := range event.Set.IssueRefIDs {
-			if err := updateIssueIteration(qc, refID, issueRefID); err != nil {
+			if err := updateIssueIteration(qc, iterationRefID, issueRefID); err != nil {
 				return nil, err
 			}
 		}
 	}
 	if len(event.Unset.IssueRefIDs) > 0 {
 		for _, issueRefID := range event.Unset.IssueRefIDs {
-			// TODO: create a dump iteration and change 2288 with that
-			if err := updateIssueIteration(qc, "2288", issueRefID); err != nil {
+
+			issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
+
+			issueD := qc.WorkManager.GetIssueDetails(issueID)
+
+			projectID := sdk.NewWorkProjectID(qc.CustomerID, issueD.ProjectRefID, qc.RefType)
+
+			projectDetails := qc.WorkManager.GetProjectDetails(projectID)
+
+			var iterationID string
+
+			if _, err := qc.State.Get(iterationGroupKey(projectDetails.GroupPath), &iterationID); err != nil {
+				return nil, err
+			}
+
+			if err := updateIssueIteration(qc, iterationID, issueRefID); err != nil {
 				return nil, err
 			}
 		}
 	}
 	return &sdk.MutationResponse{
-		RefID:    sdk.StringPointer(refID),
-		EntityID: sdk.StringPointer(sdk.NewAgileSprintID(mutation.CustomerID(), refID, qc.RefType)),
+		RefID:    sdk.StringPointer(iterationRefID),
+		EntityID: sdk.StringPointer(sdk.NewAgileSprintID(mutation.CustomerID(), iterationRefID, qc.RefType)),
 	}, nil
 }
 
 func makeIterationUpdate(event *sdk.AgileSprintUpdateMutation) (string, bool, error) {
-
-	fmt.Println("event", sdk.Stringify(event))
 
 	var hasMutation bool
 	var subquery string
@@ -313,4 +345,87 @@ func makeIterationUpdate(event *sdk.AgileSprintUpdateMutation) (string, bool, er
 	// TODO: change premium_group2 and make it dynamic
 	subquery += fmt.Sprintf("groupPath:\"%s\"", "premium_group2")
 	return subquery, hasMutation, nil
+}
+
+// CreateHelperSprintToUnsetIssues create helper sprint to unset issues
+func CreateHelperSprintToUnsetIssues(qc QueryContext, namespace *Namespace) error {
+
+	if namespace.Kind == "user" {
+		return nil
+	}
+
+	groupName := namespace.Name
+
+	startDate := time.Now().Add((time.Hour * 24 * 2) * 365 * 10)
+	endDate := startDate.Add(time.Hour * 24)
+
+	var iteration createIterationResponse
+	mutationIdentifier := "export_" + groupName + "_" + time.Now().Format("2006-01-02T15_04_05Z07_00")
+
+	var iterationID string
+	ok, err := qc.State.Get(iterationGroupKey(namespace.Name), &iterationID)
+	if err != nil {
+		return err
+	}
+	sdk.LogDebug(qc.Logger, "deub-debug0", "iteration", iteration, "group", namespace.Name, "ok", ok, "iterationID", iterationID)
+	if !ok {
+		if err := CreateSprint(qc, startDate, endDate, groupName, mutationIdentifier, helperIterationTitle, "iteration helper to unset issues", &iteration); err != nil {
+			sdk.LogDebug(qc.Logger, "deub-debug1", "err", err)
+			if strings.Contains(err.Error(), "Title already being used for another group or project iteration") {
+				// get the iteration id
+				iteration, err := IterationByTitle(qc, namespace.Name, helperIterationTitle)
+				if err != nil {
+					return err
+				}
+				sdk.LogDebug(qc.Logger, "deub-debug22222", "iteration", iteration, "group", namespace.Name)
+				err = qc.State.Set(iterationGroupKey(namespace.Name), strconv.FormatInt(iteration.RefID, 10))
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+			return err
+		}
+		iterationKey := iterationGroupKey(groupName)
+
+		return qc.State.Set(iterationKey, ExtractGraphQLID(iteration.CreateIteration.Iteration.RefID))
+	}
+
+	return nil
+}
+
+func iterationGroupKey(groupName string) string {
+	return fmt.Sprintf("iteration_group_helper_id_%s", groupName)
+}
+
+type restIteration struct {
+	RefID int64 `json:"id"`
+}
+
+// IterationByTitle get iteration by title
+func IterationByTitle(qc QueryContext, group, title string) (*restIteration, error) {
+
+	sdk.LogDebug(qc.Logger, "iteartion by title", "title", title)
+
+	params := url.Values{}
+	params.Set("search", title)
+
+	objectPath := sdk.JoinURL("groups", url.QueryEscape(group), "iterations")
+
+	var ri []*restIteration
+
+	_, err := qc.Get(objectPath, params, &ri)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ri) > 1 {
+		return nil, fmt.Errorf("It should exist only one Pinpoint iteration helper for this group %s", group)
+	}
+
+	if len(ri) == 0 {
+		return nil, fmt.Errorf("It should find at least one iteration helper for this group %s", group)
+	}
+
+	return ri[0], nil
 }
