@@ -10,9 +10,11 @@ import (
 
 // WorkManager work manager
 type WorkManager struct {
-	refProject sync.Map
-	logger     sdk.Logger
-	state      sdk.State
+	refProject        sync.Map
+	refIssueDetails   sync.Map
+	refProjectDetails sync.Map
+	logger            sdk.Logger
+	state             sdk.State
 }
 
 type issueDetail struct {
@@ -30,12 +32,27 @@ type milestoneDetail struct {
 }
 
 type iterationDetail struct {
-	*api.Iteration
+	*api.GraphQLIteration
 	Boards map[string][]*api.Label
 }
 
+// AddProjectDetails add project details
+func (w *WorkManager) AddProjectDetails(projectID string, project *api.ProjectStateInfo) {
+	w.refProjectDetails.Store(projectID, project)
+}
+
+func (w *WorkManager) GetProjectDetails(projectID string) *api.ProjectStateInfo {
+
+	details, ok := w.refProjectDetails.Load(projectID)
+	if !ok {
+		return &api.ProjectStateInfo{}
+	}
+
+	return details.(*api.ProjectStateInfo)
+}
+
 // AddIssue desc
-func (w *WorkManager) AddIssue(issueID string, issueState bool, projectID string, labels []interface{}, milestone *api.Milestone, iterationRefID string, assignee *api.UserModel, weight *int) {
+func (w *WorkManager) AddIssue(issueID string, issueState bool, projectID string, labels []interface{}, milestone *api.Milestone, iterationRefID string, assignee *api.UserModel, weight *int, issue *api.IssueStateInfo) {
 
 	var convertLabelsToMap = func() map[int64]*api.Label {
 
@@ -77,10 +94,12 @@ func (w *WorkManager) AddIssue(issueID string, issueState bool, projectID string
 		w.refProject.Store(projectID, projectIssues)
 	}
 
+	w.refIssueDetails.Store(issueID, issue)
+
 }
 
 // AddIssue2 desc
-func (w *WorkManager) AddIssue2(issueID string, issueState bool, projectID string, labels []*api.Label2, milestone *api.Milestone2, iterationRefID string, assignee *api.UserModel, weight *int) {
+func (w *WorkManager) AddIssue2(issueID string, issueState bool, projectID string, labels []*api.Label2, milestone *api.Milestone2, iterationRefID string, assignee *api.UserModel, weight *int, issue *api.IssueStateInfo) {
 
 	var convertLabelsToMap = func() map[int64]*api.Label {
 
@@ -123,6 +142,8 @@ func (w *WorkManager) AddIssue2(issueID string, issueState bool, projectID strin
 		projectIssues[issueID] = issueD
 		w.refProject.Store(projectID, projectIssues)
 	}
+
+	w.refIssueDetails.Store(issueID, issue)
 
 }
 
@@ -264,4 +285,16 @@ func NewWorkManager(logger sdk.Logger, state sdk.State) *WorkManager {
 		logger: sdk.LogWith(logger, "entity", "work manager"),
 		state:  state,
 	}
+}
+
+// GetIssueDetails get issue details from state
+func (w *WorkManager) GetIssueDetails(issueID string) *api.IssueStateInfo {
+
+	issue, ok := w.refIssueDetails.Load(issueID)
+	if !ok {
+		sdk.LogWarn(w.logger, "issue not found on get issue details")
+		return &api.IssueStateInfo{}
+	}
+
+	return issue.(*api.IssueStateInfo)
 }

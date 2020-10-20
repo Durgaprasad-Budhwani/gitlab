@@ -4,12 +4,15 @@ import (
 	"time"
 
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
 const workManagerKey = "work_manager"
 
 type recover struct {
-	RefProject map[string]map[string]*issueDetail
+	RefProject        map[string]map[string]*issueDetail
+	RefIssueDetails   map[string]*api.IssueStateInfo
+	RefProjectDetails map[string]*api.ProjectStateInfo
 }
 
 // Persist persist info
@@ -21,8 +24,22 @@ func (w *WorkManager) Persist() error {
 		return true
 	})
 
+	refIssuesDMap := make(map[string]*api.IssueStateInfo, 0)
+	w.refIssueDetails.Range(func(k, v interface{}) bool {
+		refIssuesDMap[k.(string)] = v.(*api.IssueStateInfo)
+		return true
+	})
+
+	refProjectDMap := make(map[string]*api.ProjectStateInfo, 0)
+	w.refProjectDetails.Range(func(k, v interface{}) bool {
+		refProjectDMap[k.(string)] = v.(*api.ProjectStateInfo)
+		return true
+	})
+
 	r := recover{
-		RefProject: refProjectMap,
+		RefProject:        refProjectMap,
+		RefIssueDetails:   refIssuesDMap,
+		RefProjectDetails: refProjectDMap,
 	}
 
 	start := time.Now()
@@ -49,6 +66,14 @@ func (w *WorkManager) Restore() error {
 
 	for k, v := range r.RefProject {
 		w.refProject.Store(k, v)
+	}
+
+	for k, v := range r.RefIssueDetails {
+		w.refIssueDetails.Store(k, v)
+	}
+
+	for k, v := range r.RefProjectDetails {
+		w.refProjectDetails.Store(k, v)
 	}
 
 	return nil

@@ -32,6 +32,7 @@ const (
 	Get requestType = iota
 	Post
 	Delete
+	Update
 )
 
 type internalRequest struct {
@@ -97,6 +98,25 @@ func (e *Requester) Post(endpoint string, params url.Values, data io.Reader, res
 
 }
 
+// Post request Post(data io.Reader, out interface{}, options ...WithHTTPOption) (*HTTPResponse, error)
+func (e *Requester) Put(endpoint string, params url.Values, data io.Reader, response interface{}) (np NextPage, err error) {
+	e.concurrency <- true
+	defer func() {
+		<-e.concurrency
+	}()
+
+	ir := internalRequest{
+		EndPoint:    endpoint,
+		Params:      params,
+		Data:        data,
+		Response:    &response,
+		RequestType: Post,
+	}
+
+	return e.makeRequestRetry(&ir, 0)
+
+}
+
 const maxGeneralRetries = 2
 
 func (e *Requester) makeRequestRetry(req *internalRequest, generalRetry int) (np NextPage, err error) {
@@ -140,6 +160,11 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 		resp, rerr = e.client.Delete(&r.Response, headers, endpoint, parameters)
 		if rerr != nil {
 			return true, np, fmt.Errorf("error on delete: %s %s", rerr, string(resp.Body))
+		}
+	case Update:
+		resp, rerr = e.client.Put(r.Data, &r.Response, headers, endpoint, parameters)
+		if rerr != nil {
+			return true, np, fmt.Errorf("error on post: %s %s", rerr, string(resp.Body))
 		}
 	}
 

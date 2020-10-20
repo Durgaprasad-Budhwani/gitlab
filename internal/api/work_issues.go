@@ -26,6 +26,7 @@ type Label2 struct {
 
 type Issue2 struct {
 	ID        string `json:"id"`
+	IID       string `json:"iid"`
 	Assignees struct {
 		Edges []struct {
 			Node struct {
@@ -76,6 +77,7 @@ const issuesQuery = `query {
 			edges{
 			  node{
 				id
+				iid
 				assignees{
 				  edges{
 					node{
@@ -227,7 +229,7 @@ func WorkSingleIssue(
 			return
 		}
 
-		issues <- rawissue.ToModel(qc, project.RefID)
+		issues <- rawissue.ToModel(qc, project.RefID, project.Name)
 	}
 
 	return
@@ -267,7 +269,7 @@ func WorkIssuesPage(
 	sdk.LogDebug(qc.Logger, "issues found", "len", Data.Project.Issues.Count)
 
 	for _, rawissue := range Data.Project.Issues.Edges {
-		issue, err := rawissue.Node.ToModel(qc, project.RefID)
+		issue, err := rawissue.Node.ToModel(qc, project)
 		if err != nil {
 			return nextPage, err
 		}
@@ -311,7 +313,7 @@ type GitlabEpic struct {
 
 type IssueModel struct {
 	ID                 int64         `json:"id"`
-	Iid                int           `json:"iid"`
+	Iid                int64         `json:"iid"`
 	Title              string        `json:"title"`
 	Description        string        `json:"description"`
 	State              string        `json:"state"`
@@ -373,7 +375,7 @@ func (i *IssueCreateModel) ToReader() (io.Reader, error) {
 	return bytes.NewReader(bts), nil
 }
 
-func (i *IssueModel) ToModel(qc QueryContext, projectRefID string) *sdk.WorkIssue {
+func (i *IssueModel) ToModel(qc QueryContext, projectRefID string, projectPath string) *sdk.WorkIssue {
 
 	issueRefID := strconv.FormatInt(i.ID, 10)
 	issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
@@ -420,7 +422,11 @@ func (i *IssueModel) ToModel(qc QueryContext, projectRefID string) *sdk.WorkIssu
 		}
 	}
 
-	qc.WorkManager.AddIssue(issueID, i.State == strings.ToLower(OpenedState), projectID, i.Labels, i.Milestone, "", i.Assignee, i.Weight)
+	issueState := IssueStateInfo{
+		IID:          strconv.FormatInt(i.Iid, 10),
+		ProjectRefID: projectRefID,
+	}
+	qc.WorkManager.AddIssue(issueID, i.State == strings.ToLower(OpenedState), projectID, i.Labels, i.Milestone, "", i.Assignee, i.Weight, &issueState)
 
 	item.Tags = tags
 	item.Type, item.TypeID = getIssueTypeFromLabels(tags, qc)
@@ -448,13 +454,13 @@ func (i *IssueModel) ToModel(qc QueryContext, projectRefID string) *sdk.WorkIssu
 	return item
 }
 
-func (i *Issue2) ToModel(qc QueryContext, projectRefID string) (*sdk.WorkIssue, error) {
+func (i *Issue2) ToModel(qc QueryContext, project *sdk.SourceCodeRepo) (*sdk.WorkIssue, error) {
 
 	issueRefID := ExtractGraphQLID(i.ID)
 
 	issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
 
-	projectID := sdk.NewWorkProjectID(qc.CustomerID, projectRefID, qc.RefType)
+	projectID := sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)
 
 	item := &sdk.WorkIssue{}
 	item.ID = issueID
@@ -490,7 +496,7 @@ func (i *Issue2) ToModel(qc QueryContext, projectRefID string) (*sdk.WorkIssue, 
 		item.ParentID = milestoneID
 	}
 	item.Identifier = i.Reference
-	item.ProjectIds = []string{sdk.NewWorkProjectID(qc.CustomerID, projectRefID, qc.RefType)}
+	item.ProjectIds = []string{sdk.NewWorkProjectID(qc.CustomerID, project.RefID, qc.RefType)}
 	item.Title = i.Title
 	item.Status = StatesMap[i.State]
 	item.StatusID = sdk.NewWorkIssueStatusID(qc.CustomerID, qc.RefType, item.Status)
@@ -505,7 +511,12 @@ func (i *Issue2) ToModel(qc QueryContext, projectRefID string) (*sdk.WorkIssue, 
 		tags = append(tags, label.Title)
 	}
 
-	qc.WorkManager.AddIssue2(issueID, i.State == strings.ToLower(OpenedState), projectID, i.Labels.Edges, i.Milestone, ExtractGraphQLID(i.Iteration.ID), mainAssignee, i.Weight)
+	issueState := IssueStateInfo{
+		IID:          i.IID,
+		ProjectRefID: project.RefID,
+	}
+
+	qc.WorkManager.AddIssue2(issueID, i.State == strings.ToLower(OpenedState), projectID, i.Labels.Edges, i.Milestone, ExtractGraphQLID(i.Iteration.ID), mainAssignee, i.Weight, &issueState)
 
 	item.Tags = tags
 	item.Type, item.TypeID = getIssueTypeFromLabels(tags, qc)
@@ -558,7 +569,11 @@ func CreateWorkIssue(qc QueryContext, mutation *sdk.WorkIssueCreateMutation, lab
 		return nil, err
 	}
 
-	workIssue := issue.ToModel(qc, mutation.ProjectRefID)
+	projectID := sdk.NewWorkProjectID(qc.CustomerID, mutation.ProjectRefID, qc.RefType)
+
+	projectDetails := qc.WorkManager.GetProjectDetails(projectID)
+
+	workIssue := issue.ToModel(qc, mutation.ProjectRefID, projectDetails.ProjectPath)
 
 	transition := sdk.WorkIssueTransitions{}
 	transition.RefID = ClosedState
@@ -584,4 +599,59 @@ func convertMutationToGitlabIssue(m *sdk.WorkIssueCreateMutation) IssueCreateMod
 		Title:       m.Title,
 		Description: m.Description,
 	}
+}
+
+const updateIssueIterationQuery = `mutation {
+	issueSetIteration(input:{
+	  clientMutationId:"%s",
+	  projectPath:"%s",
+	  iid:"%s",
+	  iterationId:"gid://gitlab/Iteration/%s"
+	}) {
+	  errors
+	  clientMutationId
+	  issue{
+		id
+	  }
+	}
+  }`
+
+type issueUpdateResponse struct {
+	IssueSetIteration struct {
+		Errors           []string `json:"errors"`
+		ClientMutationID string   `json:"clientMutationId"`
+		Issue            struct {
+			ID string `json:"id"`
+		} `json:"issue"`
+	} `json:"issueSetIteration"`
+}
+
+func updateIssueIteration(qc QueryContext, mutationID string, issueRefID string) error {
+
+	var response issueUpdateResponse
+
+	issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
+
+	issueD := qc.WorkManager.GetIssueDetails(issueID)
+
+	projectID := sdk.NewWorkProjectID(qc.CustomerID, issueD.ProjectRefID, qc.RefType)
+
+	projectDetails := qc.WorkManager.GetProjectDetails(projectID)
+
+	query := fmt.Sprintf(updateIssueIterationQuery, mutationID, projectDetails.ProjectPath, issueD.IID, mutationID)
+
+	var m map[string]interface{}
+
+	err := qc.GraphRequester.Query(query, nil, &m)
+	if err != nil {
+		return err
+	}
+
+	if len(response.IssueSetIteration.Errors) > 0 {
+		errors := strings.Join(response.IssueSetIteration.Errors, ", ")
+		return fmt.Errorf("error creating sprint, mutation-id: %s, error %s, issue-id %s, issue-iid %s", response.IssueSetIteration.ClientMutationID, errors, issueID, issueD.IID)
+	}
+
+	return nil
+
 }
