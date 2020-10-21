@@ -36,8 +36,8 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 
 	switch mutationModelType := mutation.Payload().(type) {
 	// Issue
-	// case *sdk.WorkIssueUpdateMutation:
-	// 	return i.updateIssue(logger, mutation, authConfig, v)
+	case *sdk.WorkIssueUpdateMutation:
+		return api.UpdateIssueFromMutation(ge.qc, mutation, mutationModelType)
 	case *sdk.WorkIssueCreateMutation:
 		switch *mutationModelType.Type.Name {
 		case api.BugIssueType:
