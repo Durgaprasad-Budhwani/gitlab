@@ -656,7 +656,7 @@ func updateIssueIteration(qc QueryContext, mutationID string, issueRefID string)
 
 func updateIssue(qc QueryContext, issueRefID string, params url.Values) (*IssueModel, error) {
 
-	sdk.LogDebug(qc.Logger, "updatig issue", "issue_ref_id", issueRefID, "params", params)
+	sdk.LogDebug(qc.Logger, "updating issue", "issue_ref_id", issueRefID, "params", params)
 
 	issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
 
