@@ -367,17 +367,14 @@ func CreateHelperSprintToUnsetIssues(qc QueryContext, namespace *Namespace) erro
 	if err != nil {
 		return err
 	}
-	sdk.LogDebug(qc.Logger, "deub-debug0", "iteration", iteration, "group", namespace.Name, "ok", ok, "iterationID", iterationID)
 	if !ok {
 		if err := CreateSprint(qc, startDate, endDate, groupName, mutationIdentifier, helperIterationTitle, "iteration helper to unset issues", &iteration); err != nil {
-			sdk.LogDebug(qc.Logger, "deub-debug1", "err", err)
 			if strings.Contains(err.Error(), "Title already being used for another group or project iteration") {
 				// get the iteration id
 				iteration, err := IterationByTitle(qc, namespace.Name, helperIterationTitle)
 				if err != nil {
 					return err
 				}
-				sdk.LogDebug(qc.Logger, "deub-debug22222", "iteration", iteration, "group", namespace.Name)
 				err = qc.State.Set(iterationGroupKey(namespace.Name), strconv.FormatInt(iteration.RefID, 10))
 				if err != nil {
 					return err

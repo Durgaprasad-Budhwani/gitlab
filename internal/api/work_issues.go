@@ -653,3 +653,69 @@ func updateIssueIteration(qc QueryContext, mutationID string, issueRefID string)
 	return nil
 
 }
+
+func updateIssue(qc QueryContext, issueRefID string, params url.Values) (*IssueModel, error) {
+
+	sdk.LogDebug(qc.Logger, "updatig issue", "issue_ref_id", issueRefID, "params", params)
+
+	issueID := sdk.NewWorkIssueID(qc.CustomerID, issueRefID, qc.RefType)
+
+	issueD := qc.WorkManager.GetIssueDetails(issueID)
+
+	objectPath := sdk.JoinURL("projects", issueD.ProjectRefID, "issues", issueD.IID)
+
+	var issue IssueModel
+	if _, err := qc.Put(objectPath, params, strings.NewReader(""), &issue); err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+
+}
+
+// UpdateIssueFromMutation update issue from mutation
+func UpdateIssueFromMutation(qc QueryContext, mutation sdk.Mutation, event *sdk.WorkIssueUpdateMutation) (res *sdk.MutationResponse, err error) {
+
+	issueRefID := mutation.ID()
+
+	params, hasMutation := makeIssueUpdate(event)
+	if hasMutation {
+		_, err = updateIssue(qc, issueRefID, params)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &sdk.MutationResponse{
+		RefID:    sdk.StringPointer(mutation.ID()),
+		EntityID: sdk.StringPointer(sdk.NewWorkIssueID(mutation.CustomerID(), mutation.ID(), qc.RefType)),
+	}, nil
+}
+
+func makeIssueUpdate(event *sdk.WorkIssueUpdateMutation) (params url.Values, hasMutation bool) {
+
+	params = url.Values{}
+
+	if event.Set.Title != nil {
+		params.Set("title", *event.Set.Title)
+		hasMutation = true
+	}
+
+	if event.Set.Epic != nil {
+		params.Set("epic_id", *event.Set.Epic.RefID)
+		hasMutation = true
+	} else if event.Unset.Epic {
+		params.Set("epic_id", "0")
+		hasMutation = true
+	}
+
+	if event.Set.AssigneeRefID != nil {
+		params.Set("assignee_ids", fmt.Sprintf("%s", *event.Set.AssigneeRefID))
+		hasMutation = true
+	} else if event.Unset.Assignee {
+		params.Set("assignee_ids", "")
+		hasMutation = true
+	}
+
+	return params, hasMutation
+}

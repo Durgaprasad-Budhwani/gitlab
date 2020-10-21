@@ -32,7 +32,7 @@ const (
 	Get requestType = iota
 	Post
 	Delete
-	Update
+	Put
 )
 
 type internalRequest struct {
@@ -110,7 +110,7 @@ func (e *Requester) Put(endpoint string, params url.Values, data io.Reader, resp
 		Params:      params,
 		Data:        data,
 		Response:    &response,
-		RequestType: Post,
+		RequestType: Put,
 	}
 
 	return e.makeRequestRetry(&ir, 0)
@@ -161,7 +161,7 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 		if rerr != nil {
 			return true, np, fmt.Errorf("error on delete: %s %s", rerr, string(resp.Body))
 		}
-	case Update:
+	case Put:
 		resp, rerr = e.client.Put(r.Data, &r.Response, headers, endpoint, parameters)
 		if rerr != nil {
 			return true, np, fmt.Errorf("error on post: %s %s", rerr, string(resp.Body))
