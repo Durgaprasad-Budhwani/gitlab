@@ -10,7 +10,7 @@ import (
 // Mutation is called when a mutation is received on behalf of the integration
 func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationResponse, error) {
 
-	logger := sdk.LogWith(g.logger, "integration_event", "mutation", "customer_id", mutation.CustomerID(), "integration_instance_id", mutation.IntegrationInstanceID())
+	logger := sdk.LogWith(mutation.Logger(), "integration_event", "mutation")
 
 	sdk.LogInfo(logger, "mutation request received", "action", mutation.Action(), "id", mutation.ID(), "model", mutation.Model())
 
@@ -20,7 +20,7 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 	c.BasicAuth = user.BasicAuth
 	c.OAuth2Auth = user.OAuth2Auth
 
-	ge, err := g.SetQueryConfig(g.logger, c, g.manager, mutation.CustomerID())
+	ge, err := g.SetQueryConfig(logger, c, g.manager, mutation.CustomerID())
 	if err != nil {
 		return nil, err
 	}

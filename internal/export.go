@@ -125,7 +125,7 @@ const gitlabRefType = "gitlab"
 
 // Export is called to tell the integration to run an export
 func (i *GitlabIntegration) Export(export sdk.Export) error {
-	logger := sdk.LogWith(i.logger, "customer_id", export.CustomerID(), "job_id", export.JobID())
+	logger := sdk.LogWith(export.Logger(), "job_id", export.JobID())
 
 	sdk.LogInfo(logger, "export started", "historical", export.Historical())
 

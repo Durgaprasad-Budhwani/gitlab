@@ -11,7 +11,7 @@ import (
 // Dismiss is called when an existing integration instance is removed
 func (g *GitlabIntegration) Dismiss(instance sdk.Instance) error {
 
-	logger := sdk.LogWith(g.logger, "event", "dismiss", "customer_id", instance.CustomerID(), "integration_instance_id", instance.IntegrationInstanceID())
+	logger := sdk.LogWith(instance.Logger(), "event", "dismiss")
 	started := time.Now()
 	state := instance.State()
 	pipe := instance.Pipe()

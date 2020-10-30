@@ -1,14 +1,14 @@
 package internal
 
 import (
-	"github.com/pinpt/gitlab/internal/api"
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
 func (g *GitlabIntegration) AutoConfigure(autoconfig sdk.AutoConfigure) (*sdk.Config, error) {
 	config := autoconfig.Config()
 
-	logger := sdk.LogWith(g.logger, "event", "autoconfigure", "customer_id", autoconfig.CustomerID(), "integration_instance_id", autoconfig.IntegrationInstanceID())
+	logger := sdk.LogWith(autoconfig.Logger(), "event", "autoconfigure")
 
 	sdk.LogInfo(logger, "auto-configure started")
 

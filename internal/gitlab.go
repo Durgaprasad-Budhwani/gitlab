@@ -11,7 +11,6 @@ import (
 
 // GitlabIntegration is an integration for GitHub
 type GitlabIntegration struct {
-	logger  sdk.Logger
 	config  sdk.Config
 	manager sdk.Manager
 	lock    sync.Mutex
@@ -21,10 +20,9 @@ var _ sdk.Integration = (*GitlabIntegration)(nil)
 
 // Start is called when the integration is starting up
 func (g *GitlabIntegration) Start(logger sdk.Logger, config sdk.Config, manager sdk.Manager) error {
-	g.logger = sdk.LogWith(logger, "pkg", gitlabRefType)
 	g.config = config
 	g.manager = manager
-	sdk.LogInfo(g.logger, "starting")
+	sdk.LogInfo(logger, "starting")
 	return nil
 }
 
@@ -37,7 +35,7 @@ const (
 func (g *GitlabIntegration) Validate(validate sdk.Validate) (map[string]interface{}, error) {
 	config := validate.Config()
 
-	logger := sdk.LogWith(g.logger, "customer_id", validate.CustomerID(), "integration_instance_id", validate.IntegrationInstanceID())
+	logger := validate.Logger()
 
 	found, action := config.GetString("action")
 	if !found {
@@ -103,8 +101,8 @@ func (g *GitlabIntegration) Enroll(instance sdk.Instance) error {
 }
 
 // Stop is called when the integration is shutting down for cleanup
-func (g *GitlabIntegration) Stop() error {
-	sdk.LogInfo(g.logger, "stopping")
+func (g *GitlabIntegration) Stop(logger sdk.Logger) error {
+	sdk.LogInfo(logger, "stopping")
 	// TODO: Add Stop functionality
 	return nil
 }

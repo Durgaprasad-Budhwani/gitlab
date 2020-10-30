@@ -71,7 +71,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 	customerID := webhook.CustomerID()
 	integrationInstanceID := webhook.IntegrationInstanceID()
 
-	logger := sdk.LogWith(i.logger, "entity", "webhook", "customer_id", customerID)
+	logger := sdk.LogWith(webhook.Logger(), "entity", "webhook")
 
 	pipe := webhook.Pipe()
 
