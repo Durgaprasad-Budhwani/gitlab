@@ -386,6 +386,7 @@ func (i *IssueModel) ToModel(qc QueryContext, projectRefID string, projectPath s
 	item.ID = issueID
 	item.Active = true
 	item.CustomerID = qc.CustomerID
+	item.IntegrationInstanceID = sdk.StringPointer(qc.IntegrationInstanceID)
 	item.RefType = qc.RefType
 	item.RefID = issueRefID
 
@@ -546,34 +547,30 @@ func (i *Issue2) ToModel(qc QueryContext, project *sdk.SourceCodeRepo) (*sdk.Wor
 }
 
 // CreateWorkIssue create work issue
-func CreateWorkIssue(qc QueryContext, mutation *sdk.WorkIssueCreateMutation, label string) (*sdk.MutationResponse, error) {
+func CreateWorkIssue(qc QueryContext, body map[string]interface{}, projectRefID string, label string) (*sdk.MutationResponse, error) {
 
-	sdk.LogDebug(qc.Logger, "create issue", "project_ref_id", mutation.ProjectRefID, "body", sdk.Stringify(mutation))
+	sdk.LogDebug(qc.Logger, "create issue", "project_ref_id", projectRefID, "body", sdk.Stringify(body))
 
-	objectPath := sdk.JoinURL("projects", mutation.ProjectRefID, "issues")
+	objectPath := sdk.JoinURL("projects", projectRefID, "issues")
 
-	issueCreate := convertMutationToGitlabIssue(mutation)
 	if label != "" {
-		issueCreate.Labels = []string{strings.ToLower(label)}
-	}
-
-	reader, err := issueCreate.ToReader()
-	if err != nil {
-		return nil, err
+		body["labels"] = []string{label}
 	}
 
 	var issue IssueModel
 
-	_, err = qc.Post(objectPath, nil, reader, &issue)
+	sdk.LogDebug(qc.Logger, "debug-body", "body", sdk.Stringify(body))
+
+	_, err := qc.Post(objectPath, nil, sdk.StringifyReader(body), &issue)
 	if err != nil {
 		return nil, err
 	}
 
-	projectID := sdk.NewWorkProjectID(qc.CustomerID, mutation.ProjectRefID, qc.RefType)
+	projectID := sdk.NewWorkProjectID(qc.CustomerID, projectRefID, qc.RefType)
 
 	projectDetails := qc.WorkManager.GetProjectDetails(projectID)
 
-	workIssue := issue.ToModel(qc, mutation.ProjectRefID, projectDetails.ProjectPath)
+	workIssue := issue.ToModel(qc, projectRefID, projectDetails.ProjectPath)
 
 	transition := sdk.WorkIssueTransitions{}
 	transition.RefID = ClosedState

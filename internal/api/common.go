@@ -8,6 +8,8 @@ import (
 	"github.com/pinpt/agent/v4/sdk"
 )
 
+const gitlabRefType = "gitlab"
+
 // GitLabDateTimeFormat gitlab layout to format dates with timestamp
 const GitLabDateTimeFormat = "2006-01-02T15:04:05.000Z"
 

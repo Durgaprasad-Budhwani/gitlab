@@ -1,8 +1,10 @@
 package api
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"time"
@@ -38,9 +40,23 @@ const (
 type internalRequest struct {
 	EndPoint    string
 	Params      url.Values
-	Data        io.Reader
+	data        io.Reader
+	backUpData  []byte
 	Response    interface{}
 	RequestType requestType
+}
+
+func (i *internalRequest) getDataReader() (io.Reader, error) {
+
+	if len(i.backUpData) == 0 {
+		bts, err := ioutil.ReadAll(i.data)
+		if err != nil {
+			return nil, err
+		}
+		i.backUpData = bts
+	}
+
+	return bytes.NewReader(i.backUpData), nil
 }
 
 // Get request
@@ -89,7 +105,7 @@ func (e *Requester) Post(endpoint string, params url.Values, data io.Reader, res
 	ir := internalRequest{
 		EndPoint:    endpoint,
 		Params:      params,
-		Data:        data,
+		data:        data,
 		Response:    &response,
 		RequestType: Post,
 	}
@@ -108,7 +124,7 @@ func (e *Requester) Put(endpoint string, params url.Values, data io.Reader, resp
 	ir := internalRequest{
 		EndPoint:    endpoint,
 		Params:      params,
-		Data:        data,
+		data:        data,
 		Response:    &response,
 		RequestType: Put,
 	}
@@ -121,6 +137,7 @@ const maxGeneralRetries = 2
 
 func (e *Requester) makeRequestRetry(req *internalRequest, generalRetry int) (np NextPage, err error) {
 	var isRetryable bool
+
 	isRetryable, np, err = e.request(req, generalRetry+1)
 	if err != nil {
 		if !isRetryable {
@@ -129,6 +146,10 @@ func (e *Requester) makeRequestRetry(req *internalRequest, generalRetry int) (np
 		if generalRetry >= maxGeneralRetries {
 			return np, fmt.Errorf(`can't retry request, too many retries, err: %v`, err)
 		}
+
+		// sdk.LogDebug(e.logger, "backup - body", "body", string(backUp))
+
+		// req.Data = bytes.NewReader(backUp)
 		return e.makeRequestRetry(req, generalRetry+1)
 	}
 	return
@@ -152,8 +173,14 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 			return true, np, fmt.Errorf("error on get: %s %s", rerr, string(resp.Body))
 		}
 	case Post:
-		resp, rerr = e.client.Post(r.Data, &r.Response, headers, endpoint, parameters)
+		reader, err := r.getDataReader()
+		if err != nil {
+			sdk.LogDebug(e.logger, "request response", "resp", string(resp.Body))
+			return true, np, fmt.Errorf("error on post: %s", err)
+		}
+		resp, rerr = e.client.Post(reader, &r.Response, headers, endpoint, parameters)
 		if rerr != nil {
+			sdk.LogDebug(e.logger, "request response", "resp", string(resp.Body))
 			return true, np, fmt.Errorf("error on post: %s %s", rerr, string(resp.Body))
 		}
 	case Delete:
@@ -162,7 +189,12 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 			return true, np, fmt.Errorf("error on delete: %s %s", rerr, string(resp.Body))
 		}
 	case Put:
-		resp, rerr = e.client.Put(r.Data, &r.Response, headers, endpoint, parameters)
+		reader, err := r.getDataReader()
+		if err != nil {
+			sdk.LogDebug(e.logger, "request response", "resp", string(resp.Body))
+			return true, np, fmt.Errorf("error on post: %s", err)
+		}
+		resp, rerr = e.client.Put(reader, &r.Response, headers, endpoint, parameters)
 		if rerr != nil {
 			return true, np, fmt.Errorf("error on post: %s %s", rerr, string(resp.Body))
 		}

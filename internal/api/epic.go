@@ -145,36 +145,19 @@ func EpicsPage(
 }
 
 // CreateEpic create epic
-func CreateEpic(qc QueryContext, mutation *sdk.WorkIssueCreateMutation) (*sdk.MutationResponse, error) {
+func CreateEpic(qc QueryContext, body map[string]interface{}, projectName, projectRefID string) (*sdk.MutationResponse, error) {
 
-	sdk.LogDebug(qc.Logger, "create epic", "project_ref_id", mutation.ProjectRefID)
+	sdk.LogDebug(qc.Logger, "create epic", "project_ref_id", projectRefID)
 
-	projectRefID, err := strconv.Atoi(mutation.ProjectRefID)
-	if err != nil {
-		return nil, err
-	}
+	ind := strings.Index(projectName, "/")
 
-	repo, err := ProjectByRefID(qc, int64(projectRefID))
-	if err != nil {
-		return nil, err
-	}
-
-	ind := strings.Index(repo.Name, "/")
-
-	groupName := repo.Name[:ind]
+	groupName := projectName[:ind]
 
 	objectPath := sdk.JoinURL("groups", url.QueryEscape(groupName), "epics")
 
-	issueCreate := convertMutationToGitlabIssue(mutation)
-
-	reader, err := issueCreate.ToReader()
-	if err != nil {
-		return nil, err
-	}
-
 	var epic Epic
 
-	_, err = qc.Post(objectPath, nil, reader, &epic)
+	_, err := qc.Post(objectPath, nil, sdk.StringifyReader(body), &epic)
 	if err != nil {
 		return nil, err
 	}

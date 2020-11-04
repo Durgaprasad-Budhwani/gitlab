@@ -41,6 +41,4 @@ func (e *GraphqlRequester) Query(query string, variables map[string]interface{},
 		}
 	}
 
-	return e.graphClient.Query(query, variables, out)
-
 }

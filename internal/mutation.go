@@ -12,7 +12,7 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 
 	logger := sdk.LogWith(mutation.Logger(), "integration_event", "mutation")
 
-	sdk.LogInfo(logger, "mutation request received", "action", mutation.Action(), "id", mutation.ID(), "model", mutation.Model())
+	sdk.LogInfo(logger, "mutation request received", "action", mutation.Action(), "id", mutation.ID(), "model", mutation.Model(), "mutation", mutation.IntegrationInstanceID())
 
 	user := mutation.User()
 	var c sdk.Config
@@ -27,6 +27,7 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 	ge.qc.Pipe = mutation.Pipe()
 	ge.qc.State = mutation.State()
 	ge.qc.WorkManager = NewWorkManager(logger, mutation.State())
+	ge.qc.IntegrationInstanceID = mutation.IntegrationInstanceID()
 
 	sdk.LogInfo(logger, "recovering work manager state")
 	if err := ge.qc.WorkManager.Restore(); err != nil {
@@ -39,16 +40,17 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 	case *sdk.WorkIssueUpdateMutation:
 		return api.UpdateIssueFromMutation(ge.qc, mutation, mutationModelType)
 	case *sdk.WorkIssueCreateMutation:
-		switch *mutationModelType.Type.Name {
-		case api.BugIssueType:
-			return api.CreateWorkIssue(ge.qc, mutationModelType, "")
-		case api.IncidentIssueType:
-			return api.CreateWorkIssue(ge.qc, mutationModelType, api.IncidentIssueType)
-		case api.EnhancementIssueType:
-			return api.CreateWorkIssue(ge.qc, mutationModelType, api.EnhancementIssueType)
-		case api.EpicIssueType:
-			return api.CreateEpic(ge.qc, mutationModelType)
-		}
+		return ge.createIssue(mutationModelType)
+		// switch *mutationModelType.Type.Name {
+		// case api.BugIssueType:
+		// 	return api.CreateWorkIssue(ge.qc, mutationModelType, "")
+		// case api.IncidentIssueType:
+		// 	return api.CreateWorkIssue(ge.qc, mutationModelType, api.IncidentIssueType)
+		// case api.EnhancementIssueType:
+		// 	return api.CreateWorkIssue(ge.qc, mutationModelType, api.EnhancementIssueType)
+		// case api.EpicIssueType:
+		// 	return api.CreateEpic(ge.qc, mutationModelType)
+		// }
 
 	// Sprint
 	case *sdk.AgileSprintUpdateMutation:

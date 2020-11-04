@@ -127,6 +127,8 @@ const gitlabRefType = "gitlab"
 func (i *GitlabIntegration) Export(export sdk.Export) error {
 	logger := sdk.LogWith(export.Logger(), "job_id", export.JobID())
 
+	skipWebhooksRegistration, _ := export.Config().Get("skip-webhooks-registration")
+
 	sdk.LogInfo(logger, "export started", "historical", export.Historical())
 
 	config := export.Config()
@@ -162,9 +164,11 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 
 	sdk.LogInfo(logger, "registering webhooks", "config", sdk.Stringify(config))
 
-	err = i.registerWebhooks(gexport, allnamespaces)
-	if err != nil {
-		return err
+	if !skipWebhooksRegistration {
+		err = i.registerWebhooks(gexport, allnamespaces)
+		if err != nil {
+			return err
+		}
 	}
 
 	sdk.LogInfo(logger, "registering webhooks done")
