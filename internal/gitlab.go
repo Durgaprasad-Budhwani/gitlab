@@ -48,6 +48,7 @@ func (g *GitlabIntegration) Validate(validate sdk.Validate) (map[string]interfac
 		if err != nil {
 			return nil, err
 		}
+		ge.qc.WorkManager = NewWorkManager(logger, validate.State())
 
 		accounts := []sdk.ValidatedAccount{}
 
