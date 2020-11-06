@@ -190,6 +190,8 @@ type createIterationResponse struct {
 // CreateSprint create sprint
 func CreateSprint(qc QueryContext, startDate, endDate time.Time, groupName, clientMutationID, sprintName, sprintGoal string, iteration *createIterationResponse) error {
 
+	sdk.LogDebug(qc.Logger, "creating iteration", "group-name", groupName)
+
 	sDate := startDate.Format(GitLabDateFormat)
 	eDate := endDate.Format(GitLabDateFormat)
 
