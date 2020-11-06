@@ -162,9 +162,12 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 
 	sdk.LogInfo(logger, "registering webhooks", "config", sdk.Stringify(config))
 
-	err = i.registerWebhooks(gexport, allnamespaces)
-	if err != nil {
-		return err
+	// TODO: fix panic on webhooks registration to remove this condition
+	if export.CustomerID() != "b35b88cdb47ae966" && export.CustomerID() != "74b997f155252ba2" {
+		err = i.registerWebhooks(gexport, allnamespaces)
+		if err != nil {
+			return err
+		}
 	}
 
 	sdk.LogInfo(logger, "registering webhooks done")
@@ -183,6 +186,19 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		}
 	}
 
+	validServerVersion := true
+
+	if !gexport.isGitlabCloud {
+		validServerVersion, err = gexport.ValidServerVersion()
+		if err != nil {
+			sdk.LogError(logger, "error recovering work manager state", "err", err)
+			return err
+		}
+		if !validServerVersion {
+			sdk.LogWarn(logger, "invalid gitlab version, skipping work processing")
+		}
+	}
+
 	for _, namespace := range allnamespaces {
 		l := sdk.LogWith(logger, "namespace_id", namespace.ID, "namespace_name", namespace.Name)
 		projectUsersMap := make(map[string]api.UsernameMap)
@@ -192,55 +208,58 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 			return err
 		}
 
-		if err := api.CreateHelperSprintToUnsetIssues(gexport.qc, namespace); err != nil {
-			return err
-		}
+		if validServerVersion {
 
-		err = gexport.exportProjectsWork(repos, projectUsersMap)
-		if err != nil {
-			sdk.LogWarn(l, "error exporting work repos", "err", err)
-			return err
-		}
-
-		if len(repos) > 0 {
-			if err := gexport.exportEpics(namespace, repos, projectUsersMap); err != nil {
-				sdk.LogWarn(l, "error exporting repos epics", "err", err)
+			if err := api.CreateHelperSprintToUnsetIssues(gexport.qc, namespace); err != nil {
 				return err
 			}
-		}
 
-		err = gexport.exportProjectsMilestones(repos)
-		if err != nil {
-			sdk.LogWarn(l, "error exporting repos milestones", "err", err)
-			return err
-		}
+			err = gexport.exportProjectsWork(repos, projectUsersMap)
+			if err != nil {
+				sdk.LogWarn(l, "error exporting work repos", "err", err)
+				return err
+			}
 
-		err = gexport.exportGroupMilestones(namespace, repos)
-		if err != nil {
-			sdk.LogWarn(l, "error exporting group milestones", "err", err)
-			return err
-		}
+			if len(repos) > 0 {
+				if err := gexport.exportEpics(namespace, repos, projectUsersMap); err != nil {
+					sdk.LogWarn(l, "error exporting repos epics", "err", err)
+					return err
+				}
+			}
 
-		sprints, err := gexport.fetchGroupSprints(namespace)
-		if err != nil {
-			sdk.LogWarn(l, "error fetching group sprints", "err", err)
-			return err
-		}
+			err = gexport.exportProjectsMilestones(repos)
+			if err != nil {
+				sdk.LogWarn(l, "error exporting repos milestones", "err", err)
+				return err
+			}
 
-		err = gexport.exportGroupBoards(namespace, repos)
-		if err != nil {
-			sdk.LogWarn(l, "error exporting group boards", "err", err)
-			return err
-		}
-		err = gexport.exportReposBoards(repos)
-		if err != nil {
-			sdk.LogWarn(l, "error exporting repos boards", "err", err)
-			return err
-		}
+			err = gexport.exportGroupMilestones(namespace, repos)
+			if err != nil {
+				sdk.LogWarn(l, "error exporting group milestones", "err", err)
+				return err
+			}
 
-		if err := gexport.exportSprints(sprints); err != nil {
-			sdk.LogWarn(l, "error exporting group sprints", "err", err)
-			return err
+			sprints, err := gexport.fetchGroupSprints(namespace)
+			if err != nil {
+				sdk.LogWarn(l, "error fetching group sprints", "err", err)
+				return err
+			}
+
+			err = gexport.exportGroupBoards(namespace, repos)
+			if err != nil {
+				sdk.LogWarn(l, "error exporting group boards", "err", err)
+				return err
+			}
+			err = gexport.exportReposBoards(repos)
+			if err != nil {
+				sdk.LogWarn(l, "error exporting repos boards", "err", err)
+				return err
+			}
+
+			if err := gexport.exportSprints(sprints); err != nil {
+				sdk.LogWarn(l, "error exporting group sprints", "err", err)
+				return err
+			}
 		}
 	}
 	err = gexport.repoProjectManager.PersistRepos()

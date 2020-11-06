@@ -85,6 +85,9 @@ func getIterationsPage(
 				} `json:"edges"`
 			} `json:"iterations"`
 		} `json:"group"`
+		Error            string `json:"error"`
+		ErrorDescription string `json:"error_description"`
+		Scope            string `json:"scope"`
 	}
 
 	query := fmt.Sprintf(iterationsQuery, namespace.Name, iterationPage)
@@ -95,6 +98,10 @@ func getIterationsPage(
 			return nextPage, sprints, nil
 		}
 		return
+	}
+
+	if Data.Error != "" {
+		return nextPage, sprints, fmt.Errorf("error getting iterations, err %s", sdk.Stringify(Data))
 	}
 
 	if len(Data.Group.Iterations.Edges) == 0 {
@@ -180,15 +187,25 @@ func GetIterations(
 }
 
 type createIterationResponse struct {
-	CreateIteration struct {
+	CreateIteration *struct {
 		MutationID string           `json:"string"`
 		Errors     []string         `json:"errors"`
 		Iteration  GraphQLIteration `json:"iteration"`
 	} `json:"createIteration"`
+	Errors []struct {
+		Message   string `json:"message"`
+		Locations []struct {
+			Line   int `json:"line"`
+			Column int `json:"column"`
+		} `json:"locations"`
+		Path []string `json:"path"`
+	} `json:"errors"`
 }
 
 // CreateSprint create sprint
 func CreateSprint(qc QueryContext, startDate, endDate time.Time, groupName, clientMutationID, sprintName, sprintGoal string, iteration *createIterationResponse) error {
+
+	sdk.LogDebug(qc.Logger, "creating iteration", "group-name", groupName)
 
 	sDate := startDate.Format(GitLabDateFormat)
 	eDate := endDate.Format(GitLabDateFormat)
@@ -202,8 +219,12 @@ func CreateSprint(qc QueryContext, startDate, endDate time.Time, groupName, clie
 		return err
 	}
 
-	if len(iteration.CreateIteration.Errors) > 0 {
+	if iteration.CreateIteration != nil && len(iteration.CreateIteration.Errors) > 0 {
 		return fmt.Errorf("error creating sprint: namespace %s, error %q", groupName, iteration.CreateIteration.Errors)
+	}
+
+	if len(iteration.Errors) > 0 {
+		return fmt.Errorf("error creating sprint: namespace %s, errors %s", groupName, sdk.Stringify(iteration.Errors))
 	}
 
 	return nil
