@@ -3,6 +3,7 @@ package api
 import (
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/pinpt/agent/v4/sdk"
 )
@@ -71,6 +72,10 @@ func boardsCommonPage(
 
 	np, err = qc.Get(objectPath, params, &boards)
 	if err != nil {
+		if strings.Contains(err.Error(), "403 Forbidden") {
+			sdk.LogWarn(qc.Logger, "user doesn't have permissions to get project boards", "endpoint", objectPath)
+			return np, nil
+		}
 		return
 	}
 
