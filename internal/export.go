@@ -162,6 +162,7 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 
 	sdk.LogInfo(logger, "registering webhooks", "config", sdk.Stringify(config))
 
+	// TODO: fix panic on webhooks registration to remove this condition
 	if export.CustomerID() != "b35b88cdb47ae966" && export.CustomerID() != "74b997f155252ba2" {
 		err = i.registerWebhooks(gexport, allnamespaces)
 		if err != nil {
