@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pinpt/gitlab/internal/api"
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
 func (ge *GitlabExport) exportRepoPullRequests(repo *sdk.SourceCodeRepo) {
@@ -102,6 +102,8 @@ func (ge *GitlabExport) fetchInitialRepoPullRequests(repo *sdk.SourceCodeRepo, p
 	if ge.lastExportDateGitlabFormat != "" {
 		params.Set("updated_after", ge.lastExportDateGitlabFormat)
 	}
+	params.Set("per_page", "100")
+	params.Set("page", "1")
 
 	return api.PullRequestPage(ge.qc, repo, params, prs)
 }
