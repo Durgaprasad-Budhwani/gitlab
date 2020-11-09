@@ -40,7 +40,7 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 	}
 
 	sdk.LogDebug(ge.logger, "namespaces", "namespaces", sdk.Stringify(namespaces))
-	var userHasProjectWebhookAcess bool
+	var userHasGroupWebhookAcess map[string]bool
 	for _, namespace := range namespaces {
 		sdk.LogDebug(ge.logger, "group webooks", "group_name", namespace.Name, "valid_tier", namespace.ValidTier)
 		if namespace.Kind == "user" {
@@ -70,7 +70,7 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 				sdk.LogDebug(ge.logger, "user", "access_level", user.AccessLevel)
 
 				if user.AccessLevel >= api.Owner {
-					userHasProjectWebhookAcess = true
+					userHasGroupWebhookAcess[namespace.ID] = true
 					err = wr.registerWebhook(sdk.WebHookScopeOrg, namespace.ID, namespace.Name)
 					if err != nil {
 						namespace.MarkedToCreateProjectWebHooks = true
@@ -98,9 +98,9 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 			}
 			sdk.LogDebug(ge.logger, "namespace projects", "projects", projects)
 			for _, project := range projects {
-				sdk.LogDebug(ge.logger, "webhook for project", "project_name", project.Name)
+				sdk.LogDebug(ge.logger, "webhook for project", "project_name", project.Name, "project_ref_id", project.RefID)
 				var user *api.GitlabUser
-				if userHasProjectWebhookAcess {
+				if userHasGroupWebhookAcess[namespace.ID] || project.OwnerRefID == loginUser.RefID {
 					sdk.LogDebug(ge.logger, "registering webhook for project", "project_name", project.Name)
 					err = wr.registerWebhook(sdk.WebHookScopeRepo, project.RefID, project.Name)
 					if err != nil {
@@ -113,7 +113,7 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 				}
 				user, err := api.ProjectUser(ge.qc, project, loginUser.StrID)
 				if err != nil {
-					err = fmt.Errorf("error trying to get project user user => %s err => %s", user.Name, err)
+					err = fmt.Errorf("error trying to get project user user => %s err => %s", loginUser.Name, err)
 					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 					return err
 				}
@@ -149,6 +149,8 @@ type webHookRegistration struct {
 func (wr *webHookRegistration) registerWebhook(whType sdk.WebHookScope, entityID, entityName string) error {
 
 	sdk.LogDebug(wr.ge.logger, "registering webhook", "type", whType, "entityID", entityID, "entityName", entityName)
+
+	return nil
 
 	pinptWhURL, err := wr.ge.isWebHookInstalledForCurrentVersion(whType, wr.manager, wr.customerID, wr.integrationInstanceID, entityID)
 	if err != nil {

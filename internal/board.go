@@ -4,11 +4,11 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pinpt/gitlab/internal/api"
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
-func (ge *GitlabExport) exportGroupBoards(namespace *api.Namespace, repos []*sdk.SourceCodeRepo) error {
+func (ge *GitlabExport) exportGroupBoards(namespace *api.Namespace, repos []*api.GitlabProjectInternal) error {
 	if namespace.Kind == "user" {
 		return nil
 	}
@@ -22,7 +22,7 @@ func (ge *GitlabExport) exportGroupBoards(namespace *api.Namespace, repos []*sdk
 	})
 }
 
-func (ge *GitlabExport) exportReposBoards(repos []*sdk.SourceCodeRepo) error {
+func (ge *GitlabExport) exportReposBoards(repos []*api.GitlabProjectInternal) error {
 
 	sdk.LogInfo(ge.qc.Logger, "exporting repo boards", "repos", repos)
 

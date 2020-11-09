@@ -1,18 +1,21 @@
 package internal
 
-import "github.com/pinpt/agent/v4/sdk"
+import (
+	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
+)
 
 // RepoProjectManager repo/project manager
 type RepoProjectManager struct {
 	logger              sdk.Logger
 	state               sdk.State
 	pipe                sdk.Pipe
-	curretReposExported []*sdk.SourceCodeRepo
+	curretReposExported []*api.GitlabProjectInternal
 }
 
 const reposProjectsProcessedKey = "repos_projects_processed"
 
-type stateRepos map[string]*sdk.SourceCodeRepo
+type stateRepos map[string]*api.GitlabProjectInternal
 
 // PersistRepos persist repos
 func (r *RepoProjectManager) PersistRepos() error {
@@ -53,7 +56,7 @@ func (r *RepoProjectManager) PersistRepos() error {
 
 }
 
-func (r *RepoProjectManager) deactivateRepoAndProject(repo *sdk.SourceCodeRepo) error {
+func (r *RepoProjectManager) deactivateRepoAndProject(repo *api.GitlabProjectInternal) error {
 
 	repo.Active = false
 	repo.UpdatedAt = sdk.EpochNow()
@@ -71,7 +74,7 @@ func (r *RepoProjectManager) deactivateRepoAndProject(repo *sdk.SourceCodeRepo) 
 }
 
 // AddRepo add repo
-func (r *RepoProjectManager) AddRepo(repo *sdk.SourceCodeRepo) {
+func (r *RepoProjectManager) AddRepo(repo *api.GitlabProjectInternal) {
 	r.curretReposExported = append(r.curretReposExported, repo)
 }
 
@@ -102,6 +105,6 @@ func NewRepoProjectManager(logger sdk.Logger, state sdk.State, pipe sdk.Pipe) *R
 		logger:              logger,
 		state:               state,
 		pipe:                pipe,
-		curretReposExported: make([]*sdk.SourceCodeRepo, 0),
+		curretReposExported: make([]*api.GitlabProjectInternal, 0),
 	}
 }

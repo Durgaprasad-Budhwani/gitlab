@@ -32,7 +32,7 @@ type Board struct {
 
 func RepoBoardsPage(
 	qc QueryContext,
-	repo *sdk.SourceCodeRepo,
+	repo *GitlabProjectInternal,
 	params url.Values) (np NextPage, err error) {
 
 	sdk.LogDebug(qc.Logger, "repo boards", "repo", repo.Name, "repo_ref_id", repo.RefID, "params", params)
@@ -41,13 +41,13 @@ func RepoBoardsPage(
 
 	initialKanbanURL := sdk.JoinURL(qc.BaseURL, "projects", repo.Name, "-", "boards", repo.RefID)
 
-	return boardsCommonPage(qc, repo.ID, objectPath, initialKanbanURL, params, []*sdk.SourceCodeRepo{repo})
+	return boardsCommonPage(qc, repo.ID, objectPath, initialKanbanURL, params, []*GitlabProjectInternal{repo})
 }
 
 func GroupBoardsPage(
 	qc QueryContext,
 	namespace *Namespace,
-	repos []*sdk.SourceCodeRepo,
+	repos []*GitlabProjectInternal,
 	params url.Values) (np NextPage, err error) {
 
 	sdk.LogDebug(qc.Logger, "group boards", "group", namespace.Name, "group_ref_id", namespace.ID, "params", params, "repos", repos)
@@ -66,7 +66,7 @@ func boardsCommonPage(
 	objectPath string,
 	initialKanbanURL string,
 	params url.Values,
-	repos []*sdk.SourceCodeRepo) (np NextPage, err error) {
+	repos []*GitlabProjectInternal) (np NextPage, err error) {
 
 	var boards []Board
 

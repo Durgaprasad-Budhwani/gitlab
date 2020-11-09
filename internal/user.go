@@ -9,7 +9,7 @@ import (
 	"github.com/pinpt/gitlab/internal/api"
 )
 
-func (ge *GitlabExport) exportRepoUsers(repo *sdk.SourceCodeRepo) (usermap api.UsernameMap, rerr error) {
+func (ge *GitlabExport) exportRepoUsers(repo *api.GitlabProjectInternal) (usermap api.UsernameMap, rerr error) {
 
 	usermap = make(api.UsernameMap)
 
@@ -44,7 +44,7 @@ func toWorkUser(user *sdk.SourceCodeUser) *sdk.WorkUser {
 
 type callBackSourceUser func(item *sdk.SourceCodeUser) error
 
-func (ge *GitlabExport) exportUsers(repo *sdk.SourceCodeRepo, callback callBackSourceUser) (rerr error) {
+func (ge *GitlabExport) exportUsers(repo *api.GitlabProjectInternal, callback callBackSourceUser) (rerr error) {
 	return api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (pi api.NextPage, err error) {
 		pi, arr, err := api.RepoUsersPage(ge.qc, repo, params)
 		if err != nil {

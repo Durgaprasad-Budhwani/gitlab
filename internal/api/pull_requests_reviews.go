@@ -13,7 +13,7 @@ import (
 // TODO: Fix this with updated notion docs
 func PullRequestReviews(
 	qc QueryContext,
-	repo *sdk.SourceCodeRepo,
+	repo *GitlabProjectInternal,
 	pr PullRequest,
 	params url.Values) (pi NextPage, res []*sdk.SourceCodePullRequestReview, err error) {
 

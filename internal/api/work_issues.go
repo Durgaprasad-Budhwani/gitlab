@@ -238,7 +238,7 @@ func WorkSingleIssue(
 // WorkIssuesPage graphql issue page
 func WorkIssuesPage(
 	qc QueryContext,
-	project *sdk.SourceCodeRepo,
+	project *GitlabProjectInternal,
 	nextPageP NextPage,
 	issues chan *sdk.WorkIssue) (nextPage NextPage, err error) {
 
@@ -462,7 +462,7 @@ func (i *IssueModel) ToModel(qc QueryContext, projectRefID string, projectPath s
 	return item
 }
 
-func (i *Issue2) ToModel(qc QueryContext, project *sdk.SourceCodeRepo) (*sdk.WorkIssue, error) {
+func (i *Issue2) ToModel(qc QueryContext, project *GitlabProjectInternal) (*sdk.WorkIssue, error) {
 
 	issueRefID := ExtractGraphQLID(i.ID)
 

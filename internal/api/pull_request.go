@@ -9,7 +9,7 @@ import (
 
 func PullRequestPage(
 	qc QueryContext,
-	repo *sdk.SourceCodeRepo,
+	repo *GitlabProjectInternal,
 	params url.Values,
 	prs chan PullRequest) (pi NextPage, err error) {
 

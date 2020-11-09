@@ -4,11 +4,11 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pinpt/gitlab/internal/api"
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
-func (ge *GitlabExport) fetchPullRequestsCommits(repo *sdk.SourceCodeRepo, pr api.PullRequest) (commits []*sdk.SourceCodePullRequestCommit, rerr error) {
+func (ge *GitlabExport) fetchPullRequestsCommits(repo *api.GitlabProjectInternal, pr api.PullRequest) (commits []*sdk.SourceCodePullRequestCommit, rerr error) {
 	rerr = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (api.NextPage, error) {
 		pi, commitsArr, err := api.PullRequestCommitsPage(ge.qc, repo, pr, params, t)
 		if err != nil {
@@ -22,7 +22,7 @@ func (ge *GitlabExport) fetchPullRequestsCommits(repo *sdk.SourceCodeRepo, pr ap
 
 }
 
-func (ge *GitlabExport) FetchPullRequestsCommitsAfter(repo *sdk.SourceCodeRepo, pr api.PullRequest, after time.Time) (commits []*sdk.SourceCodePullRequestCommit, rerr error) {
+func (ge *GitlabExport) FetchPullRequestsCommitsAfter(repo *api.GitlabProjectInternal, pr api.PullRequest, after time.Time) (commits []*sdk.SourceCodePullRequestCommit, rerr error) {
 	rerr = api.Paginate(ge.logger, "", after, func(log sdk.Logger, params url.Values, t time.Time) (api.NextPage, error) {
 		pi, commitsArr, err := api.PullRequestCommitsPage(ge.qc, repo, pr, params, t)
 		if err != nil {
@@ -37,7 +37,7 @@ func (ge *GitlabExport) FetchPullRequestsCommitsAfter(repo *sdk.SourceCodeRepo, 
 
 }
 
-func (ge *GitlabExport) exportPullRequestCommits(repo *sdk.SourceCodeRepo, pr api.PullRequest) (rerr error) {
+func (ge *GitlabExport) exportPullRequestCommits(repo *api.GitlabProjectInternal, pr api.PullRequest) (rerr error) {
 
 	sdk.LogDebug(ge.logger, "exporting pull requests commits", "pr", pr.Identifier)
 
