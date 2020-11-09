@@ -406,7 +406,9 @@ func CreateHelperSprintToUnsetIssues(qc QueryContext, namespace *Namespace) erro
 		}
 		iterationKey := iterationGroupKey(groupName)
 
-		return qc.State.Set(iterationKey, ExtractGraphQLID(iteration.CreateIteration.Iteration.RefID))
+		if iteration.CreateIteration != nil {
+			return qc.State.Set(iterationKey, ExtractGraphQLID(iteration.CreateIteration.Iteration.RefID))
+		}
 	}
 
 	return nil
