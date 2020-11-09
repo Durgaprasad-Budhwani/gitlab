@@ -20,7 +20,7 @@ const (
 // UsernameMap map[username]ref_id
 type UsernameMap map[string]string
 
-func RepoUsersPage(qc QueryContext, repo *sdk.SourceCodeRepo, params url.Values) (page NextPage, repos []*sdk.SourceCodeUser, err error) {
+func RepoUsersPage(qc QueryContext, repo *GitlabProjectInternal, params url.Values) (page NextPage, repos []*sdk.SourceCodeUser, err error) {
 
 	sdk.LogDebug(qc.Logger, "users request", "repo", repo.Name, "repo_ref_id", repo.RefID, "params", params)
 

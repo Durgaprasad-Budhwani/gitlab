@@ -26,8 +26,8 @@ func (g *GitlabIntegration) AutoConfigure(autoconfig sdk.AutoConfigure) (*sdk.Co
 	if config.Scope != nil && *config.Scope == sdk.OrgScope {
 		for _, ns := range namespaces {
 			if ns.Kind == "group" {
-				var repos []*sdk.SourceCodeRepo
-				err = ge.fetchNamespaceProjectsRepos(ns, func(repo *sdk.SourceCodeRepo) {
+				var repos []*api.GitlabProjectInternal
+				err = ge.fetchNamespaceProjectsRepos(ns, func(repo *api.GitlabProjectInternal) {
 					repos = append(repos, repo)
 				})
 				if err != nil {
@@ -51,8 +51,8 @@ func (g *GitlabIntegration) AutoConfigure(autoconfig sdk.AutoConfigure) (*sdk.Co
 		}
 		for _, ns := range namespaces {
 			if ns.Kind == "user" && viewer.Username == ns.Path {
-				var repos []*sdk.SourceCodeRepo
-				err = ge.fetchNamespaceProjectsRepos(ns, func(repo *sdk.SourceCodeRepo) {
+				var repos []*api.GitlabProjectInternal
+				err = ge.fetchNamespaceProjectsRepos(ns, func(repo *api.GitlabProjectInternal) {
 					repos = append(repos, repo)
 				})
 				if err != nil {

@@ -9,7 +9,7 @@ import (
 	"github.com/pinpt/gitlab/internal/api"
 )
 
-func (ge *GitlabExport) exportIssueEntitiesAndWrite(project *sdk.SourceCodeRepo, issues chan *sdk.WorkIssue, users api.UsernameMap) {
+func (ge *GitlabExport) exportIssueEntitiesAndWrite(project *api.GitlabProjectInternal, issues chan *sdk.WorkIssue, users api.UsernameMap) {
 
 	var wg sync.WaitGroup
 
@@ -33,7 +33,7 @@ func (ge *GitlabExport) exportIssueEntitiesAndWrite(project *sdk.SourceCodeRepo,
 	return
 }
 
-func (ge *GitlabExport) exportProjectIssues(project *sdk.SourceCodeRepo, users api.UsernameMap) {
+func (ge *GitlabExport) exportProjectIssues(project *api.GitlabProjectInternal, users api.UsernameMap) {
 
 	sdk.LogDebug(ge.logger, "exporting project issues", "project", project.Name)
 
@@ -58,7 +58,7 @@ func (ge *GitlabExport) exportProjectIssues(project *sdk.SourceCodeRepo, users a
 	<-done
 }
 
-func (ge *GitlabExport) fetchProjectIssues(project *sdk.SourceCodeRepo, pissues chan *sdk.WorkIssue) (err error) {
+func (ge *GitlabExport) fetchProjectIssues(project *api.GitlabProjectInternal, pissues chan *sdk.WorkIssue) (err error) {
 	var nP api.NextPage
 	for {
 		nP, err = api.WorkIssuesPage(ge.qc, project, nP, pissues)

@@ -18,7 +18,7 @@ type ResourceStateEvents struct {
 }
 
 // WorkIssuesDiscussionPage issue discussions
-func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issue *sdk.WorkIssue, usermap UsernameMap, params url.Values) (pi NextPage, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
+func WorkIssuesDiscussionPage(qc QueryContext, project *GitlabProjectInternal, issue *sdk.WorkIssue, usermap UsernameMap, params url.Values) (pi NextPage, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
 
 	params.Set("notes_filter", "0")
 	params.Set("persist_filter", "true")
@@ -160,7 +160,7 @@ func WorkIssuesDiscussionPage(qc QueryContext, project *sdk.SourceCodeRepo, issu
 	return
 }
 
-func ToProject(repo *sdk.SourceCodeRepo) *sdk.WorkProject {
+func ToProject(repo *GitlabProjectInternal) *sdk.WorkProject {
 	return &sdk.WorkProject{
 		ID:                    sdk.NewWorkProjectID(repo.CustomerID, repo.RefID, repo.RefType),
 		Active:                repo.Active,

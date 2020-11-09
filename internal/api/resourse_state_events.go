@@ -9,7 +9,7 @@ import (
 
 func getOpenCloseIssueHistoryPage(
 	qc QueryContext,
-	project *sdk.SourceCodeRepo,
+	project *GitlabProjectInternal,
 	issueIID string,
 	stopOnUpdatedAt time.Time,
 	params url.Values) (pi NextPage, rse []*ResourceStateEvents, err error) {
@@ -29,7 +29,7 @@ func getOpenCloseIssueHistoryPage(
 // GetOpenClosedIssueHistory get open closed issue history
 func GetOpenClosedIssueHistory(
 	qc QueryContext,
-	project *sdk.SourceCodeRepo,
+	project *GitlabProjectInternal,
 	issueIID string) (rse []*ResourceStateEvents, err error) {
 
 	err = Paginate(qc.Logger, "", time.Time{}, func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (NextPage, error) {

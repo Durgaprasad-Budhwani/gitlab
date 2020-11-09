@@ -56,7 +56,7 @@ const attachementQuery = `query {
 
 func getIssueAttachmentsPage(
 	qc QueryContext,
-	project *sdk.SourceCodeRepo,
+	project *GitlabProjectInternal,
 	issueRefID string,
 	designPage NextPage,
 	discussionPage NextPage) (nextDesign NextPage, nextDiscussion NextPage, attachments []*sdk.WorkIssueAttachments, err error) {
@@ -159,7 +159,7 @@ func getIssueAttachmentsPage(
 // GetIssueAttachments Get Issue Attachments
 func GetIssueAttachments(
 	qc QueryContext,
-	project *sdk.SourceCodeRepo,
+	project *GitlabProjectInternal,
 	issueRefID string) (allAttachments []sdk.WorkIssueAttachments, err error) {
 
 	var designPage, discussionPage NextPage

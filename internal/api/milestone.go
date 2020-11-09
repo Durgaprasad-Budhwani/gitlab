@@ -27,7 +27,7 @@ type Milestone struct {
 
 func RepoMilestonesPage(
 	qc QueryContext,
-	project *sdk.SourceCodeRepo,
+	project *GitlabProjectInternal,
 	stopOnUpdatedAt time.Time,
 	params url.Values) (pi NextPage, err error) {
 
@@ -35,13 +35,13 @@ func RepoMilestonesPage(
 
 	objectPath := sdk.JoinURL("projects", url.QueryEscape(project.RefID), "milestones")
 
-	return CommonMilestonesPage2(qc, params, stopOnUpdatedAt, objectPath, []*sdk.SourceCodeRepo{project})
+	return CommonMilestonesPage2(qc, params, stopOnUpdatedAt, objectPath, []*GitlabProjectInternal{project})
 }
 
 func GroupMilestonesPage(
 	qc QueryContext,
 	namespace *Namespace,
-	projects []*sdk.SourceCodeRepo,
+	projects []*GitlabProjectInternal,
 	stopOnUpdatedAt time.Time,
 	params url.Values) (pi NextPage, err error) {
 
@@ -57,7 +57,7 @@ func CommonMilestonesPage2(
 	params url.Values,
 	stopOnUpdatedAt time.Time,
 	url string,
-	repos []*sdk.SourceCodeRepo) (pi NextPage, err error) {
+	repos []*GitlabProjectInternal) (pi NextPage, err error) {
 
 	projectIDs := make([]string, 0)
 	for _, repo := range repos {

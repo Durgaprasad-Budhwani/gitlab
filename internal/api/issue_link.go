@@ -19,7 +19,7 @@ type issueLink struct {
 
 func getIssueLinksPage(
 	qc QueryContext,
-	project *sdk.SourceCodeRepo,
+	project *GitlabProjectInternal,
 	issueIID string,
 	params url.Values) (pi NextPage, linkedIssues []*sdk.WorkIssueLinkedIssues, err error) {
 
@@ -68,7 +68,7 @@ func getIssueLinksPage(
 // GetIssueLinks get issue links
 func GetIssueLinks(
 	qc QueryContext,
-	project *sdk.SourceCodeRepo,
+	project *GitlabProjectInternal,
 	issueIID string) (linkedIssues []sdk.WorkIssueLinkedIssues, err error) {
 
 	err = Paginate(qc.Logger, "", time.Time{}, func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (NextPage, error) {

@@ -60,8 +60,8 @@ func (g *GitlabIntegration) Validate(validate sdk.Validate) (map[string]interfac
 		sdk.LogDebug(ge.logger, "namespaces list", "namespaces", namespaces)
 
 		for _, namespace := range namespaces {
-			var repos []*sdk.SourceCodeRepo
-			err = ge.fetchNamespaceProjectsRepos(namespace, func(repo *sdk.SourceCodeRepo) {
+			var repos []*api.GitlabProjectInternal
+			err = ge.fetchNamespaceProjectsRepos(namespace, func(repo *api.GitlabProjectInternal) {
 				repos = append(repos, repo)
 			})
 			if err != nil {

@@ -10,7 +10,7 @@ import (
 	"github.com/pinpt/agent/v4/sdk"
 )
 
-func WorkEpicIssuesDiscussionPage(qc QueryContext, namespace *Namespace, projects []*sdk.SourceCodeRepo, epic *sdk.WorkIssue, usermap UsernameMap, params url.Values) (pi NextPage, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
+func WorkEpicIssuesDiscussionPage(qc QueryContext, namespace *Namespace, projects []*GitlabProjectInternal, epic *sdk.WorkIssue, usermap UsernameMap, params url.Values) (pi NextPage, changelogs []*sdk.WorkIssueChangeLog, comments []*sdk.WorkIssueComment, err error) {
 
 	params.Set("notes_filter", "0")
 	params.Set("persist_filter", "true")

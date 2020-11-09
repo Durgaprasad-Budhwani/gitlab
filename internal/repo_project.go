@@ -8,11 +8,11 @@ import (
 	"github.com/pinpt/gitlab/internal/api"
 )
 
-type callback func(item *sdk.SourceCodeRepo)
+type callback func(item *api.GitlabProjectInternal)
 
 func (ge *GitlabExport) fetchNamespaceProjectsRepos(namespace *api.Namespace, appendItem callback) (rerr error) {
 	return api.Paginate(ge.logger, "", ge.lastExportDate, func(log sdk.Logger, params url.Values, stopOnUpdatedAt time.Time) (api.NextPage, error) {
-		var arr []*sdk.SourceCodeRepo
+		var arr []*api.GitlabProjectInternal
 		var np api.NextPage
 		var err error
 		if namespace.Kind == "group" {
@@ -33,7 +33,7 @@ func (ge *GitlabExport) fetchNamespaceProjectsRepos(namespace *api.Namespace, ap
 	})
 }
 
-func ToProject(repo *sdk.SourceCodeRepo) *sdk.WorkProject {
+func ToProject(repo *api.GitlabProjectInternal) *sdk.WorkProject {
 	return &sdk.WorkProject{
 		ID:                    sdk.NewWorkProjectID(repo.CustomerID, repo.RefID, gitlabRefType),
 		Active:                repo.Active,

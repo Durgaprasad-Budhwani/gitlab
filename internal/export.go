@@ -163,7 +163,7 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 	sdk.LogInfo(logger, "registering webhooks", "config", sdk.Stringify(config))
 
 	// TODO: fix panic on webhooks registration to remove this condition
-	if export.CustomerID() != "b35b88cdb47ae966" && export.CustomerID() != "74b997f155252ba2" {
+	if export.CustomerID() != "b35b88cdb47ae966" {
 		err = i.registerWebhooks(gexport, allnamespaces)
 		if err != nil {
 			return err
@@ -276,7 +276,7 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 	return gexport.state.Set(gexport.lastExportKey, exportStartDate.Format(time.RFC3339))
 }
 
-func (ge *GitlabExport) exportNamespaceSourceCode(namespace *api.Namespace, projectUsersMap map[string]api.UsernameMap) ([]*sdk.SourceCodeRepo, error) {
+func (ge *GitlabExport) exportNamespaceSourceCode(namespace *api.Namespace, projectUsersMap map[string]api.UsernameMap) ([]*api.GitlabProjectInternal, error) {
 
 	if !ge.isGitlabCloud {
 		if err := ge.exportEnterpriseUsers(); err != nil {
@@ -292,7 +292,7 @@ func (ge *GitlabExport) exportNamespaceSourceCode(namespace *api.Namespace, proj
 	return repos, ge.exportCommonRepos(repos, projectUsersMap)
 }
 
-func (ge *GitlabExport) exportCommonRepos(repos []*sdk.SourceCodeRepo, projectUsersMap map[string]api.UsernameMap) error {
+func (ge *GitlabExport) exportCommonRepos(repos []*api.GitlabProjectInternal, projectUsersMap map[string]api.UsernameMap) error {
 
 	for _, repo := range repos {
 		err := ge.exportRepoAndWrite(repo, projectUsersMap)
@@ -312,7 +312,7 @@ func (ge *GitlabExport) exportCommonRepos(repos []*sdk.SourceCodeRepo, projectUs
 	return nil
 }
 
-func (ge *GitlabExport) exportRepoAndWrite(repo *sdk.SourceCodeRepo, projectUsersMap map[string]api.UsernameMap) error {
+func (ge *GitlabExport) exportRepoAndWrite(repo *api.GitlabProjectInternal, projectUsersMap map[string]api.UsernameMap) error {
 	repo.IntegrationInstanceID = ge.integrationInstanceID
 	if err := ge.pipe.Write(repo); err != nil {
 		return err
@@ -336,12 +336,12 @@ func (ge *GitlabExport) exportRepoAndWrite(repo *sdk.SourceCodeRepo, projectUser
 	return nil
 }
 
-func (ge *GitlabExport) exportProjectAndWrite(project *sdk.SourceCodeRepo, users api.UsernameMap) error {
+func (ge *GitlabExport) exportProjectAndWrite(project *api.GitlabProjectInternal, users api.UsernameMap) error {
 	ge.exportProjectIssues(project, users)
 	return nil
 }
 
-func (ge *GitlabExport) exportProjectsWork(projects []*sdk.SourceCodeRepo, projectUsersMap map[string]api.UsernameMap) (rerr error) {
+func (ge *GitlabExport) exportProjectsWork(projects []*api.GitlabProjectInternal, projectUsersMap map[string]api.UsernameMap) (rerr error) {
 
 	sdk.LogDebug(ge.logger, "exporting projects issues")
 
