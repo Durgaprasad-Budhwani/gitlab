@@ -150,8 +150,6 @@ func (wr *webHookRegistration) registerWebhook(whType sdk.WebHookScope, entityID
 
 	sdk.LogDebug(wr.ge.logger, "registering webhook", "type", whType, "entityID", entityID, "entityName", entityName)
 
-	return nil
-
 	pinptWhURL, err := wr.ge.isWebHookInstalledForCurrentVersion(whType, wr.manager, wr.customerID, wr.integrationInstanceID, entityID)
 	if err != nil {
 		sdk.LogDebug(wr.ge.logger, "webhook already installed", "webhook_id", entityID, "type", whType)
