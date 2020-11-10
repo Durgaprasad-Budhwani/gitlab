@@ -15,6 +15,14 @@ type GitlabProjectInternal struct {
 	OwnerRefID int64
 }
 
+// NewGitlabProjectInternal returns a safely initialized gitlab project internal
+func NewGitlabProjectInternal() *GitlabProjectInternal {
+	return &GitlabProjectInternal{
+		SourceCodeRepo: &sdk.SourceCodeRepo{},
+		OwnerRefID:     0,
+	}
+}
+
 // GitlabProject gitlab project
 type GitlabProject struct {
 	CreatedAt            time.Time       `json:"created_at"`

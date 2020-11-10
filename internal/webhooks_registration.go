@@ -40,7 +40,7 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 	}
 
 	sdk.LogDebug(ge.logger, "namespaces", "namespaces", sdk.Stringify(namespaces))
-	var userHasGroupWebhookAcess map[string]bool
+	userHasGroupWebhookAcess := make(map[string]bool)
 	for _, namespace := range namespaces {
 		sdk.LogDebug(ge.logger, "group webooks", "group_name", namespace.Name, "valid_tier", namespace.ValidTier)
 		if namespace.Kind == "user" {
