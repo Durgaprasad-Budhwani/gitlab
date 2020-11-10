@@ -168,7 +168,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 			scPr.MergedByRefID = rootWebHookObject.User.RefID(customerID)
 		}
 
-		repo := api.NewGitlabProjectInternal()
+		repo := &api.GitlabProjectInternal{}
 		repo.Name = rootWebHookObject.Project.Name
 		repo.RefID = projectRefID
 
@@ -240,7 +240,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 				return
 			}
 
-			repo := api.NewGitlabProjectInternal()
+			repo := &api.GitlabProjectInternal{}
 			repo.Name = rootWebHookObject.Project.Name
 			repo.RefID = projectRefID
 
@@ -264,7 +264,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 			}
 		case "open", "reopen":
 
-			repo := api.NewGitlabProjectInternal()
+			repo := &api.GitlabProjectInternal{}
 			repo.Name = rootWebHookObject.Project.Name
 			repo.RefID = projectRefID
 			var pr2 = &api.PullRequest{SourceCodePullRequest: &sdk.SourceCodePullRequest{}}

@@ -11,16 +11,8 @@ import (
 
 // GitlabProjectInternal gitlab project internal
 type GitlabProjectInternal struct {
-	*sdk.SourceCodeRepo
+	sdk.SourceCodeRepo
 	OwnerRefID int64
-}
-
-// NewGitlabProjectInternal returns a safely initialized gitlab project internal
-func NewGitlabProjectInternal() *GitlabProjectInternal {
-	return &GitlabProjectInternal{
-		SourceCodeRepo: &sdk.SourceCodeRepo{},
-		OwnerRefID:     0,
-	}
 }
 
 // GitlabProject gitlab project
@@ -80,7 +72,7 @@ func reposCommonPage(
 	for _, r := range rr {
 		repoRefID := strconv.FormatInt(r.RefID, 10)
 
-		repo := &sdk.SourceCodeRepo{
+		repo := sdk.SourceCodeRepo{
 			ID:            sdk.NewSourceCodeRepoID(qc.CustomerID, repoRefID, qc.RefType),
 			RefID:         repoRefID,
 			RefType:       qc.RefType,
