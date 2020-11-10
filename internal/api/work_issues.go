@@ -567,8 +567,6 @@ func CreateWorkIssue(qc QueryContext, body map[string]interface{}, projectRefID 
 
 	var issue IssueModel
 
-	sdk.LogDebug(qc.Logger, "debug-body", "body", sdk.Stringify(body))
-
 	_, err := qc.Post(objectPath, nil, sdk.StringifyReader(body), &issue)
 	if err != nil {
 		return nil, err

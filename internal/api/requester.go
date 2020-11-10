@@ -147,9 +147,6 @@ func (e *Requester) makeRequestRetry(req *internalRequest, generalRetry int) (np
 			return np, fmt.Errorf(`can't retry request, too many retries, err: %v`, err)
 		}
 
-		// sdk.LogDebug(e.logger, "backup - body", "body", string(backUp))
-
-		// req.Data = bytes.NewReader(backUp)
 		return e.makeRequestRetry(req, generalRetry+1)
 	}
 	return
