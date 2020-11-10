@@ -11,7 +11,7 @@ import (
 
 // GitlabProjectInternal gitlab project internal
 type GitlabProjectInternal struct {
-	*sdk.SourceCodeRepo
+	sdk.SourceCodeRepo
 	OwnerRefID int64
 }
 
@@ -72,7 +72,7 @@ func reposCommonPage(
 	for _, r := range rr {
 		repoRefID := strconv.FormatInt(r.RefID, 10)
 
-		repo := &sdk.SourceCodeRepo{
+		repo := sdk.SourceCodeRepo{
 			ID:            sdk.NewSourceCodeRepoID(qc.CustomerID, repoRefID, qc.RefType),
 			RefID:         repoRefID,
 			RefType:       qc.RefType,
