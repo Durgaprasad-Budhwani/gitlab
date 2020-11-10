@@ -11,7 +11,7 @@ import (
 
 func PullRequestCommentsPage(
 	qc QueryContext,
-	repo *sdk.SourceCodeRepo,
+	repo *GitlabProjectInternal,
 	pr PullRequest,
 	params url.Values) (pi NextPage, res []*sdk.SourceCodePullRequestComment, err error) {
 

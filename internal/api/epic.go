@@ -110,7 +110,7 @@ func EpicsPage(
 	qc QueryContext,
 	namespace *Namespace,
 	params url.Values,
-	repos []*sdk.SourceCodeRepo) (np NextPage, epics []*sdk.WorkIssue, err error) {
+	repos []*GitlabProjectInternal) (np NextPage, epics []*sdk.WorkIssue, err error) {
 
 	sdk.LogDebug(qc.Logger, "epics page", "group_name", namespace.Name, "group_id", namespace.ID, "params", params)
 

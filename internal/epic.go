@@ -8,7 +8,7 @@ import (
 	"github.com/pinpt/gitlab/internal/api"
 )
 
-func (ge *GitlabExport) exportEpics(namespace *api.Namespace, repos []*sdk.SourceCodeRepo, projectUsers map[string]api.UsernameMap) (rerr error) {
+func (ge *GitlabExport) exportEpics(namespace *api.Namespace, repos []*api.GitlabProjectInternal, projectUsers map[string]api.UsernameMap) (rerr error) {
 	if namespace.Kind == "user" {
 		return
 	}

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pinpt/gitlab/internal/api"
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
 func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.Namespace) error {
@@ -40,7 +40,7 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 	}
 
 	sdk.LogDebug(ge.logger, "namespaces", "namespaces", sdk.Stringify(namespaces))
-	var userHasProjectWebhookAcess bool
+	userHasGroupWebhookAcess := make(map[string]bool)
 	for _, namespace := range namespaces {
 		sdk.LogDebug(ge.logger, "group webooks", "group_name", namespace.Name, "valid_tier", namespace.ValidTier)
 		if namespace.Kind == "user" {
@@ -70,7 +70,7 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 				sdk.LogDebug(ge.logger, "user", "access_level", user.AccessLevel)
 
 				if user.AccessLevel >= api.Owner {
-					userHasProjectWebhookAcess = true
+					userHasGroupWebhookAcess[namespace.ID] = true
 					err = wr.registerWebhook(sdk.WebHookScopeOrg, namespace.ID, namespace.Name)
 					if err != nil {
 						namespace.MarkedToCreateProjectWebHooks = true
@@ -98,15 +98,27 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 			}
 			sdk.LogDebug(ge.logger, "namespace projects", "projects", projects)
 			for _, project := range projects {
-				sdk.LogDebug(ge.logger, "webhook for project", "project_name", project.Name)
+				sdk.LogDebug(ge.logger, "webhook for project", "project_name", project.Name, "project_ref_id", project.RefID)
+				var user *api.GitlabUser
+				if userHasGroupWebhookAcess[namespace.ID] || project.OwnerRefID == loginUser.RefID {
+					sdk.LogDebug(ge.logger, "registering webhook for project", "project_name", project.Name)
+					err = wr.registerWebhook(sdk.WebHookScopeRepo, project.RefID, project.Name)
+					if err != nil {
+						err := fmt.Errorf("error trying to register project webhooks err => %s", err)
+						webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
+						sdk.LogError(ge.logger, "error creating project webhook", "err", err)
+						return err
+					}
+					continue
+				}
 				user, err := api.ProjectUser(ge.qc, project, loginUser.StrID)
 				if err != nil {
-					err = fmt.Errorf("error trying to get project user user => %s err => %s", user.Name, err)
+					err = fmt.Errorf("error trying to get project user user => %s err => %s", loginUser.Name, err)
 					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 					return err
 				}
 				sdk.LogDebug(ge.logger, "user project level", "user_level", user.AccessLevel)
-				if user.AccessLevel >= api.Maintainer || userHasProjectWebhookAcess {
+				if user.AccessLevel >= api.Maintainer {
 					sdk.LogDebug(ge.logger, "registering webhook for project", "project_name", project.Name)
 					err = wr.registerWebhook(sdk.WebHookScopeRepo, project.RefID, project.Name)
 					if err != nil {

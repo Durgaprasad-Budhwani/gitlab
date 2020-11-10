@@ -1,7 +1,7 @@
 name: GitLab
 ref_type: gitlab
 description: This is the official GitLab integration for Pinpoint
-avatar_url: https://img.icons8.com/color/240/000000/gitlab.png
+avatar_url: https://pinpoint.com/images/integrations/GitLab.svg
 capabilities:
   - agent.Mutation
   - sourcecode.Repo

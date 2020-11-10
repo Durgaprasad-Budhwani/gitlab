@@ -192,11 +192,11 @@ func (e *Requester) request(r *internalRequest, retryThrottled int) (isErrorRetr
 		reader, err := r.getDataReader()
 		if err != nil {
 			sdk.LogDebug(e.logger, "request response", "resp", string(resp.Body))
-			return true, np, fmt.Errorf("error on post: %s", err)
+			return true, np, fmt.Errorf("error on put: %s", err)
 		}
 		resp, rerr = e.client.Put(reader, &r.Response, headers, endpoint, parameters)
 		if rerr != nil {
-			return true, np, fmt.Errorf("error on post: %s %s", rerr, string(resp.Body))
+			return true, np, fmt.Errorf("error on put: %s %s", rerr, string(resp.Body))
 		}
 	}
 

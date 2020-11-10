@@ -77,7 +77,7 @@ func (wc *WhCommit) ToSourceCodePullRequestCommit(customerID, refType, repoID, p
 // PullRequestCommitsPage pr commits page
 func PullRequestCommitsPage(
 	qc QueryContext,
-	repo *sdk.SourceCodeRepo,
+	repo *GitlabProjectInternal,
 	pr PullRequest,
 	params url.Values,
 	after time.Time) (pi NextPage, res []*sdk.SourceCodePullRequestCommit, err error) {

@@ -65,8 +65,8 @@ func (g *GitlabIntegration) Dismiss(instance sdk.Instance) error {
 				sdk.LogInfo(logger, "deleted namespace webhook", "id", namespace.ID)
 			}
 		}
-		var repos []*sdk.SourceCodeRepo
-		err = ge.fetchNamespaceProjectsRepos(namespace, func(repo *sdk.SourceCodeRepo) {
+		var repos []*api.GitlabProjectInternal
+		err = ge.fetchNamespaceProjectsRepos(namespace, func(repo *api.GitlabProjectInternal) {
 			repos = append(repos, repo)
 		})
 		if err != nil {

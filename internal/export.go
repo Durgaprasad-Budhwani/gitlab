@@ -165,9 +165,8 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 	sdk.LogInfo(logger, "registering webhooks", "config", sdk.Stringify(config))
 
 	if !skipWebhooksRegistration {
-		err = i.registerWebhooks(gexport, allnamespaces)
-		if err != nil {
-			return err
+		if err = i.registerWebhooks(gexport, allnamespaces); err != nil {
+			sdk.LogError(logger, "error registering webhooks", "err", err)
 		}
 	}
 
@@ -187,6 +186,19 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		}
 	}
 
+	validServerVersion := true
+
+	if !gexport.isGitlabCloud {
+		validServerVersion, err = gexport.ValidServerVersion()
+		if err != nil {
+			sdk.LogError(logger, "error recovering work manager state", "err", err)
+			return err
+		}
+		if !validServerVersion {
+			sdk.LogWarn(logger, "invalid gitlab version, skipping work processing")
+		}
+	}
+
 	for _, namespace := range allnamespaces {
 		l := sdk.LogWith(logger, "namespace_id", namespace.ID, "namespace_name", namespace.Name)
 		projectUsersMap := make(map[string]api.UsernameMap)
@@ -196,55 +208,58 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 			return err
 		}
 
-		if err := api.CreateHelperSprintToUnsetIssues(gexport.qc, namespace); err != nil {
-			return err
-		}
+		if validServerVersion {
 
-		err = gexport.exportProjectsWork(repos, projectUsersMap)
-		if err != nil {
-			sdk.LogWarn(l, "error exporting work repos", "err", err)
-			return err
-		}
-
-		if len(repos) > 0 {
-			if err := gexport.exportEpics(namespace, repos, projectUsersMap); err != nil {
-				sdk.LogWarn(l, "error exporting repos epics", "err", err)
+			if err := api.CreateHelperSprintToUnsetIssues(gexport.qc, namespace); err != nil {
 				return err
 			}
-		}
 
-		err = gexport.exportProjectsMilestones(repos)
-		if err != nil {
-			sdk.LogWarn(l, "error exporting repos milestones", "err", err)
-			return err
-		}
+			err = gexport.exportProjectsWork(repos, projectUsersMap)
+			if err != nil {
+				sdk.LogWarn(l, "error exporting work repos", "err", err)
+				return err
+			}
 
-		err = gexport.exportGroupMilestones(namespace, repos)
-		if err != nil {
-			sdk.LogWarn(l, "error exporting group milestones", "err", err)
-			return err
-		}
+			if len(repos) > 0 {
+				if err := gexport.exportEpics(namespace, repos, projectUsersMap); err != nil {
+					sdk.LogWarn(l, "error exporting repos epics", "err", err)
+					return err
+				}
+			}
 
-		sprints, err := gexport.fetchGroupSprints(namespace)
-		if err != nil {
-			sdk.LogWarn(l, "error fetching group sprints", "err", err)
-			return err
-		}
+			err = gexport.exportProjectsMilestones(repos)
+			if err != nil {
+				sdk.LogWarn(l, "error exporting repos milestones", "err", err)
+				return err
+			}
 
-		err = gexport.exportGroupBoards(namespace, repos)
-		if err != nil {
-			sdk.LogWarn(l, "error exporting group boards", "err", err)
-			return err
-		}
-		err = gexport.exportReposBoards(repos)
-		if err != nil {
-			sdk.LogWarn(l, "error exporting repos boards", "err", err)
-			return err
-		}
+			err = gexport.exportGroupMilestones(namespace, repos)
+			if err != nil {
+				sdk.LogWarn(l, "error exporting group milestones", "err", err)
+				return err
+			}
 
-		if err := gexport.exportSprints(sprints); err != nil {
-			sdk.LogWarn(l, "error exporting group sprints", "err", err)
-			return err
+			sprints, err := gexport.fetchGroupSprints(namespace)
+			if err != nil {
+				sdk.LogWarn(l, "error fetching group sprints", "err", err)
+				return err
+			}
+
+			err = gexport.exportGroupBoards(namespace, repos)
+			if err != nil {
+				sdk.LogWarn(l, "error exporting group boards", "err", err)
+				return err
+			}
+			err = gexport.exportReposBoards(repos)
+			if err != nil {
+				sdk.LogWarn(l, "error exporting repos boards", "err", err)
+				return err
+			}
+
+			if err := gexport.exportSprints(sprints); err != nil {
+				sdk.LogWarn(l, "error exporting group sprints", "err", err)
+				return err
+			}
 		}
 	}
 	err = gexport.repoProjectManager.PersistRepos()
@@ -261,7 +276,7 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 	return gexport.state.Set(gexport.lastExportKey, exportStartDate.Format(time.RFC3339))
 }
 
-func (ge *GitlabExport) exportNamespaceSourceCode(namespace *api.Namespace, projectUsersMap map[string]api.UsernameMap) ([]*sdk.SourceCodeRepo, error) {
+func (ge *GitlabExport) exportNamespaceSourceCode(namespace *api.Namespace, projectUsersMap map[string]api.UsernameMap) ([]*api.GitlabProjectInternal, error) {
 
 	if !ge.isGitlabCloud {
 		if err := ge.exportEnterpriseUsers(); err != nil {
@@ -277,7 +292,7 @@ func (ge *GitlabExport) exportNamespaceSourceCode(namespace *api.Namespace, proj
 	return repos, ge.exportCommonRepos(repos, projectUsersMap)
 }
 
-func (ge *GitlabExport) exportCommonRepos(repos []*sdk.SourceCodeRepo, projectUsersMap map[string]api.UsernameMap) error {
+func (ge *GitlabExport) exportCommonRepos(repos []*api.GitlabProjectInternal, projectUsersMap map[string]api.UsernameMap) error {
 
 	for _, repo := range repos {
 		err := ge.exportRepoAndWrite(repo, projectUsersMap)
@@ -297,7 +312,7 @@ func (ge *GitlabExport) exportCommonRepos(repos []*sdk.SourceCodeRepo, projectUs
 	return nil
 }
 
-func (ge *GitlabExport) exportRepoAndWrite(repo *sdk.SourceCodeRepo, projectUsersMap map[string]api.UsernameMap) error {
+func (ge *GitlabExport) exportRepoAndWrite(repo *api.GitlabProjectInternal, projectUsersMap map[string]api.UsernameMap) error {
 	repo.IntegrationInstanceID = ge.integrationInstanceID
 	if err := ge.pipe.Write(repo); err != nil {
 		return err
@@ -321,12 +336,12 @@ func (ge *GitlabExport) exportRepoAndWrite(repo *sdk.SourceCodeRepo, projectUser
 	return nil
 }
 
-func (ge *GitlabExport) exportProjectAndWrite(project *sdk.SourceCodeRepo, users api.UsernameMap) error {
+func (ge *GitlabExport) exportProjectAndWrite(project *api.GitlabProjectInternal, users api.UsernameMap) error {
 	ge.exportProjectIssues(project, users)
 	return nil
 }
 
-func (ge *GitlabExport) exportProjectsWork(projects []*sdk.SourceCodeRepo, projectUsersMap map[string]api.UsernameMap) (rerr error) {
+func (ge *GitlabExport) exportProjectsWork(projects []*api.GitlabProjectInternal, projectUsersMap map[string]api.UsernameMap) (rerr error) {
 
 	sdk.LogDebug(ge.logger, "exporting projects issues")
 

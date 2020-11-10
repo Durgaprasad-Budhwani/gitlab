@@ -11,7 +11,7 @@ import (
 	"github.com/pinpt/gitlab/internal/api"
 )
 
-func (ge *GitlabExport) exportIssueFields(project *sdk.SourceCodeRepo, issue *sdk.WorkIssue, projectUsers api.UsernameMap) (rerr error) {
+func (ge *GitlabExport) exportIssueFields(project *api.GitlabProjectInternal, issue *sdk.WorkIssue, projectUsers api.UsernameMap) (rerr error) {
 
 	sdk.LogDebug(ge.logger, "exporting issue changelog", "issue", issue.Identifier)
 
@@ -91,7 +91,7 @@ func (ge *GitlabExport) exportIssueFields(project *sdk.SourceCodeRepo, issue *sd
 	return
 }
 
-func (ge *GitlabExport) fetchIssueDiscussions(project *sdk.SourceCodeRepo, issue *sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, rerr error) {
+func (ge *GitlabExport) fetchIssueDiscussions(project *api.GitlabProjectInternal, issue *sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, rerr error) {
 
 	rerr = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (np api.NextPage, rerr error) {
 		np, arr, comments, err := api.WorkIssuesDiscussionPage(ge.qc, project, issue, projectUsers, params)
@@ -124,7 +124,7 @@ func (ge *GitlabExport) writeProjectIssues(commits []*sdk.SourceCodePullRequestC
 	return
 }
 
-func (ge *GitlabExport) fetchEpicIssueDiscussions(namespace *api.Namespace, projects []*sdk.SourceCodeRepo, epic *sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, err error) {
+func (ge *GitlabExport) fetchEpicIssueDiscussions(namespace *api.Namespace, projects []*api.GitlabProjectInternal, epic *sdk.WorkIssue, projectUsers api.UsernameMap) (changelogs []sdk.WorkIssueChangeLog, err error) {
 
 	err = api.Paginate(ge.logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (api.NextPage, error) {
 		pi, arr, comments, err := api.WorkEpicIssuesDiscussionPage(ge.qc, namespace, projects, epic, projectUsers, params)

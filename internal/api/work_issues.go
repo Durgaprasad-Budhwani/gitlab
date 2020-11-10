@@ -238,7 +238,7 @@ func WorkSingleIssue(
 // WorkIssuesPage graphql issue page
 func WorkIssuesPage(
 	qc QueryContext,
-	project *sdk.SourceCodeRepo,
+	project *GitlabProjectInternal,
 	nextPageP NextPage,
 	issues chan *sdk.WorkIssue) (nextPage NextPage, err error) {
 
@@ -257,12 +257,20 @@ func WorkIssuesPage(
 				} `json:"edges"`
 			} `json:"issues"`
 		} `json:"project"`
+		Error            string `json:"error"`
+		ErrorDescription string `json:"error_description"`
+		Scope            string `json:"scope"`
 	}
 
 	query := fmt.Sprintf(issuesQuery, project.Name, nextPageP)
 
 	err = qc.GraphRequester.Query(query, nil, &Data)
 	if err != nil {
+		return
+	}
+
+	if Data.Error != "" {
+		err = fmt.Errorf("error getting issues, err %s, project %s, project_ref_id %s ", sdk.Stringify(Data), project.Name, project.RefID)
 		return
 	}
 
@@ -455,7 +463,7 @@ func (i *IssueModel) ToModel(qc QueryContext, projectRefID string, projectPath s
 	return item
 }
 
-func (i *Issue2) ToModel(qc QueryContext, project *sdk.SourceCodeRepo) (*sdk.WorkIssue, error) {
+func (i *Issue2) ToModel(qc QueryContext, project *GitlabProjectInternal) (*sdk.WorkIssue, error) {
 
 	issueRefID := ExtractGraphQLID(i.ID)
 

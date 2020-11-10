@@ -5,11 +5,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pinpt/gitlab/internal/api"
 	"github.com/pinpt/agent/v4/sdk"
+	"github.com/pinpt/gitlab/internal/api"
 )
 
-func (ge *GitlabExport) exportRepoPullRequests(repo *sdk.SourceCodeRepo) {
+func (ge *GitlabExport) exportRepoPullRequests(repo *api.GitlabProjectInternal) {
 
 	sdk.LogDebug(ge.logger, "pull requests", "repo", repo.Name)
 
@@ -34,7 +34,7 @@ func (ge *GitlabExport) exportRepoPullRequests(repo *sdk.SourceCodeRepo) {
 	<-done
 }
 
-func (ge *GitlabExport) exportRemainingRepoPullRequests(repo *sdk.SourceCodeRepo) {
+func (ge *GitlabExport) exportRemainingRepoPullRequests(repo *api.GitlabProjectInternal) {
 
 	sdk.LogDebug(ge.logger, "remaining pull requests", "repo", repo.Name)
 
@@ -59,7 +59,7 @@ func (ge *GitlabExport) exportRemainingRepoPullRequests(repo *sdk.SourceCodeRepo
 	<-done
 }
 
-func (ge *GitlabExport) exportPullRequestEntitiesAndWrite(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) {
+func (ge *GitlabExport) exportPullRequestEntitiesAndWrite(repo *api.GitlabProjectInternal, prs chan api.PullRequest) {
 
 	var wg sync.WaitGroup
 
@@ -96,17 +96,19 @@ func (ge *GitlabExport) exportPullRequestEntitiesAndWrite(repo *sdk.SourceCodeRe
 	wg.Wait()
 }
 
-func (ge *GitlabExport) fetchInitialRepoPullRequests(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) (pi api.NextPage, rerr error) {
+func (ge *GitlabExport) fetchInitialRepoPullRequests(repo *api.GitlabProjectInternal, prs chan api.PullRequest) (pi api.NextPage, rerr error) {
 	params := url.Values{}
 
 	if ge.lastExportDateGitlabFormat != "" {
 		params.Set("updated_after", ge.lastExportDateGitlabFormat)
 	}
+	params.Set("per_page", "100")
+	params.Set("page", "1")
 
 	return api.PullRequestPage(ge.qc, repo, params, prs)
 }
 
-func (ge *GitlabExport) fetchRemainingRepoPullRequests(repo *sdk.SourceCodeRepo, prs chan api.PullRequest) (rerr error) {
+func (ge *GitlabExport) fetchRemainingRepoPullRequests(repo *api.GitlabProjectInternal, prs chan api.PullRequest) (rerr error) {
 	rerr = api.Paginate(ge.logger, "2", time.Time{}, func(log sdk.Logger, params url.Values, _ time.Time) (pi api.NextPage, rerr error) {
 		if ge.lastExportDateGitlabFormat != "" {
 			params.Set("updated_after", ge.lastExportDateGitlabFormat)
