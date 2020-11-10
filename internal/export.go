@@ -162,8 +162,7 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 
 	sdk.LogInfo(logger, "registering webhooks", "config", sdk.Stringify(config))
 
-	err = i.registerWebhooks(gexport, allnamespaces)
-	if err != nil {
+	if err = i.registerWebhooks(gexport, allnamespaces); err != nil {
 		sdk.LogError(logger, "error registering webhooks", "err", err)
 	}
 
