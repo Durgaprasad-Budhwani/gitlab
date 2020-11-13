@@ -14,9 +14,9 @@ func (ge *GitlabExport) writeProjectCapacity(repo *sdk.WorkProject) error {
 	if !ge.historical && ge.state.Exists(cacheKey) {
 		return nil
 	}
-	sdk.LogDebug(ge.logger, "debug-debug calculating capabilities", "repo", repo.Name)
 	var capability sdk.WorkProjectCapability
 	capability.CustomerID = repo.CustomerID
+	capability.Active = true
 	capability.RefID = repo.RefID
 	capability.RefType = repo.RefType
 	capability.IntegrationInstanceID = repo.IntegrationInstanceID
@@ -35,8 +35,9 @@ func (ge *GitlabExport) writeProjectCapacity(repo *sdk.WorkProject) error {
 	capability.Sprints = true
 	capability.StoryPoints = false // TODO could this be equal to weight?
 	capability.IssueMutationFields = createMutationFields()
-	ge.state.SetWithExpires(cacheKey, 1, time.Hour*24*30)
-	sdk.LogDebug(ge.logger, "debug-debug finished ", "repo", repo.Name, "capabilities", sdk.Stringify(capability))
+	if err := ge.state.SetWithExpires(cacheKey, 1, time.Hour*24*30); err != nil {
+		return err
+	}
 	return ge.pipe.Write(&capability)
 }
 

@@ -61,9 +61,6 @@ func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config,
 
 func gitlabExport(i *GitlabIntegration, logger sdk.Logger, export sdk.Export) (ge GitlabExport, rerr error) {
 
-	// TODO: Add logic for incrementals
-	// to get users and repos details
-	// if there is not system hook available
 	ge, rerr = i.SetQueryConfig(logger, export.Config(), i.manager, export.CustomerID())
 	if rerr != nil {
 		return
@@ -120,7 +117,6 @@ func (ge *GitlabExport) exportDate() (rerr error) {
 	return
 }
 
-// GitlabRefType Integraion constant type
 const gitlabRefType = "gitlab"
 
 // Export is called to tell the integration to run an export

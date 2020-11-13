@@ -32,3 +32,4 @@ installation:
       - oauth2
       - apikey
       - basic
+user_scope: global

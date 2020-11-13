@@ -157,6 +157,7 @@ func (u *UserModel) ToSourceCodeUser(customerID string) *sdk.SourceCodeUser {
 		Name:       u.Name,
 		RefID:      refID,
 		AvatarURL:  sdk.StringPointer(u.AvatarURL),
+		AssociatedRefID: sdk.StringPointer(sdk.Hash(customerID, u.Email)),
 		URL:        sdk.StringPointer(u.WebURL),
 		Type:       userType,
 		CustomerID: customerID,

@@ -59,7 +59,7 @@ func reposCommonPage(
 	params url.Values,
 	stopOnUpdatedAt time.Time,
 	objectPath string,
-	afiliation sdk.SourceCodeRepoAffiliation,
+	affiliation sdk.SourceCodeRepoAffiliation,
 	groupName string) (page NextPage, repos []*GitlabProjectInternal, err error) {
 
 	var rr []GitlabProject
@@ -93,7 +93,7 @@ func reposCommonPage(
 		if len(r.ForkedFromProject) > 0 {
 			repo.Affiliation = sdk.SourceCodeRepoAffiliationThirdparty
 		} else {
-			repo.Affiliation = afiliation
+			repo.Affiliation = affiliation
 		}
 
 		rr := &GitlabProjectInternal{}

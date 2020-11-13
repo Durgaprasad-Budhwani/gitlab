@@ -86,9 +86,9 @@ func PullRequestCommitsPage(
 
 	objectPath := sdk.JoinURL("projects", repo.RefID, "merge_requests", pr.IID, "commits")
 
-	var rcommits []PrCommit
+	var commits []PrCommit
 
-	pi, err = qc.Get(objectPath, params, &rcommits)
+	pi, err = qc.Get(objectPath, params, &commits)
 	if err != nil {
 		return
 	}
@@ -96,24 +96,11 @@ func PullRequestCommitsPage(
 	repoID := sdk.NewSourceCodeRepoID(qc.CustomerID, repo.RefID, qc.RefType)
 	pullRequestID := sdk.NewSourceCodePullRequestID(qc.CustomerID, pr.RefID, qc.RefType, repoID)
 
-	for _, rcommit := range rcommits {
-		if !after.IsZero() && rcommit.CreatedAt.Before(after) {
+	for _, commit := range commits {
+		if !after.IsZero() && commit.CreatedAt.Before(after) {
 			return
 		}
-
-		author := commitAuthorUserToAuthor(&rcommit)
-		err = qc.UserManager.EmitGitUser(qc.Logger, author)
-		if err != nil {
-			return
-		}
-
-		author = commitCommiterUserToAuthor(&rcommit)
-		err = qc.UserManager.EmitGitUser(qc.Logger, author)
-		if err != nil {
-			return
-		}
-
-		item := rcommit.ToSourceCodePullRequestCommit(qc.CustomerID, qc.RefType, repoID, pullRequestID)
+		item := commit.ToSourceCodePullRequestCommit(qc.CustomerID, qc.RefType, repoID, pullRequestID)
 		res = append(res, item)
 	}
 

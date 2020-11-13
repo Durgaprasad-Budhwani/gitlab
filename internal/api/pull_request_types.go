@@ -82,7 +82,7 @@ func (a *author) ToModel(customerID string, integrationInstanceID string) *sdk.S
 	user := &sdk.SourceCodeUser{}
 	user.CustomerID = customerID
 	user.RefID = a.RefID(customerID)
-	user.RefType = "gitlab"
+	user.RefType = gitlabRefType
 	user.IntegrationInstanceID = sdk.StringPointer(integrationInstanceID)
 	user.URL = sdk.StringPointer(a.WebURL)
 	user.AvatarURL = sdk.StringPointer(a.AvatarURL)

@@ -162,7 +162,12 @@ func makeCreateMutation(logger sdk.Logger, fields []sdk.MutationFieldValue) (map
 
 			params["start_date_fixed"] = d.Format(api.GitLabDateTimeFormat)
 			params["start_date_is_fixed"] = true
-
+		case "assignee":
+			assigneeRefID, err := getRefID(fieldVal)
+			if err != nil {
+				return nil, "", fmt.Errorf("error decoding assignee field: %w", err)
+			}
+			params["assignee_ids"] = []string{assigneeRefID}
 		}
 	}
 	return params, issueType, nil

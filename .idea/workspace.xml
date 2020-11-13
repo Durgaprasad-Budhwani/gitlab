@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="583d60ed-08d7-447f-8ac1-51ef581e402c" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/integration.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/integration.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/api/group_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/api/group_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/api/project.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/api/project.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/api/pull_request_types.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/api/pull_request_types.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/api/pull_requests_commits.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/api/pull_requests_commits.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/api/users.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/api/users.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/api/work_issues.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/api/work_issues.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/capacity.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/capacity.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/export.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/export.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/user.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/user.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/webhook.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/webhook.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/work_issue.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/work_issue.go" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="GOROOT" path="/usr/local/Cellar/go/1.15.3/libexec" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GoLibraries">
+    <option name="indexEntireGoPath" value="false" />
+  </component>
+  <component name="ProjectId" id="1kAr4vw0Dwnqai2PlagL5eGMets" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="configurable.Global.GOPATH.is.expanded" value="true" />
+    <property name="configurable.Module.GOPATH.is.expanded" value="false" />
+    <property name="configurable.Project.GOPATH.is.expanded" value="true" />
+    <property name="go.import.settings.migrated" value="true" />
+    <property name="go.sdk.automatically.set" value="true" />
+    <property name="go.tried.to.enable.integration.vgo.integrator" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="nodejs_package_manager_path" value="npm" />
+    <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VgoProject">
+    <integration-enabled>true</integration-enabled>
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="3760" y="1220" key="#Go_Modules" timestamp="1605194066356">
+      <screen x="3000" y="840" width="1920" height="1080" />
+    </state>
+    <state x="3760" y="1220" key="#Go_Modules/3000.840.1920.1080/0.0.1080.1920/1080.840.1920.1080/4920.59.1080.1920@3000.840.1920.1080" timestamp="1605194066356" />
+    <state x="3705" y="1211" key="#Notifications" timestamp="1605154422728">
+      <screen x="3000" y="840" width="1920" height="1080" />
+    </state>
+    <state x="3705" y="1211" key="#Notifications/3000.840.1920.1080/0.0.1080.1920/1080.840.1920.1080/4920.59.1080.1920@3000.840.1920.1080" timestamp="1605154422728" />
+    <state x="3047" y="805" width="1206" height="722" key="SettingsEditor" timestamp="1605298689648">
+      <screen x="3000" y="621" width="1920" height="1080" />
+    </state>
+    <state x="3047" y="805" key="SettingsEditor/0.0.1080.1920/1080.621.1920.1080/3000.621.1920.1080/4920.53.1080.1920@3000.621.1920.1080" timestamp="1605298689648" />
+    <state x="1303" y="1041" key="SettingsEditor/3000.840.1920.1080/0.0.1080.1920/1080.840.1920.1080/4920.59.1080.1920@1080.840.1920.1080" timestamp="1605155752698" />
+    <state x="3147" y="1015" width="1206" height="722" key="SettingsEditor/3000.840.1920.1080/0.0.1080.1920/1080.840.1920.1080/4920.59.1080.1920@3000.840.1920.1080" timestamp="1605156536090" />
+    <state x="3047" y="1024" width="1732" height="722" key="SettingsEditor/3000.840.1920.1080/0.23.1080.1897/1080.863.1920.1057/4920.82.1080.1897@3000.840.1920.1080" timestamp="1605156744436" />
+    <state x="3469" y="1030" key="SettingsEditor/3000.863.1920.1057/42.23.1038.1897/1080.863.1920.1057/4920.82.1080.1897@3000.863.1920.1057" timestamp="1605154090920" />
+    <state width="254" height="200" key="ShowFilterAction_Filter_Popup" timestamp="1605298270860">
+      <screen x="3000" y="621" width="1920" height="1080" />
+    </state>
+    <state width="254" height="200" key="ShowFilterAction_Filter_Popup/0.0.1080.1920/1080.621.1920.1080/3000.621.1920.1080/4920.53.1080.1920@3000.621.1920.1080" timestamp="1605298270860" />
+    <state x="3625" y="862" width="670" height="676" key="search.everywhere.popup" timestamp="1605298601693">
+      <screen x="3000" y="621" width="1920" height="1080" />
+    </state>
+    <state x="3625" y="862" width="670" height="676" key="search.everywhere.popup/0.0.1080.1920/1080.621.1920.1080/3000.621.1920.1080/4920.53.1080.1920@3000.621.1920.1080" timestamp="1605298601693" />
+  </component>
+</project>

@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	ast "github.com/stretchr/testify/assert"
 )
 
 func TestIsValidTier(t *testing.T) {
 
-	assert := assert.New(t)
+	assert := ast.New(t)
 
 	type namespace struct {
 		json.RawMessage

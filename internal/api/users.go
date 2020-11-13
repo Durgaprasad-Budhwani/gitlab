@@ -48,7 +48,6 @@ func RepoUsersPage(qc QueryContext, repo *GitlabProjectInternal, params url.Valu
 		sourceUser.Name = user.Name
 		sourceUser.AvatarURL = sdk.StringPointer(user.AvatarURL)
 		sourceUser.Username = sdk.StringPointer(user.Username)
-		sourceUser.Member = true
 		sourceUser.Type = sdk.SourceCodeUserTypeHuman
 		sourceUser.URL = sdk.StringPointer(user.WebURL)
 
@@ -142,7 +141,7 @@ func (a *GitUser) ToModel(customerID string, integrationInstanceID string) *sdk.
 	user := &sdk.SourceCodeUser{}
 	user.CustomerID = customerID
 	user.RefID = a.RefID(customerID)
-	user.RefType = "gitlab"
+	user.RefType = gitlabRefType
 	if a.Email != "" {
 		id := sdk.Hash(customerID, a.Email)
 		if id != user.RefID {
@@ -154,14 +153,12 @@ func (a *GitUser) ToModel(customerID string, integrationInstanceID string) *sdk.
 	user.AvatarURL = sdk.StringPointer(a.Avatar)
 	user.Email = sdk.StringPointer(a.Email)
 	user.Name = a.Name
-	var userType sdk.SourceCodeUserType
 	if strings.Contains(a.Name, "Bot") {
-		userType = sdk.SourceCodeUserTypeBot
+		user.Type = sdk.SourceCodeUserTypeBot
 	} else {
-		userType = sdk.SourceCodeUserTypeHuman
+		user.Type = sdk.SourceCodeUserTypeHuman
 	}
 
-	user.Type = userType
 	user.Username = sdk.StringPointer("")
 
 	return user

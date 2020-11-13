@@ -28,6 +28,12 @@ func (a *user) ToModel(customerID string, integrationInstanceID string) *sdk.Sou
 	user := &sdk.SourceCodeUser{}
 	user.CustomerID = customerID
 	user.RefID = a.RefID(customerID)
+	if a.Email != "" {
+		id := sdk.Hash(customerID, a.Email)
+		if id != user.RefID {
+			user.AssociatedRefID = sdk.StringPointer(id)
+		}
+	}
 	user.RefType = gitlabRefType
 	user.IntegrationInstanceID = sdk.StringPointer(integrationInstanceID)
 	user.URL = sdk.StringPointer("")
