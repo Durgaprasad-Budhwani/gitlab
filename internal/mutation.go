@@ -12,7 +12,7 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 
 	logger := sdk.LogWith(mutation.Logger(), "integration_event", "mutation")
 
-	sdk.LogInfo(logger, "mutation request received", "action", mutation.Action(), "id", mutation.ID(), "model", mutation.Model(), "mutation", mutation.IntegrationInstanceID())
+	sdk.LogInfo(logger, "mutation request received", "action", mutation.Action(), "id", mutation.ID(), "model", mutation.Model())
 
 	user := mutation.User()
 	var c sdk.Config
