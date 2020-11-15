@@ -13,6 +13,7 @@ import (
 type GitlabProjectInternal struct {
 	sdk.SourceCodeRepo
 	OwnerRefID int64
+	Labels []*GitlabLabel
 }
 
 // GitlabProject gitlab project

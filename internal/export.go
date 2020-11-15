@@ -317,7 +317,10 @@ func (ge *GitlabExport) exportRepoAndWrite(repo *api.GitlabProjectInternal, proj
 	if err := ge.pipe.Write(p); err != nil {
 		return err
 	}
-	if err := ge.writeProjectCapacity(p); err != nil {
+	if err := ge.appendProjectLabels(repo); err != nil {
+		return err
+	}
+	if err := ge.writeProjectCapacity(repo); err != nil {
 		return err
 	}
 	ge.repoProjectManager.AddRepo(repo)

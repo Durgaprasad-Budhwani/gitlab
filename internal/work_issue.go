@@ -168,6 +168,18 @@ func makeCreateMutation(logger sdk.Logger, fields []sdk.MutationFieldValue) (map
 				return nil, "", fmt.Errorf("error decoding assignee field: %w", err)
 			}
 			params["assignee_ids"] = []string{assigneeRefID}
+		case "weight":
+			weight, err := fieldVal.AsNumber()
+			if err != nil {
+				return nil, "", fmt.Errorf("error decoding weight field: %w", err)
+			}
+			params["weight"] = weight
+		case "label":
+			labelName, err := getNameRefID(fieldVal)
+			if err != nil {
+				return nil, "", fmt.Errorf("error decoding label field: %w", err)
+			}
+			params["labels"] = []string{labelName}
 		}
 	}
 	return params, issueType, nil
@@ -182,4 +194,15 @@ func getRefID(val sdk.MutationFieldValue) (string, error) {
 		return "", errors.New("ref_id was omitted")
 	}
 	return *nameID.RefID, nil
+}
+
+func getNameRefID(val sdk.MutationFieldValue) (string, error) {
+	nameID, err := val.AsNameRefID()
+	if err != nil {
+		return "", fmt.Errorf("error decoding %s field as NameRefID: %w", val.Type.String(), err)
+	}
+	if nameID.RefID == nil {
+		return "", errors.New("ref_id was omitted")
+	}
+	return *nameID.Name, nil
 }

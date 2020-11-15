@@ -14,6 +14,8 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 
 	sdk.LogInfo(logger, "mutation request received", "action", mutation.Action(), "id", mutation.ID(), "model", mutation.Model())
 
+
+
 	user := mutation.User()
 	var c sdk.Config
 	c.APIKeyAuth = user.APIKeyAuth

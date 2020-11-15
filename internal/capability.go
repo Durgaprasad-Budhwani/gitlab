@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"github.com/pinpt/integration-sdk/work"
+	"strings"
 	"time"
 
 	"github.com/pinpt/agent/v4/sdk"
@@ -9,19 +11,22 @@ import (
 
 const projectCapabilityCacheKeyPrefix = "project_capability_"
 
-func (ge *GitlabExport) writeProjectCapacity(repo *sdk.WorkProject) error {
-	var cacheKey = projectCapabilityCacheKeyPrefix + repo.ID
+func (ge *GitlabExport) writeProjectCapacity(repo *api.GitlabProjectInternal) error {
+
+	project := ToProject(repo)
+
+	var cacheKey = projectCapabilityCacheKeyPrefix + project.ID
 	if !ge.historical && ge.state.Exists(cacheKey) {
 		return nil
 	}
 	var capability sdk.WorkProjectCapability
-	capability.CustomerID = repo.CustomerID
+	capability.CustomerID = project.CustomerID
 	capability.Active = true
-	capability.RefID = repo.RefID
-	capability.RefType = repo.RefType
-	capability.IntegrationInstanceID = repo.IntegrationInstanceID
-	capability.ProjectID = sdk.NewWorkProjectID(repo.CustomerID, repo.RefID, ge.qc.RefType)
-	capability.UpdatedAt = repo.UpdatedAt
+	capability.RefID = project.RefID
+	capability.RefType = project.RefType
+	capability.IntegrationInstanceID = project.IntegrationInstanceID
+	capability.ProjectID = sdk.NewWorkProjectID(project.CustomerID, project.RefID, ge.qc.RefType)
+	capability.UpdatedAt = project.UpdatedAt
 	capability.Attachments = false // TODO
 	capability.ChangeLogs = true
 	capability.DueDates = false
@@ -34,14 +39,27 @@ func (ge *GitlabExport) writeProjectCapacity(repo *sdk.WorkProject) error {
 	capability.Resolutions = false
 	capability.Sprints = true
 	capability.StoryPoints = false // TODO could this be equal to weight?
-	capability.IssueMutationFields = createMutationFields()
+	capability.IssueMutationFields = createMutationFields(repo.Labels)
 	if err := ge.state.SetWithExpires(cacheKey, 1, time.Hour*24*30); err != nil {
 		return err
 	}
 	return ge.pipe.Write(&capability)
 }
 
-func createMutationFields() []sdk.WorkProjectCapabilityIssueMutationFields {
+func createMutationFields(labels []*api.GitlabLabel) []sdk.WorkProjectCapabilityIssueMutationFields {
+
+	lblsValues := make([]work.ProjectCapabilityIssueMutationFieldsValues,0)
+
+	for _,lbl := range labels {
+		if lbl.Name != api.BugIssueType &&
+			lbl.Name != strings.ToLower(api.EnhancementIssueType) &&
+			lbl.Name != strings.ToLower(api.IncidentIssueType) {
+			lblsValues = append(lblsValues,work.ProjectCapabilityIssueMutationFieldsValues{
+				Name: sdk.StringPointer(lbl.Name),
+				RefID: sdk.StringPointer(lbl.Name),
+			})
+		}
+	}
 
 	issueTypes := []string{
 		api.BugIssueType,
@@ -168,20 +186,21 @@ func createMutationFields() []sdk.WorkProjectCapabilityIssueMutationFields {
 			}),
 			Type: sdk.WorkProjectCapabilityIssueMutationFieldsTypeDate,
 		},
-		// {
-		// 	AlwaysAvailable: false,
-		// 	Name:            "Label",
-		// 	Description:     sdk.StringPointer("label"),
-		// 	AlwaysRequired:  false,
-		// 	RefID:           "milestone",
-		// 	Immutable:       false,
-		// 	AvailableForTypes: append([]string{
-		// 		api.BugIssueType,
-		// 		api.IncidentIssueType,
-		// 		api.EnhancementIssueType,
-		// 	}),
-		// 	Type: sdk.WorkProjectCapabilityIssueMutationFieldsTypeStringArray,
-		// },
+		{
+			AlwaysAvailable: false,
+			Name:            "Label",
+			Description:     sdk.StringPointer("label"),
+			AlwaysRequired:  false,
+			RefID:           "label",
+			Immutable:       false,
+			AvailableForTypes: append([]string{
+				api.BugIssueType,
+				api.IncidentIssueType,
+				api.EnhancementIssueType,
+			}),
+			Type: sdk.WorkProjectCapabilityIssueMutationFieldsTypeStringArray,
+			Values: lblsValues,
+		},
 		// We may need some a new type of this to be able to select 0 or many
 	}
 
