@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"github.com/pinpt/integration-sdk/work"
 	"strings"
 	"time"
 
@@ -48,13 +47,13 @@ func (ge *GitlabExport) writeProjectCapacity(repo *api.GitlabProjectInternal) er
 
 func createMutationFields(labels []*api.GitlabLabel) []sdk.WorkProjectCapabilityIssueMutationFields {
 
-	lblsValues := make([]work.ProjectCapabilityIssueMutationFieldsValues,0)
+	lblsValues := make([]sdk.WorkProjectCapabilityIssueMutationFieldsValues,0)
 
 	for _,lbl := range labels {
 		if lbl.Name != api.BugIssueType &&
 			lbl.Name != strings.ToLower(api.EnhancementIssueType) &&
 			lbl.Name != strings.ToLower(api.IncidentIssueType) {
-			lblsValues = append(lblsValues,work.ProjectCapabilityIssueMutationFieldsValues{
+			lblsValues = append(lblsValues,sdk.WorkProjectCapabilityIssueMutationFieldsValues{
 				Name: sdk.StringPointer(lbl.Name),
 				RefID: sdk.StringPointer(lbl.Name),
 			})
