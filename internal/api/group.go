@@ -29,7 +29,21 @@ func AllNamespaces(qc QueryContext) (allnamespaces []*Namespace, err error) {
 	err = Paginate(qc.Logger, "", time.Time{}, func(log sdk.Logger, paginationParams url.Values, t time.Time) (np NextPage, _ error) {
 		paginationParams.Set("top_level_only", "true")
 
-		pi, namespaces, err := namespaces(qc, paginationParams)
+		pi, namespaces, err := NamespacesPage(qc, paginationParams)
+		if err != nil {
+			return pi, err
+		}
+		allnamespaces = append(allnamespaces, namespaces...)
+		return pi, nil
+	})
+	return
+}
+
+func AllNamespaces2(qc QueryContext2,logger sdk.Logger) (allnamespaces []*GitlabNamespace, err error) {
+	err = Paginate2("", time.Time{}, func( paginationParams url.Values, t time.Time) (np NextPage, _ error) {
+		paginationParams.Set("top_level_only", "true")
+
+		pi, namespaces, err := NamespacesPage2(qc,logger, paginationParams)
 		if err != nil {
 			return pi, err
 		}
@@ -63,7 +77,7 @@ func (g *rawNamespace) reset() {
 }
 
 // Namespaces fetch namespaces
-func namespaces(qc QueryContext, params url.Values) (np NextPage, namespaces []*Namespace, err error) {
+func NamespacesPage(qc QueryContext, params url.Values) (np NextPage, namespaces []*Namespace, err error) {
 
 	sdk.LogDebug(qc.Logger, "namespaces request", "params", sdk.Stringify(params))
 
@@ -105,6 +119,65 @@ func namespaces(qc QueryContext, params url.Values) (np NextPage, namespaces []*
 		})
 		namespace.reset()
 	}
+
+	return
+}
+
+
+type GitlabNamespace struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	FullPath string `json:"full_path"`
+	Path     string `json:"path"`
+	ParentID int64  `json:"parent_id"`
+	// If we have this field it means there is a valid tier
+	MembersCountWithDescendants *int64 `json:"members_count_with_descendants"`
+	AvatarURL                   string          `json:"avatar_url"`
+	Kind                        string          `json:"kind"`
+}
+// Namespaces fetch namespaces
+func NamespacesPage2(qc QueryContext2,logger sdk.Logger, params url.Values) (np NextPage, namespaces []*GitlabNamespace, err error) {
+
+	sdk.LogDebug(logger, "namespaces request", "params", sdk.Stringify(params))
+
+	objectPath := "namespaces"
+
+	//var rawNamespaces []*GitlabNamespace
+
+	np, err = qc.Get(logger, objectPath, params, &namespaces)
+	if err != nil {
+		return
+	}
+
+	//var namespace GitlabNamespace
+
+	//for _, n := range rawNamespaces {
+	//	err = json.Unmarshal(n, &namespace)
+	//	if err != nil {
+	//		return
+	//	}
+	//
+	//	// Skip subgroups
+	//	if namespace.ParentID != 0 {
+	//		namespace.reset()
+	//		continue
+	//	}
+	//
+	//	if !strings.Contains(namespace.AvatarURL, "https") && namespace.AvatarURL != "" {
+	//		namespace.AvatarURL = qc.BaseURL + namespace.AvatarURL
+	//	}
+	//
+	//	namespaces = append(namespaces, &Namespace{
+	//		ID:        strconv.FormatInt(namespace.ID, 10),
+	//		Name:      namespace.Name,
+	//		FullPath:  namespace.FullPath,
+	//		ValidTier: isValidTier(n),
+	//		AvatarURL: namespace.AvatarURL,
+	//		Kind:      namespace.Kind,
+	//		Path:      namespace.Path,
+	//	})
+	//	namespace.reset()
+	//}
 
 	return
 }

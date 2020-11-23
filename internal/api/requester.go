@@ -44,6 +44,7 @@ type internalRequest struct {
 	backUpData  []byte
 	Response    interface{}
 	RequestType requestType
+	logger sdk.Logger
 }
 
 func (i *internalRequest) getDataReader() (io.Reader, error) {

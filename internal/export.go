@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"github.com/pinpt/gitlab/internal/common"
 	"net/url"
 	"time"
 
@@ -25,26 +26,24 @@ type GitlabExport struct {
 	repoProjectManager         *RepoProjectManager
 }
 
-const concurrentAPICalls = 10
-
 func (i *GitlabIntegration) SetQueryConfig(logger sdk.Logger, config sdk.Config, manager sdk.Manager, customerID string) (ge GitlabExport, rerr error) {
 
-	apiURL, client, graphql, err := newHTTPClient(logger, config, manager)
+	apiURL, client, graphql, err := api.NewHTTPClient(logger, config, manager)
 	if err != nil {
 		rerr = err
 		return
 	}
 
-	r := api.NewRequester(logger, client, concurrentAPICalls)
+	r := api.NewRequester(logger, client, common.ConcurrentAPICalls)
 	ge.qc.Get = r.Get
 	ge.qc.Post = r.Post
 	ge.qc.Delete = r.Delete
 	ge.qc.Put = r.Put
 	ge.qc.Logger = logger
-	ge.qc.RefType = gitlabRefType
+	//ge.qc.RefType = gitlabRefType
 	ge.qc.CustomerID = customerID
-	ge.qc.RefType = gitlabRefType
-	ge.qc.GraphRequester = api.NewGraphqlRequester(graphql, concurrentAPICalls, logger)
+	ge.qc.RefType = common.GitlabRefType
+	ge.qc.GraphRequester = api.NewGraphqlRequester(graphql, common.ConcurrentAPICalls, logger)
 	ge.logger = logger
 
 	u, err := url.Parse(apiURL)
@@ -112,16 +111,16 @@ func (ge *GitlabExport) exportDate() (rerr error) {
 		}
 
 		ge.lastExportDate = lastExportDate.UTC()
-		ge.lastExportDateGitlabFormat = lastExportDate.UTC().Format(api.GitLabDateTimeFormat)
+		ge.lastExportDateGitlabFormat = lastExportDate.UTC().Format(common.GitLabDateTimeFormat)
 	}
 
+	//goland:noinspection ALL
 	sdk.LogDebug(ge.logger, "last export date", "date", ge.lastExportDate)
 
 	return
 }
 
-// GitlabRefType Integraion constant type
-const gitlabRefType = "gitlab"
+
 
 // Export is called to tell the integration to run an export
 func (i *GitlabIntegration) Export(export sdk.Export) error {
@@ -143,28 +142,28 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		return err
 	}
 
-	allnamespaces := make([]*api.Namespace, 0)
+	allNamespaces := make([]*api.Namespace, 0)
 	if config.Accounts == nil {
 		namespaces, err := api.AllNamespaces(gexport.qc)
 		if err != nil {
 			sdk.LogError(logger, "error getting data accounts", "err", err)
 			return err
 		}
-		allnamespaces = append(allnamespaces, namespaces...)
+		allNamespaces = append(allNamespaces, namespaces...)
 	} else {
 		namespaces, err := getNamespacesSelectedAccounts(gexport.qc, config.Accounts)
 		if err != nil {
 			sdk.LogError(logger, "error getting data accounts", "err", err)
 			return err
 		}
-		allnamespaces = append(allnamespaces, namespaces...)
+		allNamespaces = append(allNamespaces, namespaces...)
 	}
 
 	sdk.LogInfo(logger, "registering webhooks", "config", sdk.Stringify(config))
 
-	if err = i.registerWebhooks(gexport, allnamespaces); err != nil {
-		sdk.LogError(logger, "error registering webhooks", "err", err)
-	}
+	//if err = i.registerWebhooks(gexport, allnamespaces); err != nil {
+	//	sdk.LogError(logger, "error registering webhooks", "err", err)
+	//}
 
 	sdk.LogInfo(logger, "registering webhooks done")
 
@@ -195,7 +194,7 @@ func (i *GitlabIntegration) Export(export sdk.Export) error {
 		}
 	}
 
-	for _, namespace := range allnamespaces {
+	for _, namespace := range allNamespaces {
 		l := sdk.LogWith(logger, "namespace_id", namespace.ID, "namespace_name", namespace.Name)
 		projectUsersMap := make(map[string]api.UsernameMap)
 		repos, err := gexport.exportNamespaceSourceCode(namespace, projectUsersMap)
@@ -293,7 +292,7 @@ func (ge *GitlabExport) exportCommonRepos(repos []*api.GitlabProjectInternal, pr
 	for _, repo := range repos {
 		err := ge.exportRepoAndWrite(repo, projectUsersMap)
 		if err != nil {
-			sdk.LogError(ge.logger, "error exporting repo", "repo", repo.Name, "repo_refid", repo.RefID, "err", err)
+			sdk.LogError(ge.logger, "error exporting repo", "repo", repo.Name, "repo_ref_id", repo.RefID, "err", err)
 		}
 	}
 

@@ -8,7 +8,7 @@ import (
 	"github.com/pinpt/agent/v4/sdk"
 )
 
-const attachementQuery = `query {
+const attachmentQuery = `query {
 	issue(id: "gid://gitlab/Issue/%s") {
 		designCollection {
 		  	designs(first:100, after:"%s"){
@@ -108,7 +108,7 @@ func getIssueAttachmentsPage(
 		} `json:"issue"`
 	}
 
-	query := fmt.Sprintf(attachementQuery, issueRefID, designPage, discussionPage)
+	query := fmt.Sprintf(attachmentQuery, issueRefID, designPage, discussionPage)
 
 	err = qc.GraphRequester.Query(query, nil, &GraphQLResponse)
 	if err != nil {

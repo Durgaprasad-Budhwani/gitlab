@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"fmt"
+	"github.com/pinpt/gitlab/internal/common"
 	"net/url"
 	"strconv"
 	"strings"
@@ -207,8 +208,8 @@ func CreateSprint(qc QueryContext, startDate, endDate time.Time, groupName, clie
 
 	sdk.LogDebug(qc.Logger, "creating iteration", "group-name", groupName)
 
-	sDate := startDate.Format(GitLabDateFormat)
-	eDate := endDate.Format(GitLabDateFormat)
+	sDate := startDate.Format(common.GitLabDateFormat)
+	eDate := endDate.Format(common.GitLabDateFormat)
 
 	query := fmt.Sprintf(createIteration, clientMutationID, sprintName, sprintGoal, groupName, sDate, eDate)
 

@@ -1,2 +1,4 @@
 vendor
 dist
+dev_dist/*
+.idea
