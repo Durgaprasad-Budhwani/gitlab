@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"github.com/pinpt/gitlab/internal/common"
 	"net/url"
 	"sync"
 	"time"
@@ -126,14 +127,14 @@ func setPullRequestCommits(pr *sdk.SourceCodePullRequest, commits []*sdk.SourceC
 	for i := len(commits) - 1; i >= 0; i-- {
 		commit := commits[i]
 		commitshas = append(commitshas, commit.Sha)
-		commitids = append(commitids, sdk.NewSourceCodeCommitID(pr.CustomerID, commit.Sha, gitlabRefType, pr.RepoID))
+		commitids = append(commitids, sdk.NewSourceCodeCommitID(pr.CustomerID, commit.Sha, common.GitlabRefType, pr.RepoID))
 	}
 	pr.CommitShas = commitshas
 	pr.CommitIds = commitids
 	if len(commitids) > 0 {
-		pr.BranchID = sdk.NewSourceCodeBranchID(gitlabRefType, pr.RepoID, pr.CustomerID, pr.BranchName, pr.CommitIds[0])
+		pr.BranchID = sdk.NewSourceCodeBranchID(common.GitlabRefType, pr.RepoID, pr.CustomerID, pr.BranchName, pr.CommitIds[0])
 	} else {
-		pr.BranchID = sdk.NewSourceCodeBranchID(gitlabRefType, pr.RepoID, pr.CustomerID, pr.BranchName, "")
+		pr.BranchID = sdk.NewSourceCodeBranchID(common.GitlabRefType, pr.RepoID, pr.CustomerID, pr.BranchName, "")
 	}
 	for _, commit := range commits {
 		commit.BranchID = pr.BranchID

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"github.com/pinpt/gitlab/internal/common"
 	"net/url"
 	"time"
 
@@ -33,9 +34,19 @@ func (ge *GitlabExport) fetchNamespaceProjectsRepos(namespace *api.Namespace, ap
 	})
 }
 
+func groupNamespaceReposPage2(logger sdk.Logger,qc *api.QueryContext2, namespace *Namespace, params url.Values) (api.NextPage, []*api.GitlabProject, error) {
+
+	params.Set("with_shared", "false")
+	params.Set("include_subgroups", "true")
+
+	objectPath := sdk.JoinURL("groups", namespace.ID, "projects")
+
+	return api.ReposCommonPage2(qc ,logger, params, objectPath)
+}
+
 func ToProject(repo *api.GitlabProjectInternal) *sdk.WorkProject {
 	return &sdk.WorkProject{
-		ID:                    sdk.NewWorkProjectID(repo.CustomerID, repo.RefID, gitlabRefType),
+		ID:                    sdk.NewWorkProjectID(repo.CustomerID, repo.RefID, common.GitlabRefType),
 		Active:                repo.Active,
 		CustomerID:            repo.CustomerID,
 		Description:           sdk.StringPointer(repo.Description),

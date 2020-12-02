@@ -14,3 +14,6 @@ const LastExportKey = "last_export_date"
 
 // GitlabRefType Integration constant type
 const GitlabRefType = "gitlab"
+
+// NamespaceGroupKind namespace group kind
+const NamespaceGroupKind = "group"

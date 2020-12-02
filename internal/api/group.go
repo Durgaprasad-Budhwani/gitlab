@@ -39,7 +39,7 @@ func AllNamespaces(qc QueryContext) (allnamespaces []*Namespace, err error) {
 	return
 }
 
-func AllNamespaces2(qc QueryContext2,logger sdk.Logger) (allnamespaces []*GitlabNamespace, err error) {
+func AllNamespaces2(qc *QueryContext2,logger sdk.Logger) (allnamespaces []*GitlabNamespace, err error) {
 	err = Paginate2("", time.Time{}, func( paginationParams url.Values, t time.Time) (np NextPage, _ error) {
 		paginationParams.Set("top_level_only", "true")
 
@@ -136,48 +136,14 @@ type GitlabNamespace struct {
 	Kind                        string          `json:"kind"`
 }
 // Namespaces fetch namespaces
-func NamespacesPage2(qc QueryContext2,logger sdk.Logger, params url.Values) (np NextPage, namespaces []*GitlabNamespace, err error) {
-
-	sdk.LogDebug(logger, "namespaces request", "params", sdk.Stringify(params))
+func NamespacesPage2(qc *QueryContext2,logger sdk.Logger, params url.Values) (np NextPage, namespaces []*GitlabNamespace, err error) {
 
 	objectPath := "namespaces"
-
-	//var rawNamespaces []*GitlabNamespace
 
 	np, err = qc.Get(logger, objectPath, params, &namespaces)
 	if err != nil {
 		return
 	}
-
-	//var namespace GitlabNamespace
-
-	//for _, n := range rawNamespaces {
-	//	err = json.Unmarshal(n, &namespace)
-	//	if err != nil {
-	//		return
-	//	}
-	//
-	//	// Skip subgroups
-	//	if namespace.ParentID != 0 {
-	//		namespace.reset()
-	//		continue
-	//	}
-	//
-	//	if !strings.Contains(namespace.AvatarURL, "https") && namespace.AvatarURL != "" {
-	//		namespace.AvatarURL = qc.BaseURL + namespace.AvatarURL
-	//	}
-	//
-	//	namespaces = append(namespaces, &Namespace{
-	//		ID:        strconv.FormatInt(namespace.ID, 10),
-	//		Name:      namespace.Name,
-	//		FullPath:  namespace.FullPath,
-	//		ValidTier: isValidTier(n),
-	//		AvatarURL: namespace.AvatarURL,
-	//		Kind:      namespace.Kind,
-	//		Path:      namespace.Path,
-	//	})
-	//	namespace.reset()
-	//}
 
 	return
 }

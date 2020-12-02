@@ -123,7 +123,7 @@ func (ge *GitlabExport) exportDate() (rerr error) {
 
 
 // Export is called to tell the integration to run an export
-func (i *GitlabIntegration) Export(export sdk.Export) error {
+func (i *GitlabIntegration) Export2(export sdk.Export) error {
 	logger := sdk.LogWith(export.Logger(), "job_id", export.JobID())
 
 	sdk.LogInfo(logger, "export started", "historical", export.Historical())

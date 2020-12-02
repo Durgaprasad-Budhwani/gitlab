@@ -26,6 +26,24 @@ type GitlabProject struct {
 	Archived             bool            `json:"archived"`
 	DefaultBranch        string          `json:"default_branch"`
 	Visibility           string          `json:"visibility"`
+	ForkedFromProject    *json.RawMessage `json:"forked_from_project"`
+	//ApprovalsBeforeMerge json.RawMessage `json:"marked_for_deletion_on"`
+	Owner                struct {
+		RefID int64 `json:"id"`
+	} `json:"owner"`
+}
+
+// GitlabProject gitlab project
+type GitlabProject2 struct {
+	CreatedAt            time.Time       `json:"created_at"`
+	UpdatedAt            time.Time       `json:"last_activity_at"`
+	RefID                int64           `json:"id"`
+	FullName             string          `json:"path_with_namespace"`
+	Description          string          `json:"description"`
+	WebURL               string          `json:"web_url"`
+	Archived             bool            `json:"archived"`
+	DefaultBranch        string          `json:"default_branch"`
+	Visibility           string          `json:"visibility"`
 	ForkedFromProject    json.RawMessage `json:"forked_from_project"`
 	ApprovalsBeforeMerge json.RawMessage `json:"marked_for_deletion_on"`
 	Owner                struct {
@@ -46,6 +64,15 @@ func GroupNamespaceReposPage(qc QueryContext, namespace *Namespace, params url.V
 }
 
 func UserReposPage(qc QueryContext, namespace *Namespace, params url.Values, stopOnUpdatedAt time.Time) (page NextPage, repos []*GitlabProjectInternal, err error) {
+
+	sdk.LogDebug(qc.Logger, "user repos request", "namespace_path", namespace.Path, "username", namespace.Name, "params", sdk.Stringify(params))
+
+	objectPath := sdk.JoinURL("users", namespace.Path, "projects")
+
+	return reposCommonPage(qc, params, stopOnUpdatedAt, objectPath, sdk.SourceCodeRepoAffiliationUser, namespace.Name)
+}
+
+func UserReposPage2(qc QueryContext, namespace *Namespace, params url.Values, stopOnUpdatedAt time.Time) (page NextPage, repos []*GitlabProjectInternal, err error) {
 
 	sdk.LogDebug(qc.Logger, "user repos request", "namespace_path", namespace.Path, "username", namespace.Name, "params", sdk.Stringify(params))
 
@@ -90,7 +117,7 @@ func reposCommonPage(
 		} else {
 			repo.Visibility = sdk.SourceCodeRepoVisibilityPublic
 		}
-		if len(r.ForkedFromProject) > 0 {
+		if r.ForkedFromProject != nil {
 			repo.Affiliation = sdk.SourceCodeRepoAffiliationThirdparty
 		} else {
 			repo.Affiliation = afiliation
@@ -106,6 +133,21 @@ func reposCommonPage(
 		})
 
 		repos = append(repos, rr)
+	}
+
+	return
+}
+
+
+func ReposCommonPage2(
+	qc *QueryContext2,
+	logger sdk.Logger,
+	params url.Values,
+	objectPath string) (page NextPage, repos []*GitlabProject, err error) {
+
+	page, err = qc.Get(logger, objectPath, params, &repos)
+	if err != nil {
+		return
 	}
 
 	return

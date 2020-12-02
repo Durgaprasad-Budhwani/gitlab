@@ -37,21 +37,19 @@ func (ge *GitlabExport) FetchPullRequestsCommitsAfter(repo *api.GitlabProjectInt
 
 }
 
-func (ge *GitlabExport) exportPullRequestCommits(repo *api.GitlabProjectInternal, pr api.PullRequest) (rerr error) {
+func (ge *GitlabExport) exportPullRequestCommits(repo *api.GitlabProjectInternal, pr api.PullRequest) error {
 
 	sdk.LogDebug(ge.logger, "exporting pull requests commits", "pr", pr.Identifier)
 
 	commits, err := ge.fetchPullRequestsCommits(repo, pr)
 	if err != nil {
-		rerr = err
-		return
+		return err
 	}
 
 	setPullRequestCommits(pr.SourceCodePullRequest, commits)
 	if err := ge.writePullRequestCommits(commits); err != nil {
-		rerr = err
-		return
+		return err
 	}
 
-	return
+	return nil
 }

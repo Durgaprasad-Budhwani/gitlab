@@ -3,6 +3,7 @@ package internal
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pinpt/gitlab/internal/common"
 	"strconv"
 	"strings"
 	"time"
@@ -28,7 +29,7 @@ func (a *user) ToModel(customerID string, integrationInstanceID string) *sdk.Sou
 	user := &sdk.SourceCodeUser{}
 	user.CustomerID = customerID
 	user.RefID = a.RefID(customerID)
-	user.RefType = gitlabRefType
+	user.RefType = common.GitlabRefType
 	user.IntegrationInstanceID = sdk.StringPointer(integrationInstanceID)
 	user.URL = sdk.StringPointer("")
 	user.AvatarURL = sdk.StringPointer(a.AvatarURL)
@@ -118,8 +119,8 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 
 	projectRefID := strconv.FormatInt(rootWebHookObject.Project.ID, 10)
 
-	repoID := sdk.NewSourceCodeRepoID(customerID, projectRefID, gitlabRefType)
-	projectID := sdk.NewWorkProjectID(customerID, projectRefID, gitlabRefType)
+	repoID := sdk.NewSourceCodeRepoID(customerID, projectRefID, common.GitlabRefType)
+	projectID := sdk.NewWorkProjectID(customerID, projectRefID, common.GitlabRefType)
 
 	switch event {
 	case "Issue Hook":
@@ -155,7 +156,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 		}
 
 		var scPr = &sdk.SourceCodePullRequest{}
-		scPr, rerr = pr.ToSourceCodePullRequest(logger, customerID, repoID, gitlabRefType)
+		scPr, rerr = pr.ToSourceCodePullRequest(logger, customerID, repoID, common.GitlabRefType)
 		if rerr != nil {
 			return
 		}
@@ -187,7 +188,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 			return
 		}
 
-		pullRequestID := sdk.NewSourceCodePullRequestID(customerID, scPr.RefID, gitlabRefType, repoID)
+		pullRequestID := sdk.NewSourceCodePullRequestID(customerID, scPr.RefID, common.GitlabRefType, repoID)
 
 		switch pr.Action {
 		case "approved", "unapproved":
@@ -320,7 +321,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 				}
 			case "MergeRequest":
 				var scPr = &sdk.SourceCodePullRequest{}
-				scPr, rerr = rootWebHookObject.MergeRequest.ToSourceCodePullRequest(logger, customerID, repoID, gitlabRefType)
+				scPr, rerr = rootWebHookObject.MergeRequest.ToSourceCodePullRequest(logger, customerID, repoID, common.GitlabRefType)
 				if rerr != nil {
 					return
 				}
@@ -341,7 +342,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 					prComment.IntegrationInstanceID = sdk.StringPointer(integrationInstanceID)
 					prComment.PullRequestID = scPr.ID
 
-					prComment.RefType = gitlabRefType
+					prComment.RefType = common.GitlabRefType
 					prComment.RefID = strconv.FormatInt(note.RefID, 10)
 					prComment.URL = note.URL
 
@@ -427,7 +428,7 @@ func (i *GitlabIntegration) GetReviewFromAction(
 	}
 
 	review.CustomerID = customerID
-	review.RefType = gitlabRefType
+	review.RefType = common.GitlabRefType
 	review.RefID = strconv.FormatInt(note.ID, 10)
 	review.RepoID = projectID
 	review.PullRequestID = prID

@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"github.com/pinpt/gitlab/internal/common"
 	"net/url"
 	"strconv"
 	"strings"
@@ -34,7 +35,7 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 		err = wr.registerWebhook(sdk.WebHookScopeSystem, "", "")
 		if err != nil {
 			sdk.LogDebug(ge.logger, "error registering sytem webhooks", "err", err)
-			webhookManager.Errored(customerID, *ge.integrationInstanceID, gitlabRefType, "system", sdk.WebHookScopeSystem, err)
+			webhookManager.Errored(customerID, *ge.integrationInstanceID, common.GitlabRefType, "system", sdk.WebHookScopeSystem, err)
 			return err
 		}
 	}
@@ -93,7 +94,7 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 			projects, err := ge.exportNamespaceRepos(namespace)
 			if err != nil {
 				err = fmt.Errorf("error trying to get namespace projects err => %s", err)
-				webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, namespace.ID, sdk.WebHookScopeOrg, err)
+				webhookManager.Errored(customerID, *integrationInstanceID, common.GitlabRefType, namespace.ID, sdk.WebHookScopeOrg, err)
 				return err
 			}
 			sdk.LogDebug(ge.logger, "namespace projects", "projects", projects)
@@ -105,7 +106,7 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 					err = wr.registerWebhook(sdk.WebHookScopeRepo, project.RefID, project.Name)
 					if err != nil {
 						err := fmt.Errorf("error trying to register project webhooks err => %s", err)
-						webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
+						webhookManager.Errored(customerID, *integrationInstanceID, common.GitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 						sdk.LogError(ge.logger, "error creating project webhook", "err", err)
 						return err
 					}
@@ -114,7 +115,7 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 				user, err := api.ProjectUser(ge.qc, project, loginUser.StrID)
 				if err != nil {
 					err = fmt.Errorf("error trying to get project user user => %s err => %s", loginUser.Name, err)
-					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
+					webhookManager.Errored(customerID, *integrationInstanceID, common.GitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 					return err
 				}
 				sdk.LogDebug(ge.logger, "user project level", "user_level", user.AccessLevel)
@@ -123,13 +124,13 @@ func (i *GitlabIntegration) registerWebhooks(ge GitlabExport, namespaces []*api.
 					err = wr.registerWebhook(sdk.WebHookScopeRepo, project.RefID, project.Name)
 					if err != nil {
 						err := fmt.Errorf("error trying to register project webhooks err => %s", err)
-						webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
+						webhookManager.Errored(customerID, *integrationInstanceID, common.GitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 						sdk.LogError(ge.logger, "error creating project webhook", "err", err)
 						return err
 					}
 				} else {
 					err := fmt.Errorf("at least Maintainer level access is needed to create webhooks for this project project => %s user => %s user_access_level %d", project.Name, user.Name, user.AccessLevel)
-					webhookManager.Errored(customerID, *integrationInstanceID, gitlabRefType, project.ID, sdk.WebHookScopeProject, err)
+					webhookManager.Errored(customerID, *integrationInstanceID, common.GitlabRefType, project.ID, sdk.WebHookScopeProject, err)
 					sdk.LogError(ge.logger, err.Error())
 				}
 			}
@@ -182,15 +183,15 @@ func (wr *webHookRegistration) registerWebhook(whType sdk.WebHookScope, entityID
 
 	if !found {
 		if pinptWhURL != "" {
-			wr.manager.Delete(wr.customerID, wr.integrationInstanceID, gitlabRefType, entityID, whType)
+			wr.manager.Delete(wr.customerID, wr.integrationInstanceID, common.GitlabRefType, entityID, whType)
 		}
 		params := []string{"version=" + hookVersion}
 		if whType == sdk.WebHookScopeRepo {
 			params = append(params, "ref_id="+entityID)
 		}
-		url, err := wr.manager.Create(wr.customerID, wr.integrationInstanceID, gitlabRefType, entityID, whType, params...)
+		url, err := wr.manager.Create(wr.customerID, wr.integrationInstanceID, common.GitlabRefType, entityID, whType, params...)
 		if err != nil {
-			wr.manager.Delete(wr.customerID, wr.integrationInstanceID, gitlabRefType, entityID, whType)
+			wr.manager.Delete(wr.customerID, wr.integrationInstanceID, common.GitlabRefType, entityID, whType)
 			return err
 		}
 		err = api.CreateWebHook(whType, wr.ge.qc, url, entityID, entityName)
@@ -218,7 +219,7 @@ func (wr *webHookRegistration) unregisterWebhook(whType sdk.WebHookScope, entity
 				return err
 			}
 		}
-		err := wr.manager.Delete(wr.customerID, wr.integrationInstanceID, gitlabRefType, entityID, whType)
+		err := wr.manager.Delete(wr.customerID, wr.integrationInstanceID, common.GitlabRefType, entityID, whType)
 		if err != nil {
 			return err
 		}
@@ -229,19 +230,19 @@ func (wr *webHookRegistration) unregisterWebhook(whType sdk.WebHookScope, entity
 
 func (ge *GitlabExport) isWebHookInstalledForCurrentVersion(webhookType sdk.WebHookScope, manager sdk.WebHookManager, customerID, integrationInstanceID, entityID string) (string, error) {
 
-	pinptWebHookExist := manager.Exists(customerID, integrationInstanceID, gitlabRefType, entityID, webhookType)
+	pinptWebHookExist := manager.Exists(customerID, integrationInstanceID, common.GitlabRefType, entityID, webhookType)
 
 	sdk.LogDebug(ge.logger, "pinpoint webhook exists", "entityID", entityID, "webhookType", webhookType, "exists", pinptWebHookExist)
 
 	if pinptWebHookExist {
-		theurl, err := manager.HookURL(customerID, integrationInstanceID, gitlabRefType, entityID, webhookType)
+		theurl, err := manager.HookURL(customerID, integrationInstanceID, common.GitlabRefType, entityID, webhookType)
 		if err != nil {
 			return "", err
 		}
 		// check and see if we need to upgrade our hook
 		if !strings.Contains(theurl, "version="+hookVersion) {
 			sdk.LogDebug(ge.logger, "webhook version changed")
-			return "", manager.Delete(customerID, integrationInstanceID, gitlabRefType, entityID, webhookType)
+			return "", manager.Delete(customerID, integrationInstanceID, common.GitlabRefType, entityID, webhookType)
 		}
 		return theurl, nil
 	}

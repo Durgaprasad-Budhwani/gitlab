@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/pinpt/gitlab/internal/common"
 	"io"
 	"net/url"
 	"strings"
@@ -45,21 +46,39 @@ type QueryContext struct {
 
 // QueryContext2 query context
 type QueryContext2 struct {
-	BaseURL string
+	//BaseURL string
 	Get     func(logger sdk.Logger,url string, params url.Values, response interface{}) (NextPage, error)
-	//Post    func(url string, params url.Values, data io.Reader, response interface{}) (NextPage, error)
-	//Delete  func(url string, params url.Values, response interface{}) (NextPage, error)
-	//Put     func(url string, params url.Values, data io.Reader, response interface{}) (NextPage, error)
+	// Post    func(url string, params url.Values, data io.Reader, response interface{}) (NextPage, error)
+	// Delete  func(url string, params url.Values, response interface{}) (NextPage, error)
+	// Put     fun	c(url string, params url.Values, data io.Reader, response interface{}) (NextPage, error)
+	URL *url.URL
 
-	//CustomerID string
-	//IntegrationInstanceID string
-	//UserEmailMap          map[string]string
-	//Pipe                  sdk.Pipe
-	//UserManager           UserManager2
-	//WorkManager           WorkManagerI
-	//State                 sdk.State
-	//Historical            bool
-	//GraphRequester        GraphqlRequester2
+	// CustomerID 			 string
+	// IntegrationInstanceID string
+	// UserEmailMap          map[string]string
+	// Pipe                  sdk.Pipe
+	// UserManager           UserManager2
+	// WorkManager           WorkManagerI
+	// State                 sdk.State
+	// Historical            bool
+	// GraphRequester        GraphqlRequester2
+}
+
+func NewQueryContext(client sdk.HTTPClient, restURL string) (*QueryContext2,error) {
+	u, err := url.Parse(restURL)
+	if err != nil {
+		return nil,fmt.Errorf("url is not valid: %v", err)
+	}
+
+	qc := &QueryContext2{}
+	r := NewRequester2(client, common.ConcurrentAPICalls)
+	qc.Get = r.Get
+	qc.URL = u
+	return qc, nil
+}
+
+func (q *QueryContext2) BaseURL() string {
+	return q.URL.Scheme + "://" + q.URL.Hostname()
 }
 
 type NextPage string

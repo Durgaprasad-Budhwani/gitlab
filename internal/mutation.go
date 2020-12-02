@@ -34,6 +34,7 @@ func (g *GitlabIntegration) Mutation(mutation sdk.Mutation) (*sdk.MutationRespon
 		return nil, err
 	}
 
+
 	switch mutationModelType := mutation.Payload().(type) {
 	// Issue
 	case *sdk.WorkIssueUpdateMutation:
