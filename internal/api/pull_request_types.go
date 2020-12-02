@@ -101,7 +101,7 @@ func (a *author) ToModel(customerID string, integrationInstanceID string) *sdk.S
 	return user
 }
 
-type apiPullRequest struct {
+type ApiPullRequest struct {
 	*CommonPullRequestFields
 	WebURL     string    `json:"web_url"`
 	Author     author    `json:"author"`
@@ -114,7 +114,7 @@ type apiPullRequest struct {
 	} `json:"references"`
 }
 
-func (amr *apiPullRequest) toSourceCodePullRequest(logger sdk.Logger, customerID, repoID string, refType string) (pr *sdk.SourceCodePullRequest) {
+func (amr *ApiPullRequest) toSourceCodePullRequest(logger sdk.Logger, customerID, repoID string, refType string) (pr *sdk.SourceCodePullRequest) {
 
 	pr = amr.CommonPullRequestFields.commonToSourceCodePullRequest(logger, customerID, repoID, refType)
 

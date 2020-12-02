@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/pinpt/gitlab/internal/common"
@@ -106,50 +107,98 @@ func (ge *GitlabExport2) Export(logger sdk.Logger) error {
 
 	sdk.LogInfo(logger, "export started", "historical", ge.historical)
 
+	var wg sync.WaitGroup
+
 	namespaces := make(chan *Namespace)
-	errors := make(chan error,1)
+	repos := make(chan *api.GitlabProject)
+	prCommits := make(chan *api.ApiPullRequest)
+	prReviews := make(chan *api.ApiPullRequest)
+	prComments := make(chan *api.ApiPullRequest)
+
+	// TODO add logic to retry writting to pipe if any
+	// TODO add logic to retry failed entity page if any
+	// just write to the specific channel and the logic above will do the rest
+	// TODO refactor error hanlder per entity to not block other entities of the export
+
+	errors := make(chan error, 1)
+
+	wg.Add(1)
 	go func(){
+		defer wg.Done()
 		err := ge.getSelectedNamespacesIfAny(logger, namespaces)
 		if err != nil {
 			errors <- err
 		}
+		close(namespaces)
 	}()
 
-	repos := make(chan *api.GitlabProject)
+	// TODO: create a custom struct to save the entity and it's logger to use it afterwards with log.With
+
+	wg.Add(1)
 	go func(){
+		defer wg.Done()
 		for namespace := range namespaces {
 			logger := sdk.LogWith(logger,"namespace", namespace.Name)
 			sdk.LogDebug(logger, "exporting namespace")
-			err := ge.exportNamespaceInitialSourceCode(logger, namespace, repos)
+			err := ge.exportRepoInitialSourceCode(logger, namespace, repos)
 			if err != nil {
 				sdk.LogError(logger, "error exporting namespace sourcecode", "err", err)
-				errors <- err
+				errors <- err // This will be handled differently as we don't need to cancel the export if one namespace failed
 			}
 			// TODO: add WORK data type
 		}
-		errors <- nil
 		close(repos)
 	}()
 
-	waitRepos := make(chan bool,1)
+	wg.Add(1)
 	go func(){
+		defer wg.Done()
 		for repo := range repos {
-			// logger := sdk.LogWith(repo.logger)
-			// TODO: write repo to pipe
-			sdk.LogDebug(logger,"exporting repo","repo", repo.FullName)
+			logger := sdk.LogWith(logger,"repo", repo.FullName)
+			sdk.LogDebug(logger, "exporting repo")
+			err := ge.exportPullRequestsSourceCode(logger, repo, prCommits, prReviews, prComments)
+			if err != nil {
+				sdk.LogError(logger, "error exporting namespace sourcecode", "err", err)
+				//errors <- err // This will be handled differently as we don't need to cancel the export if one namespace failed
+			}
 		}
-		waitRepos <- true
+		close(prCommits)
+		close(prReviews)
+		close(prComments)
 	}()
 
-	select {
-		case err := <- errors:
-			if err != nil {
-				return err
-			}
-			break
-	}
+	wg.Add(1)
+	go func(){
+		defer wg.Done()
+		for pr := range prCommits { // for pr and pr commits
+			// logger := sdk.LogWith(repo.logger)
+			sdk.LogDebug(logger,"exporting commits for pr","pr", pr.Title)
+		}
+	}()
 
-	<-waitRepos
+	wg.Add(1)
+	go func(){
+		defer wg.Done()
+		for pr := range prReviews {
+			// logger := sdk.LogWith(repo.logger)
+			sdk.LogDebug(logger,"exporting pr","pr", pr.Title)
+		}
+	}()
+
+	wg.Add(1)
+	go func(){
+		defer wg.Done()
+		for pr := range prComments {
+			// logger := sdk.LogWith(repo.logger)
+			sdk.LogDebug(logger,"exporting pr","pr", pr.Title)
+		}
+	}()
+
+	wg.Wait()
+
+	if len(errors) > 0 {
+		// TODO: add proper handler here
+	}
 
 	// TODO: iterate remaining PRs of all repos
 	if err := ge.state.Set(common.LastExportKey, exportStartDate.Format(time.RFC3339)); err != nil {
@@ -161,7 +210,7 @@ func (ge *GitlabExport2) Export(logger sdk.Logger) error {
 	return nil
 }
 
-func (ge *GitlabExport2) exportNamespaceInitialSourceCode(logger sdk.Logger, namespace *Namespace, reposExported chan *api.GitlabProject) error {
+func (ge *GitlabExport2) exportRepoInitialSourceCode(logger sdk.Logger, namespace *Namespace, reposExported chan *api.GitlabProject) error {
 
 	repos, err := ge.exportRepos(logger, namespace)
 	if err != nil {
@@ -170,6 +219,22 @@ func (ge *GitlabExport2) exportNamespaceInitialSourceCode(logger sdk.Logger, nam
 
 	for _, repo := range repos {
 		reposExported <- repo
+	}
+
+	return nil
+}
+
+func (ge *GitlabExport2) exportPullRequestsSourceCode(logger sdk.Logger, repo *api.GitlabProject, prsExported, prReviews, prComments chan *api.ApiPullRequest) error {
+
+	pullRequests, err := ge.exportPullRequests(logger, repo)
+	if err != nil {
+		return fmt.Errorf("error exporting repos %s", err)
+	}
+
+	for _, pr := range pullRequests {
+		prsExported <- pr
+		prReviews <- pr
+		prComments <- pr
 	}
 
 	return nil

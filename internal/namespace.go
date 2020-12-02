@@ -54,7 +54,7 @@ func (e *GitlabExport2) getSelectedNamespacesIfAny(logger sdk.Logger, namespaces
 		}
 	}
 
-	close(namespaces)
+
 
 	return nil
 }

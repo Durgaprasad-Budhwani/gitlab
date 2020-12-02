@@ -20,7 +20,7 @@ func PullRequestPage(
 
 	objectPath := sdk.JoinURL("projects", repo.RefID, "merge_requests")
 
-	var rprs []apiPullRequest
+	var rprs []ApiPullRequest
 
 	pi, err = qc.Get(objectPath, params, &rprs)
 	if err != nil {
@@ -56,6 +56,54 @@ func PullRequestPage(
 		spr.SourceCodePullRequest = pr
 		prs <- spr
 	}
+
+	return
+}
+
+func PullRequestPage2(
+	logger sdk.Logger,
+	qc *QueryContext2,
+	repo *GitlabProject,
+	params url.Values) (np NextPage,rprs []*ApiPullRequest, err error) {
+
+	repoRefID := strconv.FormatInt(repo.RefID,10)
+
+	objectPath := sdk.JoinURL("projects", repoRefID, "merge_requests")
+
+	np, err = qc.Get(logger,objectPath, params, &rprs)
+	if err != nil {
+		return
+	}
+
+	//repoID := sdk.NewSourceCodeRepoID(qc.CustomerID, repo.RefID, qc.RefType)
+	//
+	//for _, rpr := range rprs {
+	//
+	//	err = qc.UserManager.EmitGitUser(qc.Logger, &rpr.Author)
+	//	if err != nil {
+	//		return
+	//	}
+	//
+	//	switch rpr.State {
+	//	case "closed":
+	//		err = qc.UserManager.EmitGitUser(qc.Logger, &rpr.ClosedBy)
+	//		if err != nil {
+	//			return
+	//		}
+	//	case "merged":
+	//		err = qc.UserManager.EmitGitUser(qc.Logger, &rpr.MergedBy)
+	//		if err != nil {
+	//			return
+	//		}
+	//	}
+	//
+	//	pr := rpr.toSourceCodePullRequest(qc.Logger, qc.CustomerID, repoID, qc.RefType)
+	//
+	//	spr := PullRequest{}
+	//	spr.IID = strconv.FormatInt(rpr.IID, 10)
+	//	spr.SourceCodePullRequest = pr
+	//	prs <- spr
+	//}
 
 	return
 }
