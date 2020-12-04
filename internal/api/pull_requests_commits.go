@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/pinpt/agent/v4/sdk"
@@ -137,4 +138,45 @@ func commitCommiterUserToAuthor(commit *PrCommit) *GitUser {
 	author.Email = commit.CommitterEmail
 	author.Name = commit.CommitterName
 	return author
+}
+
+func PullRequestCommitsPage2(
+	logger sdk.Logger,
+	qc *QueryContext2,
+	repoRefID *int64,
+	prIID *int64,
+	params url.Values) (pi NextPage, rcommits []*PrCommit, err error) {
+
+	objectPath := sdk.JoinURL("projects", strconv.FormatInt(*repoRefID,10), "merge_requests", strconv.FormatInt(  *prIID,10), "commits")
+
+	pi, err = qc.Get(logger, objectPath, params, &rcommits)
+	if err != nil {
+		return
+	}
+
+	//repoID := sdk.NewSourceCodeRepoID(qc.CustomerID, repo.RefID, qc.RefType)
+	//pullRequestID := sdk.NewSourceCodePullRequestID(qc.CustomerID, pr.RefID, qc.RefType, repoID)
+	//
+	//for _, rcommit := range rcommits {
+	//	if !after.IsZero() && rcommit.CreatedAt.Before(after) {
+	//		return
+	//	}
+	//
+	//	author := commitAuthorUserToAuthor(&rcommit)
+	//	err = qc.UserManager.EmitGitUser(qc.Logger, author)
+	//	if err != nil {
+	//		return
+	//	}
+	//
+	//	author = commitCommiterUserToAuthor(&rcommit)
+	//	err = qc.UserManager.EmitGitUser(qc.Logger, author)
+	//	if err != nil {
+	//		return
+	//	}
+	//
+	//	item := rcommit.ToSourceCodePullRequestCommit(qc.CustomerID, qc.RefType, repoID, pullRequestID)
+	//	res = append(res, item)
+	//}
+
+	return
 }

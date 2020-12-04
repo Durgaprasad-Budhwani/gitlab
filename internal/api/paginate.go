@@ -33,7 +33,7 @@ func Paginate(log sdk.Logger, nextPage NextPage, lastProcessed time.Time, fn Pag
 
 type Page2 func(params url.Values, stopOnUpdatedAt time.Time) (NextPage, error)
 
-func Paginate2(nextPage NextPage, lastProcessed time.Time, fn Page2) (err error) {
+func Paginate2(nextPage NextPage,onlyFirstPage bool, lastProcessed time.Time, fn Page2) (err error) {
 	if nextPage == "" {
 		nextPage = "1"
 	}
@@ -49,7 +49,7 @@ func Paginate2(nextPage NextPage, lastProcessed time.Time, fn Page2) (err error)
 		if err != nil {
 			return err
 		}
-		if nextPage == "" {
+		if onlyFirstPage || nextPage == "" {
 			return nil
 		}
 	}

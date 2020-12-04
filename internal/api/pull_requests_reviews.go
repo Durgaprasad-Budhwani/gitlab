@@ -93,6 +93,87 @@ func PullRequestReviews(
 	return
 }
 
+type GitlabReviews struct {
+	ID         int64 `json:"id"`
+	ApprovedBy []struct {
+		User struct {
+			ID int64 `json:"id"`
+		} `json:"user"`
+	} `json:"approved_by"`
+	SuggestedApprovers []struct {
+		UserID int64 `json:"id"`
+	} `json:"suggested_approvers"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func PullRequestReviews2(
+	logger sdk.Logger,
+	qc *QueryContext2,
+	repoRefID *int64,
+	prIID *int64,
+	params url.Values) (pi NextPage, rreview *GitlabReviews, err error) {
+
+	objectPath := sdk.JoinURL("projects", strconv.FormatInt( *repoRefID,10), "merge_requests", strconv.FormatInt(*prIID,10), "approvals")
+
+	pi, err = qc.Get(logger, objectPath, params, &rreview)
+	if err != nil {
+		return
+	}
+
+	//repoID := sdk.NewSourceCodeRepoID(qc.CustomerID, repo.RefID, qc.RefType)
+	//pr.ID = sdk.NewSourceCodePullRequestID(qc.CustomerID, pr.RefID, qc.RefType, repoID)
+	//
+	//for _, a := range rreview.ApprovedBy {
+	//	item := &sdk.SourceCodePullRequestReview{}
+	//	item.CustomerID = qc.CustomerID
+	//	item.RefType = qc.RefType
+	//	item.RefID = fmt.Sprint(rreview.ID)
+	//	item.RepoID = repoID
+	//	item.PullRequestID = pr.ID
+	//	item.Active = true
+	//	item.State = sdk.SourceCodePullRequestReviewStateApproved
+	//
+	//	sdk.ConvertTimeToDateModel(rreview.CreatedAt, &item.CreatedDate)
+	//
+	//	item.UserRefID = strconv.FormatInt(a.User.ID, 10)
+	//
+	//	reviewRequest := reviewRequest(qc, pr.SourceCodePullRequest, item.UserRefID)
+	//	reviewRequest.Active = false
+	//	err = qc.Pipe.Write(&reviewRequest)
+	//	if err != nil {
+	//		return
+	//	}
+	//
+	//	res = append(res, item)
+	//}
+	//
+	//for _, a := range rreview.SuggestedApprovers {
+	//	item := &sdk.SourceCodePullRequestReview{}
+	//	item.CustomerID = qc.CustomerID
+	//	item.RefType = qc.RefType
+	//	item.RefID = fmt.Sprint(rreview.ID)
+	//	item.RepoID = repoID
+	//	item.PullRequestID = pr.ID
+	//	item.Active = true
+	//	item.State = sdk.SourceCodePullRequestReviewStateRequested
+	//
+	//	sdk.ConvertTimeToDateModel(rreview.CreatedAt, &item.CreatedDate)
+	//
+	//	item.UserRefID = strconv.FormatInt(a.UserID, 10)
+	//
+	//	reviewRequest := reviewRequest(qc, pr.SourceCodePullRequest, item.UserRefID)
+	//	err = qc.Pipe.Write(&reviewRequest)
+	//	if err != nil {
+	//		return
+	//	}
+	//
+	//	res = append(res, item)
+	//}
+
+	return
+}
+
 func reviewRequest(qc QueryContext, pr *sdk.SourceCodePullRequest, requestedReviewerID string) sdk.SourceCodePullRequestReviewRequest {
 	return sdk.SourceCodePullRequestReviewRequest{
 		CustomerID:             qc.CustomerID,

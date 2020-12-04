@@ -49,10 +49,10 @@ func PullRequestPage(
 			}
 		}
 
-		pr := rpr.toSourceCodePullRequest(qc.Logger, qc.CustomerID, repoID, qc.RefType)
+		pr := rpr.ToSourceCodePullRequest(qc.Logger, qc.CustomerID, repoID, qc.RefType)
 
 		spr := PullRequest{}
-		spr.IID = strconv.FormatInt(rpr.IID, 10)
+		spr.IID = strconv.FormatInt(*rpr.IID, 10)
 		spr.SourceCodePullRequest = pr
 		prs <- spr
 	}
@@ -63,12 +63,10 @@ func PullRequestPage(
 func PullRequestPage2(
 	logger sdk.Logger,
 	qc *QueryContext2,
-	repo *GitlabProject,
-	params url.Values) (np NextPage,rprs []*ApiPullRequest, err error) {
+	repoRefID *int64,
+	params url.Values) (np NextPage, rprs []*ApiPullRequest, err error) {
 
-	repoRefID := strconv.FormatInt(repo.RefID,10)
-
-	objectPath := sdk.JoinURL("projects", repoRefID, "merge_requests")
+	objectPath := sdk.JoinURL("projects", strconv.FormatInt(*repoRefID,10), "merge_requests")
 
 	np, err = qc.Get(logger,objectPath, params, &rprs)
 	if err != nil {

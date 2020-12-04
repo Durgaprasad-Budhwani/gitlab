@@ -175,7 +175,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 
 		prr := api.PullRequest{}
 		prr.SourceCodePullRequest = scPr
-		prr.IID = strconv.FormatInt(pr.IID, 10)
+		prr.IID = strconv.FormatInt(*pr.IID, 10)
 		_, _, rerr = api.PullRequestReviews(ge.qc, repo, prr, nil)
 		if rerr != nil {
 			return
@@ -201,7 +201,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 				scPr.RefID,
 				pullRequestID,
 				scPr.RefID,
-				pr.IID,
+				*pr.IID,
 				pr.UpdatedAt,
 				rootWebHookObject.User.Username,
 				pr.Action)
@@ -246,7 +246,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 			repo.RefID = projectRefID
 
 			var pr2 = &api.PullRequest{SourceCodePullRequest: &sdk.SourceCodePullRequest{}}
-			pr2.IID = strconv.FormatInt(pr.IID, 10)
+			pr2.IID = strconv.FormatInt(*pr.IID, 10)
 			pr2.RefID = scPr.RefID
 
 			commits, err := ge.FetchPullRequestsCommitsAfter(repo, *pr2, updateat)
@@ -269,7 +269,7 @@ func (i *GitlabIntegration) WebHook(webhook sdk.WebHook) (rerr error) {
 			repo.Name = rootWebHookObject.Project.Name
 			repo.RefID = projectRefID
 			var pr2 = &api.PullRequest{SourceCodePullRequest: &sdk.SourceCodePullRequest{}}
-			pr2.IID = strconv.FormatInt(pr.IID, 10)
+			pr2.IID = strconv.FormatInt(*pr.IID, 10)
 			pr2.RefID = scPr.RefID
 
 			commits, err := ge.fetchPullRequestsCommits(repo, *pr2)

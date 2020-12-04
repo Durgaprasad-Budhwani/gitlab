@@ -17,7 +17,7 @@ type PullRequest struct {
 
 type CommonPullRequestFields struct {
 	ID             int64     `json:"id"`
-	IID            int64     `json:"iid"`
+	IID            *int64     `json:"iid"`
 	Title          string    `json:"title"`
 	Description    string    `json:"description"`
 	ClosedAt       time.Time `json:"closed_at"`
@@ -114,7 +114,7 @@ type ApiPullRequest struct {
 	} `json:"references"`
 }
 
-func (amr *ApiPullRequest) toSourceCodePullRequest(logger sdk.Logger, customerID, repoID string, refType string) (pr *sdk.SourceCodePullRequest) {
+func (amr *ApiPullRequest) ToSourceCodePullRequest(logger sdk.Logger, customerID, repoID string, refType string) (pr *sdk.SourceCodePullRequest) {
 
 	pr = amr.CommonPullRequestFields.commonToSourceCodePullRequest(logger, customerID, repoID, refType)
 

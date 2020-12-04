@@ -40,7 +40,7 @@ func AllNamespaces(qc QueryContext) (allnamespaces []*Namespace, err error) {
 }
 
 func AllNamespaces2(qc *QueryContext2,logger sdk.Logger) (allnamespaces []*GitlabNamespace, err error) {
-	err = Paginate2("", time.Time{}, func( paginationParams url.Values, t time.Time) (np NextPage, _ error) {
+	err = Paginate2("",false, time.Time{}, func( paginationParams url.Values, t time.Time) (np NextPage, _ error) {
 		paginationParams.Set("top_level_only", "true")
 
 		pi, namespaces, err := NamespacesPage2(qc,logger, paginationParams)
