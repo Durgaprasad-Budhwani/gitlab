@@ -41,7 +41,16 @@ func groupNamespaceReposPage2(logger sdk.Logger,qc *api.QueryContext2, namespace
 
 	objectPath := sdk.JoinURL("groups", namespace.ID, "projects")
 
-	return api.ReposCommonPage2(qc ,logger, params, objectPath)
+	return api.ReposCommonPage2(logger, qc, params, objectPath)
+}
+
+func userReposPage2(logger sdk.Logger,qc *api.QueryContext2, namespace *Namespace, params url.Values, stopOnUpdatedAt time.Time) (page api.NextPage, repos []*api.GitlabProject, err error) {
+
+	sdk.LogDebug(logger, "user repos request", "namespace_path", namespace.Path, "username", namespace.Name, "params", sdk.Stringify(params))
+
+	objectPath := sdk.JoinURL("users", namespace.Path, "projects")
+
+	return api.ReposCommonPage2(logger, qc, params, objectPath)
 }
 
 func ToProject(repo *api.GitlabProjectInternal) *sdk.WorkProject {

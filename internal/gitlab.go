@@ -25,6 +25,32 @@ func (g *GitlabIntegration) Start(logger sdk.Logger, config sdk.Config, manager 
 	return nil
 }
 
+// Export is called to tell the integration to run an export
+func (g *GitlabIntegration) Export(export sdk.Export) error {
+
+	logger := sdk.LogWith(export.Logger(), "job_id", export.JobID())
+
+	qc, err := g.queryContext(logger)
+	if err != nil {
+		return err
+	}
+
+	ge, err := newGitlabExport(logger, qc,
+		sdk.StringPointer(export.IntegrationInstanceID()),
+		g.IncludeRepo(),
+		export.CustomerID(),
+		export.Historical(),
+		export.Pipe(),
+		export.State(),
+		export.Config())
+	if err != nil {
+		return err
+	}
+
+	return ge.Export(logger)
+
+}
+
 const (
 	// FetchAccounts will fetch accounts
 	FetchAccounts = "FETCH_ACCOUNTS"

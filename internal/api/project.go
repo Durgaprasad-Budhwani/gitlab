@@ -72,14 +72,7 @@ func UserReposPage(qc QueryContext, namespace *Namespace, params url.Values, sto
 	return reposCommonPage(qc, params, stopOnUpdatedAt, objectPath, sdk.SourceCodeRepoAffiliationUser, namespace.Name)
 }
 
-func UserReposPage2(qc QueryContext, namespace *Namespace, params url.Values, stopOnUpdatedAt time.Time) (page NextPage, repos []*GitlabProjectInternal, err error) {
 
-	sdk.LogDebug(qc.Logger, "user repos request", "namespace_path", namespace.Path, "username", namespace.Name, "params", sdk.Stringify(params))
-
-	objectPath := sdk.JoinURL("users", namespace.Path, "projects")
-
-	return reposCommonPage(qc, params, stopOnUpdatedAt, objectPath, sdk.SourceCodeRepoAffiliationUser, namespace.Name)
-}
 
 func reposCommonPage(
 	qc QueryContext,
@@ -140,8 +133,8 @@ func reposCommonPage(
 
 
 func ReposCommonPage2(
-	qc *QueryContext2,
 	logger sdk.Logger,
+	qc *QueryContext2,
 	params url.Values,
 	objectPath string) (page NextPage, repos []*GitlabProject, err error) {
 

@@ -21,12 +21,7 @@ type Namespace struct {
 	Kind                          string
 }
 
-func (e *GitlabExport2) getSelectedNamespacesIfAny(logger sdk.Logger, namespaces chan *Namespace) error {
-
-	allNamespaces, err := api.AllNamespaces2(e.qc, logger)
-	if err != nil {
-		return err
-	}
+func (e *GitlabExport2) getSelectedNamespacesIfAny(logger sdk.Logger,allNamespaces []*api.GitlabNamespace, namespaces chan *Namespace)  {
 
 	if e.config.Accounts == nil {
 		for _, namespace := range allNamespaces {
@@ -53,10 +48,6 @@ func (e *GitlabExport2) getSelectedNamespacesIfAny(logger sdk.Logger, namespaces
 			}
 		}
 	}
-
-
-
-	return nil
 }
 
 

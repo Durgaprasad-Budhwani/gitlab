@@ -32,13 +32,12 @@ func (ge *GitlabExport2) exportRepos(logger sdk.Logger, namespace *Namespace) ([
 			if err != nil {
 				return np, err
 			}
+		} else {
+			np, repos, err = userReposPage2(logger, ge.qc, namespace, params, stopOnUpdatedAt)
+			if err != nil {
+				return np, err
+			}
 		}
-		//else {
-		//	np, arr, err = api.UserReposPage(ge.qc, namespace, params, stopOnUpdatedAt)
-		//	if err != nil {
-		//		return np, err
-		//	}
-		//}
 		for _, r := range repos {
 			if ge.includeRepo(logger, namespace.ID, r.FullName, r.Archived) {
 
@@ -74,7 +73,6 @@ func (ge *GitlabExport2) exportRepos(logger sdk.Logger, namespace *Namespace) ([
 				if err := ge.pipe.Write(repo); err != nil{
 					return "", err
 				}
-				return np, nil
 			} else {
 				sdk.LogDebug(logger,"skipping repo","repo",r.FullName)
 			}
