@@ -67,22 +67,22 @@ func (e *Requester2) request(r *internalRequest, retryThrottled int) (isErrorRet
 	case Get:
 		resp, rerr = e.client.Get(&r.Response, headers, endpoint, parameters)
 		if rerr != nil {
-			return true, np, fmt.Errorf("error on get: %s %s", rerr, string(resp.Body))
+			return true, NextPage(resp.Headers.Get("X-Next-Page")), fmt.Errorf("error on get: %s %s", rerr, string(resp.Body))
 		}
 	case Post:
 		reader, err := r.getDataReader()
 		if err != nil {
 			sdk.LogDebug(r.logger, "request response", "resp", string(resp.Body))
-			return true, np, fmt.Errorf("error on post: %s", err)
+			return true, NextPage(resp.Headers.Get("X-Next-Page")), fmt.Errorf("error on post: %s", err)
 		}
 		resp, rerr = e.client.Post(reader, &r.Response, headers, endpoint, parameters)
 		if rerr != nil {
-			return true, np, fmt.Errorf("error on post: %s %s", rerr, string(resp.Body))
+			return true, NextPage(resp.Headers.Get("X-Next-Page")), fmt.Errorf("error on post: %s %s", rerr, string(resp.Body))
 		}
 	case Delete:
 		resp, rerr = e.client.Delete(&r.Response, headers, endpoint, parameters)
 		if rerr != nil {
-			return true, np, fmt.Errorf("error on delete: %s %s", rerr, string(resp.Body))
+			return true, NextPage(resp.Headers.Get("X-Next-Page")), fmt.Errorf("error on delete: %s %s", rerr, string(resp.Body))
 		}
 	case Put:
 		reader, err := r.getDataReader()
@@ -92,7 +92,7 @@ func (e *Requester2) request(r *internalRequest, retryThrottled int) (isErrorRet
 		}
 		resp, rerr = e.client.Put(reader, &r.Response, headers, endpoint, parameters)
 		if rerr != nil {
-			return true, np, fmt.Errorf("error on put: %s %s", rerr, string(resp.Body))
+			return true, NextPage(resp.Headers.Get("X-Next-Page")), fmt.Errorf("error on put: %s %s", rerr, string(resp.Body))
 		}
 	}
 
@@ -119,7 +119,7 @@ func (e *Requester2) request(r *internalRequest, retryThrottled int) (isErrorRet
 
 		sdk.LogWarn(r.logger, "gitlab returned invalid status code, retrying", "code", resp.StatusCode, "retry", retryThrottled)
 
-		return true, np, fmt.Errorf("request with status %d", resp.StatusCode)
+		return true, NextPage(resp.Headers.Get("X-Next-Page")), fmt.Errorf("request with status %d", resp.StatusCode)
 	}
 
 	return false, NextPage(resp.Headers.Get("X-Next-Page")), nil

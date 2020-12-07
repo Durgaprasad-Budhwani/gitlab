@@ -26,11 +26,11 @@ func (ge *GitlabExport) exportPullRequestsComments(repo *api.GitlabProjectIntern
 	})
 }
 
-func (ge *GitlabExport2) exportPullRequestsComments(logger sdk.Logger,pr *internalPullRequest) error {
+func (ge *GitlabExport2) exportPullRequestsComments(logger sdk.Logger,pr *internalPullRequest) (string, error) {
 
 	u, err := url.Parse(ge.baseURL)
 	if err != nil {
-		return err
+		return "1", err
 	}
 
 	repoRefID := strconv.FormatInt(*pr.repoRefID,10)
@@ -39,35 +39,86 @@ func (ge *GitlabExport2) exportPullRequestsComments(logger sdk.Logger,pr *intern
 	pullRequestID := sdk.NewSourceCodePullRequestID(ge.customerID, prRefID, common.GitlabRefType, repoID)
 	prIID := strconv.FormatInt(*pr.IID,10)
 
-	return api.Paginate2("", false, time.Time{}, func(params url.Values, t time.Time) (pi api.NextPage, rerr error) {
-		pi, comments, err := api.PullRequestCommentsPage2(logger, ge.qc, pr.repoRefID, pr.IID, params)
+	var lastPage api.NextPage
+
+	err = api.Paginate2(api.NextPage(pr.page), false, time.Time{}, func(params url.Values, t time.Time) (api.NextPage, error) {
+		np, comments, err := api.PullRequestCommentsPage2(logger, ge.qc, pr.repoRefID, pr.IID, params)
+		lastPage = np
 		if err != nil {
-			return pi, err
+			return np, err
 		}
-		for _, rcomment := range comments {
-			if rcomment.System {
+		for _, comment := range comments {
+			if comment.System {
+
+				prReview := &sdk.SourceCodePullRequestReview{}
+				prReview.CustomerID = ge.customerID
+				prReview.IntegrationInstanceID = ge.integrationInstanceID
+				prReview.Active = true
+				prReview.CustomerID = ge.customerID
+				prReview.RefType = common.GitlabRefType
+
+				prReview.RepoID = repoID
+				prReview.PullRequestID = pullRequestID
+
+				prReview.RefID = strconv.FormatInt(comment.Author.ID,10)
+
+				switch comment.Body {
+					case "approved this merge request":
+						prReview.State = sdk.SourceCodePullRequestReviewStateApproved
+					case "unapproved this merge request":
+						prReview.State = sdk.SourceCodePullRequestReviewStateDismissed
+				}
+
+				if err := ge.pipe.Write(prReview); err != nil {
+					return "", err
+				}
+
 				continue
 			}
-			item := &sdk.SourceCodePullRequestComment{}
-			item.Active = true
-			item.CustomerID = ge.customerID
-			item.RefType = common.GitlabRefType
-			item.RefID = strconv.FormatInt(rcomment.ID,10)
-			item.URL = sdk.JoinURL(u.Scheme, "://", u.Hostname(), *pr.repoFullName, "merge_requests",prIID)
-			sdk.ConvertTimeToDateModel(rcomment.UpdatedAt, &item.UpdatedDate)
 
-			item.RepoID = repoID
-			item.PullRequestID = pullRequestID
-			item.Body = rcomment.Body
-			sdk.ConvertTimeToDateModel(rcomment.CreatedAt, &item.CreatedDate)
+			prComment := &sdk.SourceCodePullRequestComment{}
+			prComment.Active = true
+			prComment.CustomerID = ge.customerID
+			prComment.IntegrationInstanceID = ge.integrationInstanceID
+			prComment.RefType = common.GitlabRefType
+			prComment.RefID = strconv.FormatInt(comment.ID,10)
+			prComment.URL = sdk.JoinURL(u.Scheme, "://", u.Hostname(), *pr.repoFullName, "merge_requests",prIID)
+			sdk.ConvertTimeToDateModel(comment.UpdatedAt, &prComment.UpdatedDate)
 
-			item.UserRefID = strconv.FormatInt(rcomment.Author.ID, 10)
-			item.IntegrationInstanceID = ge.integrationInstanceID
-			if err := ge.pipe.Write(item); err != nil {
-				return
+			prComment.RepoID = repoID
+			prComment.PullRequestID = pullRequestID
+			prComment.Body = comment.Body
+			sdk.ConvertTimeToDateModel(comment.CreatedAt, &prComment.CreatedDate)
+
+			prComment.UserRefID = strconv.FormatInt(comment.Author.ID, 10)
+
+			if err := ge.pipe.Write(prComment); err != nil {
+				return "",err
+			}
+
+			if comment.Type == "DiffNote" {
+				prReview := &sdk.SourceCodePullRequestReview{}
+				prReview.Active = true
+				prReview.CustomerID = ge.customerID
+				prReview.RefType = common.GitlabRefType
+				prReview.RefID = strconv.FormatInt(comment.ID,10)
+				prReview.IntegrationInstanceID = ge.integrationInstanceID
+
+				prReview.RepoID = repoID
+				prReview.PullRequestID = pullRequestID
+				prReview.State = sdk.SourceCodePullRequestReviewStateCommented
+
+				if err := ge.pipe.Write(prReview); err != nil {
+					return "", err
+				}
 			}
 		}
 
-		return
+		return np, nil
 	})
+	if err != nil {
+		return string(lastPage), err
+	}
+
+	return string(lastPage), nil
 }

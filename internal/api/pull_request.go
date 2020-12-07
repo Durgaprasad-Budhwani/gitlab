@@ -69,39 +69,6 @@ func PullRequestPage2(
 	objectPath := sdk.JoinURL("projects", strconv.FormatInt(*repoRefID,10), "merge_requests")
 
 	np, err = qc.Get(logger,objectPath, params, &rprs)
-	if err != nil {
-		return
-	}
-
-	//repoID := sdk.NewSourceCodeRepoID(qc.CustomerID, repo.RefID, qc.RefType)
-	//
-	//for _, rpr := range rprs {
-	//
-	//	err = qc.UserManager.EmitGitUser(qc.Logger, &rpr.Author)
-	//	if err != nil {
-	//		return
-	//	}
-	//
-	//	switch rpr.State {
-	//	case "closed":
-	//		err = qc.UserManager.EmitGitUser(qc.Logger, &rpr.ClosedBy)
-	//		if err != nil {
-	//			return
-	//		}
-	//	case "merged":
-	//		err = qc.UserManager.EmitGitUser(qc.Logger, &rpr.MergedBy)
-	//		if err != nil {
-	//			return
-	//		}
-	//	}
-	//
-	//	pr := rpr.toSourceCodePullRequest(qc.Logger, qc.CustomerID, repoID, qc.RefType)
-	//
-	//	spr := PullRequest{}
-	//	spr.IID = strconv.FormatInt(rpr.IID, 10)
-	//	spr.SourceCodePullRequest = pr
-	//	prs <- spr
-	//}
 
 	return
 }

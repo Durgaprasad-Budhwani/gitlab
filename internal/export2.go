@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -89,13 +90,15 @@ type internalPullRequest struct {
 	logger       sdk.Logger
 	repoRefID    *int64
 	repoFullName *string
+	page         string
 }
 
-type remainingPrsPages struct {
-	repoFullName  string
-	projectID     *int64
-	lastUpdatedAt string
+type RemainingPrsPages struct {
+	RepoFullName  string `json:"repoFullName"`
+	ProjectID     *int64 `json:"projectID"`
+	LastUpdatedAt string `json:"lastUpdatedAt"`
 	logger        sdk.Logger
+	Page          string `json:"page"`
 }
 
 type warning struct {
@@ -107,6 +110,49 @@ func newWarning(msg string) warning {
 }
 func (n warning) Error() string {
 	return n.msg
+}
+
+type checkFun func(rPages map[string]interface{})
+func(ge *GitlabExport2) commonRetries(logger sdk.Logger,key string, fun checkFun) error {
+	rPages, err := ge.getElementsForRetries(logger, key)
+	if err != nil {
+		return err
+	}
+
+	fun(rPages)
+	err = ge.state.Set(key, rPages)
+	if err != nil {
+		msg := fmt.Sprintf("error setting state key [%s]", key)
+		sdk.LogDebug(logger, msg,"err", err)
+		return err
+	}
+	return nil
+}
+
+func (ge *GitlabExport2) getElementsForRetries(logger sdk.Logger, key string) (map[string]interface{}, error) {
+	var rPages map[string]interface{}
+	_, err := ge.state.Get(key, &rPages)
+	if err != nil {
+		msg := fmt.Sprintf("error getting key [%s] from state", key)
+		sdk.LogDebug(logger, msg,"err", err)
+		return nil,err
+	}
+	if rPages == nil {
+		rPages = make(map[string]interface{}, 0)
+	}
+	return rPages,nil
+}
+
+func (ge *GitlabExport2) appendElementForRetries(logger sdk.Logger, key string, id string, item interface{}) error {
+	return ge.commonRetries(logger,key,func(rPages map[string]interface{}){
+		rPages[id] = item
+	})
+}
+
+func (ge *GitlabExport2) removeElementForRetries(logger sdk.Logger, key string, id string) error {
+	return ge.commonRetries(logger,key, func(rPages map[string]interface{}){
+		delete(rPages, id)
+	})
 }
 
 func (ge *GitlabExport2) Export(logger sdk.Logger) error {
@@ -124,26 +170,14 @@ func (ge *GitlabExport2) Export(logger sdk.Logger) error {
 	prCommits := make(chan *internalPullRequest)
 	prReviews := make(chan *internalPullRequest)
 	prComments := make(chan *internalPullRequest)
-	remainingPrPages := make([]*remainingPrsPages, 0)
+	remainingPrPages := make(chan *RemainingPrsPages)
 
 	// TODO add logic to retry writing to pipe if any
 	// TODO add logic to retry failed entity page if any
+	// TODO remove nextPage struct
 	// just write to the specific channel and the logic above will do the rest
 	// TODO refactor error handler per entity to not block other entities of the export
 	// TODO: add WORK data type
-
-	allNamespaces, err := api.AllNamespaces2(ge.qc, logger)
-	if err != nil {
-		sdk.LogError(logger, "error fetching namespaces", "err", err)
-		return err
-	}
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		ge.getSelectedNamespacesIfAny(logger, allNamespaces, namespaces)
-		close(namespaces)
-	}()
 
 	wg.Add(1)
 	go func() {
@@ -156,10 +190,14 @@ func (ge *GitlabExport2) Export(logger sdk.Logger) error {
 			go func(pr *internalPullRequest) {
 				defer wg2.Done()
 				sdk.LogDebug(pr.logger, "exporting pr commits", "pr", pr.Title)
-				err := ge.exportPullRequestCommits(pr.logger, pr)
+				lastPage, err := ge.exportPullRequestCommits(pr.logger, pr)
 				if err != nil {
-					sdk.LogError(logger, "error exporting pr commits", "err", err)
-					//errors <- err // This will be handled differently as we don't need to cancel the export if one namespace failed
+					msg := fmt.Sprintf("error exporting pr commits, pr %s, err %s", pr.Title, err)
+					summaryErrors = multierror.Append(summaryErrors, newWarning(msg))
+					pr.page = lastPage
+					// save the prComment object with the proper page
+				} else if lastPage == "" {
+					// save date for prComment so it is used in the next incremental
 				}
 			}(pr)
 		}
@@ -180,6 +218,8 @@ func (ge *GitlabExport2) Export(logger sdk.Logger) error {
 				if err := ge.exportPullRequestsReviews(pr.logger, pr); err != nil {
 					sdk.LogError(logger, "error exporting pr reviews", "err", err)
 					// handle err
+				} else {
+					// review finished correctly
 				}
 			}(pr)
 		}
@@ -193,13 +233,21 @@ func (ge *GitlabExport2) Export(logger sdk.Logger) error {
 
 		var wg2 sync.WaitGroup
 		for pr := range prComments {
+
 			wg2.Add(1)
 			go func(pr *internalPullRequest) {
 				defer wg2.Done()
+
 				sdk.LogDebug(pr.logger, "exporting pr comments", "pr", pr.Title)
-				if err := ge.exportPullRequestsComments(pr.logger, pr); err != nil {
-					sdk.LogError(logger, "error exporting pr comments", "err", err)
-					// handle err
+				lastPage, err := ge.exportPullRequestsComments(pr.logger, pr)
+				if err != nil {
+					msg := fmt.Sprintf("error exporting pr comments, pr %s, err %s", pr.Title, err)
+					summaryErrors = multierror.Append(summaryErrors, newWarning(msg))
+					pr.page = lastPage
+					// append the error
+					// save the prComment object with the proper page
+				} else if lastPage == "" {
+					// save date for prcomment so it is used in the next incremental
 				}
 			}(pr)
 		}
@@ -207,48 +255,48 @@ func (ge *GitlabExport2) Export(logger sdk.Logger) error {
 	}()
 
 	wg.Add(1)
-	go func() {
+	go func(){
 		defer wg.Done()
-		/// Export first 100 prs
+
 		var wg2 sync.WaitGroup
-		for repo := range repos {
+		for rpp := range remainingPrPages {
 			wg2.Add(1)
-			go func(repo *internalRepo) {
+			go func(rpp *RemainingPrsPages) {
 				defer wg2.Done()
 
-				logger := sdk.LogWith(repo.logger, "repo", repo.FullName)
-				sdk.LogDebug(logger, "exporting repo")
-				lastUpdatedAt, err := ge.exportPullRequestsSourceCode(logger, &repo.RefID, &repo.FullName, "1", true, "", prCommits, prReviews, prComments)
-				if err != nil {
-					msg := fmt.Sprintf("error exporting initial pull requests, repo %s, err %s", repo.FullName, err)
-					summaryErrors = multierror.Append(summaryErrors, newWarning(msg))
-				} else {
-					remainingPrPages = append(remainingPrPages, &remainingPrsPages{
-						projectID:     &repo.RefID,
-						repoFullName:  repo.FullName,
-						lastUpdatedAt: lastUpdatedAt,
-						logger:        logger,
-					})
-				}
-			}(repo)
-		}
-		wg2.Wait()
-
-		var wg3 sync.WaitGroup
-		for _, rpp := range remainingPrPages {
-			wg3.Add(1)
-			go func(rpp *remainingPrsPages) {
-				defer wg3.Done()
-
 				sdk.LogDebug(rpp.logger, "exporting remaining prs")
-				_, err := ge.exportPullRequestsSourceCode(rpp.logger, rpp.projectID, &rpp.repoFullName, "2", false, rpp.lastUpdatedAt, prCommits, prReviews, prComments)
+				_, lastPage, err := ge.exportPullRequestsSourceCode(
+					rpp.logger,
+					rpp.ProjectID,
+					&rpp.RepoFullName,
+					api.NextPage(rpp.Page),
+					false,
+					rpp.LastUpdatedAt,
+					prCommits,
+					prReviews,
+					prComments,
+				)
 				if err != nil {
-					msg := fmt.Sprintf("error exporting remaining pull requests, repo %s, err %s", rpp.repoFullName, err)
+
+					msg := fmt.Sprintf("error exporting remaining pull requests, repo %s, err %s", rpp.RepoFullName, err)
 					summaryErrors = multierror.Append(summaryErrors, newWarning(msg))
+
+					if lastPage != "" {
+						rpp.Page = lastPage
+					}
+
+					if err := ge.appendElementForRetries(rpp.logger, common.RemainingPrsPagesKey,strconv.FormatInt(*rpp.ProjectID,10), *rpp); err != nil {
+						return
+					}
+				} else if lastPage == "" {
+					if err := ge.removeElementForRetries(rpp.logger, common.RemainingPrsPagesKey,strconv.FormatInt(*rpp.ProjectID,10)); err != nil {
+						return
+					}
+					// TODO: save date of this repo in state so it is used in the next incremental
 				}
 			}(rpp)
 		}
-		wg3.Wait()
+		wg2.Wait()
 
 		close(prCommits)
 		close(prReviews)
@@ -258,13 +306,49 @@ func (ge *GitlabExport2) Export(logger sdk.Logger) error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		/// Export first 100 prs
+		var wg2 sync.WaitGroup
+		remainingPrPagesArr := make([]*RemainingPrsPages,0)
+		for repo := range repos {
+			wg2.Add(1)
+			go func(repo *internalRepo) {
+				defer wg2.Done()
+
+				logger := sdk.LogWith(repo.logger, "repo", repo.FullName)
+				sdk.LogDebug(logger, "exporting repo")
+				lastUpdatedAt, lastPage, err := ge.exportPullRequestsSourceCode(logger, &repo.RefID, &repo.FullName, "1", true, "", prCommits, prReviews, prComments)
+				if err != nil {
+					msg := fmt.Sprintf("error exporting initial pull requests, repo %s, err %s", repo.FullName, err)
+					summaryErrors = multierror.Append(summaryErrors, newWarning(msg))
+				} else if lastPage != "" {
+					remainingPrPagesArr = append(remainingPrPagesArr, &RemainingPrsPages{
+						ProjectID:     &repo.RefID,
+						RepoFullName:  repo.FullName,
+						LastUpdatedAt: lastUpdatedAt,
+						logger:        logger,
+						Page:          "2",
+					})
+				}
+			}(repo)
+		}
+		wg2.Wait()
+
+		go func(){
+			for _, rpp := range remainingPrPagesArr {
+				remainingPrPages <- rpp
+			}
+			close(remainingPrPages)
+		}()
+
+
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 
 		var wg2 sync.WaitGroup
 		for namespace := range namespaces {
-			//if namespace.FullPath != "josecordaz" {
-				//fmt.Println("name", namespace.Name,namespace.FullPath)
-			//	continue
-			//}
 			wg2.Add(1)
 			go func(namespace *Namespace) {
 				defer wg2.Done()
@@ -278,6 +362,37 @@ func (ge *GitlabExport2) Export(logger sdk.Logger) error {
 		}
 		wg2.Wait()
 		close(repos)
+	}()
+
+	// Read pending remainingPrs
+	rPages, err := ge.getElementsForRetries(logger, common.RemainingPrsPagesKey)
+	if err != nil {
+		return err
+	}
+	if len(rPages) > 0 {
+		sdk.LogDebug(logger,"processing pending remaining pr pages","count",len(rPages))
+	}
+	for _, remainingPrsPage := range rPages {
+		// TODO: recover the right logger
+		rPP := remainingPrsPage.(RemainingPrsPages)
+		rPP.logger = logger
+		remainingPrPages <- &rPP
+	}
+	// Read pending prComments
+	// Read pending prCommits
+	// Read pending prReviews
+
+	allNamespaces, err := api.AllNamespaces2(ge.qc, logger)
+	if err != nil {
+		sdk.LogError(logger, "error fetching namespaces", "err", err)
+		return err
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ge.getSelectedNamespacesIfAny(logger, allNamespaces, namespaces)
+		close(namespaces)
 	}()
 
 	wg.Wait()
@@ -325,11 +440,28 @@ func (ge *GitlabExport2) exportRepoSourceCode(logger sdk.Logger, namespace *Name
 	return nil
 }
 
-func (ge *GitlabExport2) exportPullRequestsSourceCode(logger sdk.Logger, repoRefID *int64, repoFullName *string, startPage api.NextPage, onlyFirstPage bool, updatedBefore string, prsCommits, prReviews, prComments chan *internalPullRequest) (string, error) {
+type PageError struct {
+	msg  string
+	page string
+}
+
+func (p PageError) Error() string {
+	return p.msg
+}
+
+func NewPageError(msg string, page string) PageError {
+	return PageError{
+		msg:  msg,
+		page: page,
+	}
+}
+
+func (ge *GitlabExport2) exportPullRequestsSourceCode(logger sdk.Logger, repoRefID *int64, repoFullName *string, startPage api.NextPage, onlyFirstPage bool, updatedBefore string, prsCommits, prReviews, prComments chan *internalPullRequest) (string, string, error) {
 
 	sdk.LogDebug(logger, "pull requests", "start_page", startPage, "only_first_page", onlyFirstPage, "updated_before", updatedBefore)
 
 	var lastPrDate string
+	var lastNextPage api.NextPage
 
 	err := api.Paginate2(startPage, onlyFirstPage, ge.lastExportDate, func(params url.Values, stopOnUpdatedAt time.Time) (api.NextPage, error) {
 
@@ -340,10 +472,11 @@ func (ge *GitlabExport2) exportPullRequestsSourceCode(logger sdk.Logger, repoRef
 		}
 
 		np, prs, err := api.PullRequestPage2(logger, ge.qc, repoRefID, params)
+		lastNextPage = np
 		if err != nil {
-			return np, fmt.Errorf("error fetching prs %s", err)
+			msg := fmt.Sprintf("error fetching prs %s", err)
+			return np, NewPageError(msg, params.Get("page"))
 		}
-
 		for _, pr := range prs {
 			if lastPrDate == "" {
 				lastPrDate = pr.UpdatedAt.Format(common.GitLabCreatedAtFormat)
@@ -353,6 +486,7 @@ func (ge *GitlabExport2) exportPullRequestsSourceCode(logger sdk.Logger, repoRef
 				logger:         logger,
 				repoRefID:      repoRefID,
 				repoFullName:   repoFullName,
+				page: "1",
 			}
 			prsCommits <- iPr
 			prReviews <- iPr
@@ -362,7 +496,7 @@ func (ge *GitlabExport2) exportPullRequestsSourceCode(logger sdk.Logger, repoRef
 		return np, nil
 	})
 
-	return lastPrDate, err
+	return lastPrDate, string(lastNextPage), err
 }
 
 func (g *GitlabIntegration) IncludeRepo() includeRepo {

@@ -56,7 +56,7 @@ func (ge *GitlabExport) exportPullRequestCommits(repo *api.GitlabProjectInternal
 	return nil
 }
 
-func (ge *GitlabExport2) exportPullRequestCommits(logger sdk.Logger, pr *internalPullRequest) error {
+func (ge *GitlabExport2) exportPullRequestCommits(logger sdk.Logger, pr *internalPullRequest) (string, error) {
 
 	var prCommits []*sdk.SourceCodePullRequestCommit
 
@@ -64,8 +64,11 @@ func (ge *GitlabExport2) exportPullRequestCommits(logger sdk.Logger, pr *interna
 	repoID := sdk.NewSourceCodeRepoID(ge.customerID, repoRefID, common.GitlabRefType)
 	pullRequestID := sdk.NewSourceCodePullRequestID(ge.customerID, strconv.FormatInt(pr.ID,10), common.GitlabRefType, repoID)
 
-	err := api.Paginate(logger, "", time.Time{}, func(log sdk.Logger, params url.Values, t time.Time) (api.NextPage, error) {
+	var lastPage api.NextPage
+
+	err := api.Paginate2("", false, time.Time{}, func(params url.Values, t time.Time) (api.NextPage, error) {
 		np, commits, err := api.PullRequestCommitsPage2(logger, ge.qc, pr.repoRefID, pr.IID, params)
+		lastPage = np
 		if err != nil {
 			return np, err
 		}
@@ -94,9 +97,8 @@ func (ge *GitlabExport2) exportPullRequestCommits(logger sdk.Logger, pr *interna
 
 		return np, nil
 	})
-
 	if err != nil {
-		return err
+		return string(lastPage),err
 	}
 
 	sdkPr := pr.ApiPullRequest.ToSourceCodePullRequest(logger, ge.customerID, repoID, common.GitlabRefType)
@@ -105,24 +107,15 @@ func (ge *GitlabExport2) exportPullRequestCommits(logger sdk.Logger, pr *interna
 
 	sdkPr.IntegrationInstanceID = ge.integrationInstanceID
 	if err := ge.pipe.Write(sdkPr); err != nil {
-		return err
+		return string(lastPage),err
 	}
 
 	for _, commit := range prCommits {
 		commit.IntegrationInstanceID = ge.integrationInstanceID
 		if err := ge.pipe.Write(commit); err != nil {
-			return err
+			return string(lastPage), err
 		}
 	}
 
-
-
-	return nil
+	return string(lastPage), nil
 }
-
-//func (ge *GitlabExport2) fetchPullRequestsCommits(logger sdk.Logger, repoRefID *int64, prIID *int64) (commits []*sdk.SourceCodePullRequestCommit, rerr error) {
-//
-//
-//	return
-//
-//}

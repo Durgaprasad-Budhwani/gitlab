@@ -12,6 +12,9 @@ const GitLabDateFormat = "2006-01-02"
 // ConcurrentAPICalls concurrent api calls
 const ConcurrentAPICalls = 10
 
+// PageSize page size
+const PageSize = "100"
+
 // LastExportKey last export key
 const LastExportKey = "last_export_date"
 
@@ -20,3 +23,6 @@ const GitlabRefType = "gitlab"
 
 // NamespaceGroupKind namespace group kind
 const NamespaceGroupKind = "group"
+
+// RemainingPrsPagesKey remaining pr pages key
+const RemainingPrsPagesKey = "remaining_prs_pages_key"

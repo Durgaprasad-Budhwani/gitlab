@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/pinpt/gitlab/internal/common"
 	"net/url"
 	"time"
 
@@ -38,7 +39,7 @@ func Paginate2(nextPage NextPage,onlyFirstPage bool, lastProcessed time.Time, fn
 		nextPage = "1"
 	}
 	p := url.Values{}
-	p.Set("per_page", "100")
+	p.Set("per_page", common.PageSize)
 
 	for {
 		p.Set("page", string(nextPage))
